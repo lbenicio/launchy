@@ -48,6 +48,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.regular)
         NSApp.appearance = NSAppearance(named: .vibrantDark)
         NSApp.activate(ignoringOtherApps: true)
+    AccessibilityPermission.requestIfNeeded()
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {

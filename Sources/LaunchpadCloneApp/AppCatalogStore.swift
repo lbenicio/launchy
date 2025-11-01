@@ -99,18 +99,6 @@ final class AppCatalogStore: ObservableObject {
         targetedEntryID = entryID
     }
 
-    func relocateDraggingEntry(before targetID: String) {
-        guard let draggingID = draggingEntryID, draggingID != targetID, presentedFolder == nil
-        else { return }
-        guard let fromIndex = rootEntries.firstIndex(where: { $0.id == draggingID }),
-            let targetIndex = rootEntries.firstIndex(where: { $0.id == targetID })
-        else { return }
-        let entry = rootEntries.remove(at: fromIndex)
-        let destination = fromIndex < targetIndex ? targetIndex - 1 : targetIndex
-        rootEntries.insert(entry, at: destination)
-        targetedEntryID = targetID
-    }
-
     func completeDrop(on targetID: String?, location: CGPoint?, tileSize: CGSize?) -> Bool {
         defer {
             draggingEntryID = nil
@@ -121,7 +109,11 @@ final class AppCatalogStore: ObservableObject {
 
         if let targetID {
             let shouldMerge = shouldMergeDrop(at: location, tileSize: tileSize)
-            return shouldMerge ? mergeEntry(draggingID: draggingID, targetID: targetID) : true
+      if shouldMerge, mergeEntry(draggingID: draggingID, targetID: targetID) {
+        return true
+      }
+      moveEntry(draggingID: draggingID, before: targetID)
+      return true
         } else {
             moveDraggingEntryToTail(with: draggingID)
             return true
@@ -152,8 +144,22 @@ final class AppCatalogStore: ObservableObject {
     private func moveDraggingEntryToTail(with draggingID: String) {
         guard let index = rootEntries.firstIndex(where: { $0.id == draggingID }) else { return }
         let entry = rootEntries.remove(at: index)
-        rootEntries.append(entry)
+    withAnimation(.easeInOut(duration: 0.18)) {
+      rootEntries.append(entry)
     }
+  }
+
+  private func moveEntry(draggingID: String, before targetID: String) {
+    guard draggingID != targetID else { return }
+    guard let fromIndex = rootEntries.firstIndex(where: { $0.id == draggingID }),
+      let targetIndex = rootEntries.firstIndex(where: { $0.id == targetID })
+    else { return }
+    let entry = rootEntries.remove(at: fromIndex)
+    let destination = fromIndex < targetIndex ? targetIndex - 1 : targetIndex
+    withAnimation(.easeInOut(duration: 0.18)) {
+      rootEntries.insert(entry, at: destination)
+    }
+  }
 
     private func mergeEntry(draggingID: String, targetID: String) -> Bool {
         guard draggingID != targetID else { return false }
@@ -169,8 +175,10 @@ final class AppCatalogStore: ObservableObject {
 
         switch (draggedEntry, targetEntry) {
         case (.app(let app), .folder(var folder)):
-            folder.apps.append(app)
-            rootEntries[targetIndex] = .folder(folder)
+      withAnimation(.easeInOut(duration: 0.18)) {
+        folder.apps.append(app)
+        rootEntries[targetIndex] = .folder(folder)
+      }
             return true
         case (.app(let sourceApp), .app(let targetApp)):
             let folder = FolderItem(
@@ -179,14 +187,20 @@ final class AppCatalogStore: ObservableObject {
                     primary: targetApp.displayName, secondary: sourceApp.displayName),
                 apps: [targetApp, sourceApp]
             )
-            rootEntries[targetIndex] = .folder(folder)
+      withAnimation(.easeInOut(duration: 0.18)) {
+        rootEntries[targetIndex] = .folder(folder)
+      }
             return true
         case (.folder(let sourceFolder), .folder(var targetFolder)):
-            targetFolder.apps.append(contentsOf: sourceFolder.apps)
-            rootEntries[targetIndex] = .folder(targetFolder)
+      withAnimation(.easeInOut(duration: 0.18)) {
+        targetFolder.apps.append(contentsOf: sourceFolder.apps)
+        rootEntries[targetIndex] = .folder(targetFolder)
+      }
             return true
         default:
-            rootEntries.insert(draggedEntry, at: targetIndex)
+      withAnimation(.easeInOut(duration: 0.18)) {
+        rootEntries.insert(draggedEntry, at: targetIndex)
+      }
             return false
         }
     }
@@ -197,7 +211,8 @@ final class AppCatalogStore: ObservableObject {
         let dx = location.x - center.x
         let dy = location.y - center.y
         let distance = sqrt(dx * dx + dy * dy)
-        return distance <= folderCreationThreshold
+    let radius = min(tileSize.width, tileSize.height) * 0.38
+    return distance <= max(radius, folderCreationThreshold)
     }
 
     private func suggestedFolderName(primary: String, secondary: String) -> String {

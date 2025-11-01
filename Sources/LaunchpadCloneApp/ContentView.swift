@@ -1,10 +1,10 @@
-import Foundation
+import AppKit
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct ContentView: View {
     @EnvironmentObject private var store: AppCatalogStore
     @FocusState private var searchFocused: Bool
+  @State private var tileFrames: [String: CGRect] = [:]
 
     private let gridLayout = [
         GridItem(.adaptive(minimum: 120, maximum: 160), spacing: 24)
@@ -20,14 +20,17 @@ struct ContentView: View {
                 ScrollView {
                     LazyVGrid(columns: gridLayout, spacing: 24) {
                         ForEach(store.activeEntries) { entry in
-                            CatalogEntryTile(entry: entry)
+              CatalogEntryTile(
+                entry: entry,
+                tileFrames: tileFrames,
+                onFrameChange: { frame in tileFrames[entry.id] = frame }
+              )
                         }
                     }
                     .padding(.horizontal, 72)
                     .padding(.bottom, 48)
                 }
-                .scrollIndicators(.hidden)
-                .onDrop(of: [.utf8PlainText], delegate: CatalogBackgroundDropDelegate(store: store))
+        .scrollIndicators(.hidden)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .overlay(alignment: .bottom) {
@@ -41,9 +44,10 @@ struct ContentView: View {
                     .zIndex(1)
             }
         }
-        .onAppear {
-            Task { await store.refreshCatalogIfNeeded() }
+    .task { await store.refreshCatalogIfNeeded() }
+    .onAppear {
             searchFocused = true
+      KeyboardMonitor.shared.configure(with: store)
         }
         .onChange(of: store.presentedFolder?.id) { folderID in
             if folderID == nil {
@@ -67,6 +71,10 @@ struct ContentView: View {
             RefreshButton()
                 .padding(32)
         }
+    .onChange(of: store.activeEntries.map { $0.id }) { ids in
+      let valid = Set(ids)
+      tileFrames = tileFrames.filter { valid.contains($0.key) }
+    }
         .background(TransparentWindowConfigurator())
         .animation(.easeInOut(duration: 0.2), value: store.activeEntries.count)
         .animation(.easeInOut(duration: 0.2), value: store.presentedFolder?.id ?? "")
@@ -87,9 +95,9 @@ private struct SearchBar: View {
                 .disableAutocorrection(true)
                 .focused($isFocused)
             if !text.isEmpty {
-                Button {
-                    text = ""
-                } label: {
+        Button {
+          text = ""
+        } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.white.opacity(0.7))
                 }
@@ -136,102 +144,168 @@ private struct ControlRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            KeyCap(symbol: icon)
+      Text(icon)
+        .font(.system(size: 16, weight: .semibold, design: .rounded))
+        .foregroundColor(.white.opacity(0.85))
             Text(description)
-                .font(.footnote)
+        .font(.system(size: 15, weight: .medium, design: .rounded))
                 .foregroundColor(.white.opacity(0.75))
         }
     }
 }
 
-private struct KeyCap: View {
-    let symbol: String
-
-    var body: some View {
-        Text(symbol)
-            .font(.system(size: 12, weight: .semibold, design: .rounded))
-            .foregroundColor(.white)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.white.opacity(0.1))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-            )
-    }
-}
-
 private struct RefreshButton: View {
     @EnvironmentObject private var store: AppCatalogStore
+  @State private var isRefreshing = false
 
     var body: some View {
-        Button {
-            Task { await store.reloadCatalog() }
-        } label: {
+    Button(action: refresh) {
             Image(systemName: "arrow.clockwise.circle.fill")
                 .resizable()
                 .scaledToFit()
                 .frame(width: 36, height: 36)
                 .foregroundColor(.white.opacity(0.8))
                 .shadow(radius: 4, y: 2)
+        .rotationEffect(.degrees(isRefreshing ? 360 : 0))
+        .animation(
+          isRefreshing ? .linear(duration: 0.6).repeatForever(autoreverses: false) : .default,
+          value: isRefreshing)
         }
         .buttonStyle(.plain)
         .help("Reload installed applications")
+    .keyboardShortcut("r", modifiers: [.command])
+  }
+
+  private func refresh() {
+    guard !isRefreshing else { return }
+    isRefreshing = true
+    Task {
+      await store.reloadCatalog()
+      await MainActor.run { isRefreshing = false }
+    }
     }
 }
 
 private struct CatalogEntryTile: View {
     let entry: CatalogEntry
+  let tileFrames: [String: CGRect]
+  let onFrameChange: (CGRect) -> Void
 
     @EnvironmentObject private var store: AppCatalogStore
     @State private var tileSize: CGSize = CGSize(width: 140, height: 150)
+  @State private var tileFrame: CGRect = .zero
+  @State private var dragOffset: CGSize = .zero
+  @State private var dropLocation: CGPoint? = nil
+  @State private var dropTileSize: CGSize? = nil
     @State private var wiggleSeed: Double = Double.random(in: 0...(Double.pi * 2))
 
     var body: some View {
-        Group {
-            switch entry {
-            case .app(let app):
-                AppIconView(app: app)
-            case .folder(let folder):
-                FolderIconView(folder: folder)
-            }
+    content
+      .frame(width: tileSize.width, height: tileSize.height)
+      .background(frameTracker)
+      .modifier(WiggleModifier(isActive: store.isEditing, seed: wiggleSeed))
+      .scaleEffect(store.draggingEntryID == entry.id ? 1.05 : 1.0)
+      .offset(store.draggingEntryID == entry.id ? dragOffset : .zero)
+      .zIndex(store.draggingEntryID == entry.id ? 2 : 0)
+      .overlay(dropHighlight)
+      .contentShape(Rectangle())
+      .simultaneousGesture(longPressToEdit)
+      .highPriorityGesture(dragGesture)
+  }
+
+  @ViewBuilder
+  private var content: some View {
+    switch entry {
+    case .app(let app):
+      AppIconView(app: app)
+    case .folder(let folder):
+      FolderIconView(folder: folder)
+    }
+  }
+
+  private var frameTracker: some View {
+    GeometryReader { geometry in
+      Color.clear
+        .onAppear { updateGeometry(with: geometry) }
+        .onChange(of: geometry.size) { _ in updateGeometry(with: geometry) }
+        .onChange(of: geometry.frame(in: .global).origin) { _ in updateGeometry(with: geometry) }
+    }
+    .allowsHitTesting(false)
+  }
+
+  private var longPressToEdit: some Gesture {
+    LongPressGesture(minimumDuration: 0.5).onEnded { _ in store.beginEditing() }
+  }
+
+  private var dragGesture: some Gesture {
+    DragGesture(minimumDistance: 6)
+      .onChanged { value in
+        if store.draggingEntryID != entry.id {
+          store.beginDragging(entryID: entry.id)
         }
-        .background(sizeTracker)
-        .modifier(WiggleModifier(isActive: store.isEditing, seed: wiggleSeed))
-        .scaleEffect(store.draggingEntryID == entry.id ? 1.05 : 1.0)
-        .overlay(dropHighlight)
-        .contentShape(Rectangle())
-        .onDrag {
-            store.beginDragging(entryID: entry.id)
-            return NSItemProvider(object: NSString(string: entry.id))
+        dragOffset = value.translation
+
+        let globalPoint = CGPoint(
+          x: tileFrame.minX + value.location.x,
+          y: tileFrame.minY + value.location.y
+        )
+
+        if let target = targetInfo(for: globalPoint) {
+          store.updateDraggingTarget(entryID: target.id)
+          dropLocation = target.location
+          dropTileSize = target.size
+        } else {
+          store.updateDraggingTarget(entryID: nil)
+          dropLocation = nil
+          dropTileSize = nil
         }
-        .onDrop(
-            of: [.utf8PlainText],
-            delegate: CatalogEntryDropDelegate(entry: entry, store: store, tileSize: tileSize)
-        )
-        .simultaneousGesture(
-            LongPressGesture(minimumDuration: 0.5)
-                .onEnded { _ in store.beginEditing() }
-        )
+      }
+      .onEnded { _ in
+        completeDrop()
+      }
+  }
+
+  private func targetInfo(for globalPoint: CGPoint) -> (
+    id: String, location: CGPoint, size: CGSize
+  )? {
+    let candidates = tileFrames.filter { key, _ in key != entry.id }
+    guard let match = candidates.first(where: { $0.value.contains(globalPoint) }) else {
+      return nil
+    }
+    let frame = match.value
+    let localPoint = CGPoint(x: globalPoint.x - frame.minX, y: globalPoint.y - frame.minY)
+    return (match.key, localPoint, frame.size)
     }
 
-    private var sizeTracker: some View {
-        GeometryReader { geometry in
-            Color.clear
-                .onAppear { updateSize(with: geometry.size) }
-                .onChange(of: geometry.size) { newSize in
-                    updateSize(with: newSize)
-                }
-        }
-        .allowsHitTesting(false)
+  private func completeDrop() {
+    let targetID = store.targetedEntryID
+    let success = store.completeDrop(
+      on: targetID,
+      location: dropLocation,
+      tileSize: dropTileSize
+    )
+    if !success {
+      store.abandonDrag()
+    }
+    resetDragState()
+  }
+
+  private func resetDragState() {
+    dragOffset = .zero
+    dropLocation = nil
+    dropTileSize = nil
     }
 
-    private func updateSize(with size: CGSize) {
-        guard size.width.isFinite, size.height.isFinite else { return }
-        tileSize = size
+  private func updateGeometry(with geometry: GeometryProxy) {
+    let frame = geometry.frame(in: .global)
+    if !frame.isNull && !frame.isInfinite {
+      tileFrame = frame
+      onFrameChange(frame)
+    }
+    let size = geometry.size
+    if size.width.isFinite && size.height.isFinite {
+      tileSize = size
+    }
     }
 
     private var dropHighlight: some View {
@@ -242,7 +316,8 @@ private struct CatalogEntryTile: View {
             )
             .animation(
                 .easeInOut(duration: 0.15),
-                value: store.targetedEntryID == entry.id && store.isEditing)
+        value: store.targetedEntryID == entry.id && store.isEditing
+      )
     }
 }
 
@@ -265,76 +340,5 @@ private struct WiggleModifier: ViewModifier {
                 content
             }
         }
-    }
-}
-
-private final class CatalogEntryDropDelegate: DropDelegate {
-    private let entry: CatalogEntry
-    private let store: AppCatalogStore
-    private let tileSize: CGSize
-
-    init(entry: CatalogEntry, store: AppCatalogStore, tileSize: CGSize) {
-        self.entry = entry
-        self.store = store
-        self.tileSize = tileSize
-    }
-
-    func dropEntered(info: DropInfo) {
-        guard store.isEditing else { return }
-        store.relocateDraggingEntry(before: entry.id)
-        store.updateDraggingTarget(entryID: entry.id)
-    }
-
-    func dropUpdated(info: DropInfo) -> DropProposal? {
-        guard store.isEditing else { return DropProposal(operation: .forbidden) }
-        store.updateDraggingTarget(entryID: entry.id)
-        return DropProposal(operation: .move)
-    }
-
-    func dropExited(info: DropInfo) {
-        guard store.isEditing else { return }
-        if store.targetedEntryID == entry.id {
-            store.updateDraggingTarget(entryID: nil)
-        }
-    }
-
-    func performDrop(info: DropInfo) -> Bool {
-        guard store.isEditing else {
-            store.abandonDrag()
-            return false
-        }
-        store.updateDraggingTarget(entryID: nil)
-        return store.completeDrop(on: entry.id, location: info.location, tileSize: tileSize)
-    }
-}
-
-private final class CatalogBackgroundDropDelegate: DropDelegate {
-    private let store: AppCatalogStore
-
-    init(store: AppCatalogStore) {
-        self.store = store
-    }
-
-    func dropEntered(info: DropInfo) {
-        guard store.isEditing else { return }
-        store.updateDraggingTarget(entryID: nil)
-    }
-
-    func dropUpdated(info: DropInfo) -> DropProposal? {
-        guard store.isEditing else { return DropProposal(operation: .forbidden) }
-        return DropProposal(operation: .move)
-    }
-
-    func performDrop(info: DropInfo) -> Bool {
-        guard store.isEditing else {
-            store.abandonDrag()
-            return false
-        }
-        return store.completeDrop(on: nil, location: nil, tileSize: nil)
-    }
-
-    func dropExited(info: DropInfo) {
-        guard store.isEditing else { return }
-        store.updateDraggingTarget(entryID: nil)
     }
 }

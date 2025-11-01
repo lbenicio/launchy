@@ -18,7 +18,8 @@ let package = Package(
             path: "Sources/LaunchpadCloneApp",
             linkerSettings: [
                 .linkedFramework("AppKit"),
-                .linkedFramework("SwiftUI")
+        .linkedFramework("SwiftUI"),
+        .linkedFramework("ApplicationServices")
             ]
         )
     ]
