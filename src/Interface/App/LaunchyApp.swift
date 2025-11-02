@@ -13,6 +13,7 @@ struct LaunchyApp: App {
     let appSettings = AppSettings()
     _catalogStore = StateObject(wrappedValue: store)
     _settings = StateObject(wrappedValue: appSettings)
+    appDelegate.catalogStore = store
     appDelegate.activationHandler = { [weak delegate = appDelegate] in
       guard let delegate else { return }
       Task { @MainActor in
@@ -67,7 +68,19 @@ struct LaunchyApp: App {
 }
 
 final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
+  static weak var shared: AppLifecycleDelegate?
+
     var activationHandler: (() -> Void)?
+  weak var catalogStore: AppCatalogStore? {
+    didSet {
+      guard catalogStore !== oldValue else { return }
+      if let store = catalogStore {
+        KeyboardMonitor.shared.configure(with: store)
+      } else {
+        KeyboardMonitor.shared.teardown()
+      }
+    }
+  }
   var settings: AppSettings? {
     didSet {
       guard settings !== oldValue else { return }
@@ -96,25 +109,30 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
   private var daemonModeEnabled = true
   private var currentActivationPolicy: NSApplication.ActivationPolicy?
+  private var suppressNextPresentation = false
+  private var hasPresentedPrimaryWindow = false
+  private var primaryWindowReference: NSWindow?
+  private var didHandleInitialActivation = false
+
+  override init() {
+    super.init()
+    AppLifecycleDelegate.shared = self
+  }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.appearance = NSAppearance(named: .vibrantDark)
     setupStatusItem()
         AccessibilityPermission.requestIfNeeded()
-    Task { @MainActor [weak self] in
-      guard let self else { return }
-      try? await Task.sleep(nanoseconds: 15_000_000)
-      self.updateActivationPolicy()
-      if self.daemonModeEnabled {
-        _ = self.hidePrimaryWindow()
-      } else {
-        self.showPrimaryWindow()
-      }
+    updateActivationPolicy()
+    if daemonModeEnabled {
+      suppressNextPresentation = true
     }
     }
 
   @MainActor
     func applicationDidBecomeActive(_ notification: Notification) {
+    let isInitialActivation = !didHandleInitialActivation
+    didHandleInitialActivation = true
     updateActivationPolicy()
     guard let window = primaryWindow else { return }
         if !presentationStored {
@@ -125,6 +143,16 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
         if let screen = window.screen ?? NSScreen.main {
             window.setFrame(screen.frame, display: true)
         }
+    if isInitialActivation && daemonModeEnabled && !hasPresentedPrimaryWindow {
+      return
+    }
+    guard !skipPresentationForDaemonMode else {
+      return
+    }
+    if daemonModeEnabled && !hasPresentedPrimaryWindow {
+      presentPrimaryWindow()
+      return
+    }
     let settingsVisible = SettingsWindowManager.shared.isShowing
     if !settingsVisible && (NSApp.keyWindow === window || NSApp.keyWindow == nil) {
       window.makeKeyAndOrderFront(nil)
@@ -145,11 +173,16 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
 
   @MainActor
   func presentPrimaryWindow() {
+    hasPresentedPrimaryWindow = true
+    if let store = catalogStore {
+      KeyboardMonitor.shared.configure(with: store)
+    }
     showPrimaryWindow()
   }
 
   @MainActor
   func hideToBackground() {
+    suppressNextPresentation = true
     _ = hidePrimaryWindow()
   }
 
@@ -215,8 +248,16 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
 
   @MainActor
   private func handleDaemonPreferenceChange(_ enabled: Bool) {
+    let previous = daemonModeEnabled
     daemonModeEnabled = enabled
     updateActivationPolicy()
+    if enabled {
+      suppressNextPresentation = true
+      _ = hidePrimaryWindow()
+    } else if previous {
+      hasPresentedPrimaryWindow = true
+      showPrimaryWindow()
+    }
   }
 
   @MainActor
@@ -228,17 +269,41 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     }
   }
 
+  func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool)
+    -> Bool
+  {
+    if daemonModeEnabled {
+      DispatchQueue.main.async { [weak self] in
+        self?.presentPrimaryWindow()
+      }
+      return false
+    }
+    return true
+  }
+
   private var primaryWindow: NSWindow? {
-    NSApp.windows.first { $0.level == .launchyPrimary }
+    if let window = primaryWindowReference, window.level == .launchyPrimary {
+      return window
+    }
+    let resolved = NSApp.windows.first { $0.level == .launchyPrimary }
+    if let resolved {
+      primaryWindowReference = resolved
+    }
+    return resolved
   }
 
   @MainActor
   private func showPrimaryWindow() {
     updateActivationPolicy()
+    suppressNextPresentation = false
+    hasPresentedPrimaryWindow = true
     guard let window = primaryWindow else { return }
+    window.setIsVisible(true)
+    window.alphaValue = 1
+    window.isReleasedWhenClosed = false
+    window.orderFrontRegardless()
     NSApp.activate(ignoringOtherApps: true)
     window.makeKeyAndOrderFront(nil)
-    window.orderFrontRegardless()
   }
 
   @discardableResult
@@ -246,8 +311,39 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
   private func hidePrimaryWindow() -> Bool {
     updateActivationPolicy()
     guard let window = primaryWindow else { return false }
+    window.alphaValue = 0
+    window.setIsVisible(false)
     window.orderOut(nil)
-    NSApp.deactivate()
+    if daemonModeEnabled {
+      NSApp.deactivate()
+    }
     return true
+  }
+
+  var isDaemonModeActive: Bool {
+    daemonModeEnabled
+  }
+
+  private var skipPresentationForDaemonMode: Bool {
+    daemonModeEnabled && !hasPresentedPrimaryWindow && !didHandleInitialActivation
+  }
+
+  @MainActor
+  func consumeSuppressedPresentation(for window: NSWindow) {
+    guard suppressNextPresentation else { return }
+    window.alphaValue = 0
+    window.setIsVisible(false)
+    window.orderOut(nil)
+  }
+
+  var shouldSuppressWindowPresentation: Bool {
+    suppressNextPresentation || skipPresentationForDaemonMode
+  }
+
+  @MainActor
+  func registerPrimaryWindow(_ window: NSWindow) {
+    if primaryWindowReference !== window {
+      primaryWindowReference = window
+    }
   }
 }

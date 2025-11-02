@@ -1,0 +1,35 @@
+# SwiftLint configuration for TibiaBotv3
+included:
+  - src
+
+excluded:
+  - dist
+  - .build
+
+disabled_rules:
+  - trailing_whitespace
+  - todo
+
+line_length:
+  warning: 120
+  ignores_comments: true
+  ignores_urls: true
+  ignores_function_declarations: true
+
+file_length:
+  warning: 800
+
+type_body_length:
+  warning: 300
+
+function_body_length:
+  warning: 80
+
+cyclomatic_complexity:
+  warning: 12
+
+identifier_name:
+  min_length: 2
+  allowed_symbols: ["_"]
+
+reporter: "xcode"

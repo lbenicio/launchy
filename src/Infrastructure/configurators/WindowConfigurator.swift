@@ -15,24 +15,26 @@ struct TransparentWindowConfigurator: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSView {
         let view = NSView(frame: .zero)
-        DispatchQueue.main.async {
+    Task { @MainActor in
             self.configure(window: view.window, coordinator: context.coordinator)
         }
         return view
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        DispatchQueue.main.async {
+    Task { @MainActor in
             self.configure(window: nsView.window, coordinator: context.coordinator)
         }
     }
 
+  @MainActor
     private func configure(window: NSWindow?, coordinator: Coordinator) {
         guard let window else { return }
 
         if coordinator.window !== window {
             coordinator.window = window
             coordinator.didConfigureStyle = false
+      AppLifecycleDelegate.shared?.registerPrimaryWindow(window)
         }
 
         if !coordinator.didConfigureStyle {
@@ -61,6 +63,14 @@ struct TransparentWindowConfigurator: NSViewRepresentable {
         window.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
         window.ignoresMouseEvents = false
         window.acceptsMouseMovedEvents = true
+
+    if let delegate = AppLifecycleDelegate.shared {
+      if delegate.shouldSuppressWindowPresentation {
+        window.alphaValue = 0
+        window.setIsVisible(false)
+      }
+      delegate.consumeSuppressedPresentation(for: window)
+    }
     }
 
     final class Coordinator {

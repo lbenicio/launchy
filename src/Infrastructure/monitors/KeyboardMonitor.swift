@@ -33,15 +33,16 @@ final class KeyboardMonitor {
         removeMonitors()
 
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
-            self?.handle(event: event)
-            return event
+            guard let self else { return event }
+            let shouldConsume = self.handle(event: event)
+            return shouldConsume ? nil : event
         }
 
         AccessibilityPermission.requestIfNeeded()
         if AXIsProcessTrusted() {
             globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown]) {
                 [weak self] event in
-                self?.handle(event: event)
+                _ = self?.handle(event: event)
             }
         }
     }
@@ -57,22 +58,40 @@ final class KeyboardMonitor {
         }
     }
 
-    private func handle(event: NSEvent) {
-        guard event.type == .keyDown else { return }
+    @discardableResult
+    private func handle(event: NSEvent) -> Bool {
+        guard event.type == .keyDown else { return false }
         switch event.keyCode {
         case 53:  // Escape key
             Task { @MainActor [weak self] in
-                guard let store = self?.store else { return }
+                guard let self, let store = self.store else { return }
+                var clearedState = false
                 if store.isEditing {
                     store.endEditing()
-                } else if store.presentedFolder != nil {
+                    clearedState = true
+                }
+                if store.presentedFolder != nil {
                     store.dismissPresentedFolder()
-                } else if !store.query.isEmpty {
+                    clearedState = true
+                }
+                if !store.query.isEmpty {
                     store.query = ""
+                    clearedState = true
+                }
+                if let delegate = NSApp.delegate as? AppLifecycleDelegate {
+                    if delegate.isDaemonModeActive {
+                        delegate.hideToBackground()
+                    } else if !clearedState {
+                        NSApp.terminate(nil)
+                    }
+                } else if !clearedState {
+                    NSApp.terminate(nil)
                 }
             }
+            return true
         default:
             break
         }
+        return false
     }
 }
