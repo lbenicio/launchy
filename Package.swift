@@ -26,6 +26,11 @@ let package = Package(
         .linkedFramework("SwiftUI"),
         .linkedFramework("ApplicationServices"),
       ]
+    ),
+    .testTarget(
+      name: "LaunchyTests",
+      dependencies: ["Launchy"],
+      path: "tests"
     )
   ]
 )
