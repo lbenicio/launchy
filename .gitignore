@@ -65,3 +65,5 @@ fastlane/test_output
 .DS_Store
 .AppleDouble
 .LSOverride
+.github/workflows/lint-format.yml
+.github/workflows/unit-tests.yml
