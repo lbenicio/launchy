@@ -10,7 +10,7 @@ struct AppCatalogLoader {
             URL(fileURLWithPath: "/System/Applications", isDirectory: true),
             FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
                 "Applications", isDirectory: true
-            ),
+            )
         ]
     ) {
         self.roots = roots
@@ -38,8 +38,7 @@ struct AppCatalogLoader {
                     at: root,
                     includingPropertiesForKeys: [.isDirectoryKey],
                     options: [.skipsHiddenFiles]
-                ) else
-            {
+                ) else {
                 continue
             }
             for url in contents {
@@ -87,8 +86,7 @@ struct AppCatalogLoader {
                 at: folderURL,
                 includingPropertiesForKeys: [.isDirectoryKey],
                 options: [.skipsHiddenFiles]
-            ) else
-        {
+            ) else {
             return []
         }
         var apps: [AppItem] = []

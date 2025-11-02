@@ -5,10 +5,10 @@ import SwiftUI
 final class AppCatalogStore: ObservableObject {
     @Published private(set) var rootEntries: [CatalogEntry] = []
     @Published var query: String = ""
-    @Published var presentedFolder: FolderItem? = nil
+    @Published var presentedFolder: FolderItem?
     @Published var isEditing: Bool = false
-    @Published var draggingEntryID: String? = nil
-    @Published var targetedEntryID: String? = nil
+    @Published var draggingEntryID: String?
+    @Published var targetedEntryID: String?
     @Published private(set) var draggingFromFolder: Bool = false
     @Published private(set) var exitHandledDuringEditing: Bool = false
 
@@ -204,8 +204,7 @@ final class AppCatalogStore: ObservableObject {
             lastReorderPair = nil
         } else {
             if let lastReorderPair, lastReorderPair.draggingID == draggingID,
-               lastReorderPair.targetID == entryID
-            {
+               lastReorderPair.targetID == entryID {
                 return
             }
             targetedEntryID = nil

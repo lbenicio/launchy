@@ -14,8 +14,8 @@ struct FolderOverlay: View {
     @State private var isExpanded = false
     @State private var isClosing = false
     @State private var localFolder: FolderItem
-    @State private var pendingFolderUpdate: FolderItem? = nil
-    @State private var activeDragAppID: String? = nil
+    @State private var pendingFolderUpdate: FolderItem?
+    @State private var activeDragAppID: String?
     @State private var currentPage = 0
     @State private var folderHorizontalDragOffset: CGFloat = 0
 
@@ -359,8 +359,8 @@ private struct FolderEditableAppTile: View {
     @EnvironmentObject private var store: AppCatalogStore
     @State private var tileFrame: CGRect = .zero
     @State private var dragOffset: CGSize = .zero
-    @State private var dropLocation: CGPoint? = nil
-    @State private var dropTileSize: CGSize? = nil
+    @State private var dropLocation: CGPoint?
+    @State private var dropTileSize: CGSize?
     @State private var hasBegunDrag = false
 
     private var entryID: String { CatalogEntry.app(app).id }

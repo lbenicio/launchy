@@ -109,8 +109,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool)
-        -> Bool
-    {
+        -> Bool {
         Task { @MainActor in
             self.showPrimaryWindow()
         }

@@ -118,7 +118,7 @@ format:
 .PHONY: lint
 lint:
 	@if command -v $(SWIFTLINT) >/dev/null 2>&1; then \
-		$(SWIFTLINT); \
+		$(SWIFTLINT) --fix; \
 	else \
 		echo "swiftlint not installed. Install via 'brew install swiftlint'"; \
 	fi

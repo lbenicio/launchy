@@ -8,14 +8,14 @@ struct ContentView: View {
     @EnvironmentObject private var settings: AppSettings
     @FocusState private var searchFocused: Bool
     @State private var tileFrames: [String: CGRect] = [:]
-    @State private var folderAnchor: CGRect? = nil
+    @State private var folderAnchor: CGRect?
     @State private var selectedPage: Int = 0
     @State private var horizontalDragOffset: CGFloat = 0
     @State private var containerDimensions: CGSize = .zero
     @State private var currentPageCount: Int = 1
-    @State private var edgeAutoAdvanceDirection: EdgeAutoAdvanceDirection? = nil
-    @State private var edgeAutoAdvanceTask: Task<Void, Never>? = nil
-    @State private var lastEdgeDragLocation: CGPoint? = nil
+    @State private var edgeAutoAdvanceDirection: EdgeAutoAdvanceDirection?
+    @State private var edgeAutoAdvanceTask: Task<Void, Never>?
+    @State private var lastEdgeDragLocation: CGPoint?
     @State private var scrollAccumulation: CGFloat = 0
 
     var body: some View {
@@ -71,8 +71,7 @@ struct ContentView: View {
             }
             .onChange(of: tileFrames) { frames in
                 if let folder = store.presentedFolder,
-                   let frame = frames[folderTileKey(for: folder)]
-                {
+                   let frame = frames[folderTileKey(for: folder)] {
                     folderAnchor = frame
                 }
             }
@@ -192,8 +191,7 @@ struct ContentView: View {
                             }
                             let translation = value.translation.width
                             if (selectedPage == 0 && translation > 0)
-                                || (selectedPage == pageCount - 1 && translation < 0)
-                            {
+                                || (selectedPage == pageCount - 1 && translation < 0) {
                                 horizontalDragOffset = translation / 3
                             } else {
                                 horizontalDragOffset = translation
@@ -242,8 +240,7 @@ struct ContentView: View {
     @ViewBuilder
     private func folderOverlay(for containerSize: CGSize) -> some View {
         if let folder = store.presentedFolder,
-           let anchor = folderAnchor
-        {
+           let anchor = folderAnchor {
             FolderOverlay(
                 folder: folder,
                 anchor: anchor,
@@ -308,7 +305,7 @@ struct ContentView: View {
         lastEdgeDragLocation = point
 
         let inset: CGFloat = 96
-        var direction: EdgeAutoAdvanceDirection? = nil
+        var direction: EdgeAutoAdvanceDirection?
         if point.x <= inset {
             direction = .previous
         } else if point.x >= containerDimensions.width - inset {
@@ -330,8 +327,7 @@ struct ContentView: View {
     }
 
     private func scheduleEdgeAutoAdvance(direction: EdgeAutoAdvanceDirection)
-        -> Task<Void, Never>
-    {
+        -> Task<Void, Never> {
         Task {
             try? await Task.sleep(nanoseconds: 260_000_000)
             if Task.isCancelled { return }
@@ -389,8 +385,7 @@ struct ContentView: View {
         guard abs(adjustedDelta) > 0.5 else { return }
 
         if (scrollAccumulation > 0 && adjustedDelta < 0)
-            || (scrollAccumulation < 0 && adjustedDelta > 0)
-        {
+            || (scrollAccumulation < 0 && adjustedDelta > 0) {
             scrollAccumulation = adjustedDelta
         } else {
             scrollAccumulation += adjustedDelta
@@ -549,8 +544,8 @@ private struct CatalogEntryTile: View {
     @EnvironmentObject private var store: AppCatalogStore
     @State private var tileFrame: CGRect = .zero
     @State private var dragOffset: CGSize = .zero
-    @State private var dropLocation: CGPoint? = nil
-    @State private var dropTileSize: CGSize? = nil
+    @State private var dropLocation: CGPoint?
+    @State private var dropTileSize: CGSize?
     @State private var wiggleSeed: Double = .random(in: 0 ... (Double.pi * 2))
 
     var body: some View {

@@ -46,7 +46,7 @@ struct AppIconView: View {
 
 private struct AppIconImage: View {
     let app: AppItem
-    @State private var icon: NSImage? = nil
+    @State private var icon: NSImage?
 
     var body: some View {
         ZStack {
