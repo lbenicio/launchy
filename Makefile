@@ -21,8 +21,6 @@ APP_CONTENTS        := $(APP_BUNDLE)/Contents
 APP_MACOS           := $(APP_CONTENTS)/MacOS
 APP_RESOURCES       := $(APP_CONTENTS)/Resources
 INFOPLIST_TEMPLATE  ?= assets/plist/Info.plist.template
-
-BUNDLE_BUILD        ?= 1
 APP_ICON            ?= assets/icon/launchy.icns
 
 SWIFT               := swift
@@ -41,9 +39,12 @@ DMG_PATH            := $(DIST_DIR)/$(PACKAGE).dmg
 # Convenience helper; make sure directories exist before writing artifacts
 MKDIR_P = mkdir -p
 
-# Version: prefer explicit VERSION, else parse from Package.swift (let appVersion = "x.y.z"),
+# Version: prefer explicit VERSION, else parse from Package.swift (let packageVersion = "x.y.z"),
 # else fall back to git describe, else 0.1.0
-BUNDLE_VERSION ?= $(shell bash -c 'v=$$(awk -F "\"" '\''/let[[:space:]]+appVersion[[:space:]]*=/{print $$2; exit}'\'' Package.swift 2>/dev/null); if [ -z "$$v" ]; then v=$$(git describe --tags --always --dirty 2>/dev/null || echo 0.1.0); fi; echo $$v')
+BUNDLE_VERSION ?= $(shell bash -c 'if [ -n "$(VERSION)" ]; then echo "$(VERSION)"; else v=$$(awk -F "\"" '\''/(let|static[[:space:]]+let)[[:space:]]+packageVersion[[:space:]]*=/{print $$2; exit}'\'' Package.swift 2>/dev/null); if [ -z "$$v" ]; then v=$$(git describe --tags --always --dirty 2>/dev/null || echo 0.1.0); fi; echo "$$v"; fi')
+
+# Build number defaults to a numeric form of the bundle version; override with BUNDLE_BUILD if needed
+BUNDLE_BUILD ?= $(shell bash -c 'ver="$(BUNDLE_VERSION)"; cleaned=$$(echo "$$ver" | sed -E "s/[^0-9]+/./g" | sed -E "s/^\.+//; s/\.+$$//" | sed -E "s/\.{2,}/./g"); if [ -z "$$cleaned" ]; then cleaned=0; fi; echo "$$cleaned"')
 
 .PHONY: help
 help:
@@ -160,9 +161,4 @@ dmg: bundle
 # Utility target to print the current version from Info.plist
 .PHONY: version
 version:
-	@if [ -f "$(APP_CONTENTS)/Info.plist" ]; then \
-		$(PLISTBUDDY) -c "Print :CFBundleShortVersionString" "$(APP_CONTENTS)/Info.plist" | \
-		awk '{print "Version:", $$0}'; \
-	else \
-		echo "Bundle not found. Run 'make bundle' first."; \
-	fi
+	@echo "$(BUNDLE_VERSION)"
