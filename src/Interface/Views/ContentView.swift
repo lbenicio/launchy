@@ -739,7 +739,7 @@ private struct ScrollWheelCaptureView: NSViewRepresentable {
         }
     }
 
-    private final class ScrollCaptureView: NSView {
+  private final class ScrollCaptureView: NSView {
         var onScroll: ((CGFloat) -> Void)?
         private var eventMonitor: Any?
 
@@ -752,11 +752,11 @@ private struct ScrollWheelCaptureView: NSViewRepresentable {
             }
         }
 
-        deinit {
+    @MainActor deinit {
             removeMonitor()
         }
 
-        private func installMonitor() {
+    @MainActor private func installMonitor() {
             guard eventMonitor == nil else { return }
             eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
                 self?.forward(event: event)
@@ -764,14 +764,14 @@ private struct ScrollWheelCaptureView: NSViewRepresentable {
             }
         }
 
-        private func removeMonitor() {
+    @MainActor private func removeMonitor() {
             if let eventMonitor {
                 NSEvent.removeMonitor(eventMonitor)
                 self.eventMonitor = nil
             }
         }
 
-        private func forward(event: NSEvent) {
+    @MainActor private func forward(event: NSEvent) {
             guard let handler = onScroll else { return }
 
             let horizontal = event.scrollingDeltaX
@@ -792,9 +792,7 @@ private struct ScrollWheelCaptureView: NSViewRepresentable {
                 adjusted = -adjusted
             }
 
-            DispatchQueue.main.async {
-                handler(adjusted)
-            }
+      handler(adjusted)
         }
     }
 }
@@ -814,7 +812,7 @@ private struct KeyPressCaptureView: NSViewRepresentable {
         }
     }
 
-    private final class KeyCaptureView: NSView {
+  private final class KeyCaptureView: NSView {
         var onKeyPress: ((NSEvent) -> Bool)?
         private var monitor: Any?
 
@@ -827,11 +825,11 @@ private struct KeyPressCaptureView: NSViewRepresentable {
             }
         }
 
-        deinit {
+    @MainActor deinit {
             removeMonitor()
         }
 
-        private func installMonitor() {
+    @MainActor private func installMonitor() {
             guard monitor == nil else { return }
             monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
                 guard let self else { return event }
@@ -840,7 +838,7 @@ private struct KeyPressCaptureView: NSViewRepresentable {
             }
         }
 
-        private func removeMonitor() {
+    @MainActor private func removeMonitor() {
             if let monitor {
                 NSEvent.removeMonitor(monitor)
                 self.monitor = nil

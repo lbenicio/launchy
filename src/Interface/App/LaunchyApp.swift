@@ -64,6 +64,7 @@ struct LaunchyApp: App {
     }
 }
 
+@MainActor
 final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     private var storedPresentationOptions: NSApplication.PresentationOptions = []
     private var presentationStored = false
@@ -76,9 +77,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
         NSApp.appearance = NSAppearance(named: .vibrantDark)
         NSApp.setActivationPolicy(.regular)
         AccessibilityPermission.requestIfNeeded()
-        Task { @MainActor in
-            self.showPrimaryWindow()
-        }
+    showPrimaryWindow()
     }
 
     @MainActor
@@ -110,9 +109,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool)
         -> Bool {
-        Task { @MainActor in
-            self.showPrimaryWindow()
-        }
+    showPrimaryWindow()
         return false
     }
 

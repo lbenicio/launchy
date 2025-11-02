@@ -1,31 +1,25 @@
 import AppKit
-import ApplicationServices
+@preconcurrency import ApplicationServices
 
+@MainActor
 final class KeyboardMonitor {
     static let shared = KeyboardMonitor()
 
     private var localMonitor: Any?
     private var globalMonitor: Any?
     private var monitorsInstalled = false
-    private let accessQueue = DispatchQueue(label: "launchy.keyboard-monitor")
 
     private init() {}
 
     func configure(with _: AppCatalogStore) {
-        accessQueue.sync {
-            if monitorsInstalled {
-                return
-            }
-            installMonitors()
-            monitorsInstalled = true
-        }
+        guard !monitorsInstalled else { return }
+        installMonitors()
+        monitorsInstalled = true
     }
 
     func teardown() {
-        accessQueue.sync {
-            removeMonitors()
-            monitorsInstalled = false
-        }
+        removeMonitors()
+        monitorsInstalled = false
     }
 
     private func installMonitors() {
