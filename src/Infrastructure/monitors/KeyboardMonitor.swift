@@ -65,4 +65,15 @@ final class KeyboardMonitor {
         }
         return false
     }
+
+  #if DEBUG
+    func resetForTesting() {
+      removeMonitors()
+      monitorsInstalled = false
+    }
+
+    var isConfiguredForTesting: Bool {
+      monitorsInstalled
+    }
+  #endif
 }
