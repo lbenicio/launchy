@@ -1,67 +1,92 @@
 # Contributing to Launchy
 
-Thank you for considering contributing to Launchy! Contributions are welcome and greatly appreciated. By contributing, you help make this project better for everyone.
+We are excited that you want to improve Launchy! This document explains how to set up your development environment, follow the project conventions, and submit effective pull requests.
 
-## How to Contribute
+## Expectations
 
-### 1. Fork the Repository
+- Treat maintainers and community members with respect. The [Code of Conduct](CODE_OF_CONDUCT.md) applies to all interactions.
+- Prefer opening an issue or discussion for sizable changes before submitting code.
+- Keep pull requests focused. Small, cohesive changes are easier to review and merge.
+- Document non-obvious logic with succinct comments.
 
-Start by forking the repository to your GitHub account. This creates a copy of the project where you can make changes.
+## Getting Started
 
-### 2. Clone the Repository
+### Prerequisites
 
-Clone your forked repository to your local machine using the following command:
+- macOS 13 Ventura (or newer)
+- Xcode 15 / Swift 5.9 command-line tools (`xcode-select --install`)
+- Optional: Homebrew (`https://brew.sh`) for installing lint/format tools
 
-```bash
+### Repository Setup
+
+```sh
 git clone https://github.com/lbenicio/launchy.git
+cd launchy
+make build
 ```
 
-### 3. Create a Branch
+Helpful Makefile targets:
 
-Create a new branch for your changes. Use a descriptive name for your branch:
+- `make run` – launch Launchy in debug mode
+- `make test` – execute the unit test suite
+- `make format` – run `swiftformat` over the `src/` tree (needs Homebrew install)
+- `make lint` – run `swiftlint` if available
+- `make clean` – delete build and distribution artifacts
 
-```bash
-git checkout -b feature/your-feature-name
+The SwiftUI app code resides in `src/Interface`, shared logic in `src/Application` and `src/Domain`, and system integrations in `src/Infrastructure`.
+
+## Branching & Workflow
+
+1. Branch from `develop`: `git checkout -b feature/short-description`
+2. Sync frequently: `git pull --rebase origin develop`
+3. Commit with clear messages that describe _why_ the change exists
+4. Push to your fork (or to the shared repo if you have access)
+
+We recommend enabling pre-commit hooks or aliases for formatting, but they are optional as long as the CI checks pass.
+
+## Coding Standards
+
+- Follow Swift API Design Guidelines and Apple Human Interface Guidelines
+- Keep UI code declarative and avoid business logic inside views when possible
+- Ensure new features are accessible (keyboard support, VoiceOver-friendly labels)
+- Avoid force unwraps unless they are logically guaranteed
+- Include unit tests for new business logic and adjust existing tests when behavior changes
+
+### Style Tools
+
+- `swiftformat` is the authoritative formatter. Run `make format` prior to opening a PR.
+- `swiftlint` surfaces common anti-patterns. Resolve or justify any warnings.
+- For shell scripts, keep them POSIX/Bash compatible and documented with `usage` output.
+
+## Testing
+
+- Execute `make test` or `swift test` locally
+- When UI or lifecycle behavior changes, document manual verification steps in your PR
+- CI will run `swift build` and the test suite; make sure it passes before requesting review
+
+## Submitting a Pull Request
+
+1. Push your branch and open a PR against `develop`
+2. Fill in the pull request template: describe the change, rationale, and testing
+3. Add screenshots or screen recordings for UI updates
+4. Respond promptly to review feedback; update your branch with additional commits or amend as needed
+5. Once approved, a maintainer will merge the PR. Delete your branch afterwards to keep the repo tidy.
+
+## Release Management
+
+Maintainers promote builds with `scripts/deploy` (exposed via `make deploy`). The workflow merges `develop` into `main`, runs a release build, and pushes to the configured remote:
+
+```sh
+make deploy
+make deploy DEPLOY_ARGS="--dry-run"  # safe rehearsal
 ```
-
-### 4. Make Changes
-
-Make your changes in the codebase. Ensure your changes are well-documented and follow the project's coding standards.
-
-### 5. Test Your Changes
-
-Run tests to ensure your changes do not break existing functionality. Add new tests if necessary.
-
-### 6. Commit Your Changes
-
-Commit your changes with a clear and concise commit message:
-
-```bash
-git commit -m "Add feature: your-feature-name"
-```
-
-### 7. Push Your Changes
-
-Push your changes to your forked repository:
-
-```bash
-git push origin feature/your-feature-name
-```
-
-### 8. Submit a Pull Request
-
-Go to the original repository and submit a pull request. Provide a detailed description of your changes and why they are necessary.
-
-## Code of Conduct
-
-Please adhere to the [Code of Conduct](CODE_OF_CONDUCT.md) when contributing to this project.
 
 ## Reporting Issues
 
-If you encounter any issues, please report them by opening an issue in the repository. Provide as much detail as possible to help us address the problem.
+- Open an issue for bugs, feature requests, or questions
+- Provide steps to reproduce, expected vs. actual behavior, and environment details
+- Attach screenshots or logs where helpful
 
-## Contact
+## Getting Help
 
-If you have any questions about contributing, feel free to reach out to the project maintainers.
-
-Thank you for contributing!
+If you are stuck or unsure about anything, open an issue or discussion and we will assist. We are grateful for every contribution—thank you for helping make Launchy better!

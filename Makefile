@@ -5,43 +5,45 @@
 ###
 
 # Configurable variables
-BUNDLE_VERSION ?= 1.0.0
-BUNDLE_ID     ?= dev.lbenicio.launchy
-PACKAGE      ?= Launchy
-CONFIG       ?= Release
-BUILD_DIR    ?= .build
+BUNDLE_ID           ?= dev.lbenicio.launchy
+PACKAGE             ?= Launchy
+CONFIG              ?= Release
+BUILD_DIR           ?= .build
 
-ARCHS        ?= "arm64"
+ARCHS               ?= "arm64"
 
-SCHEME       ?= ${PACKAGE}
-DIST_DIR     ?= ${BUILD_DIR}/dist
-CONFIG_LOWER := $(shell echo $(CONFIG) | tr '[:upper:]' '[:lower:]')
-BIN_PATH      = $(BUILD_DIR)/$(CONFIG_LOWER)/$(PACKAGE)
-APP_BUNDLE    := $(DIST_DIR)/$(PACKAGE).app
-APP_CONTENTS  := $(APP_BUNDLE)/Contents
-APP_MACOS     := $(APP_CONTENTS)/MacOS
-APP_RESOURCES := $(APP_CONTENTS)/Resources
-INFOPLIST_TEMPLATE ?= assets/plist/Info.plist.template
+SCHEME              ?= ${PACKAGE}
+DIST_DIR            ?= ${BUILD_DIR}/dist
+CONFIG_LOWER        := $(shell echo $(CONFIG) | tr '[:upper:]' '[:lower:]')
+BIN_PATH             = $(BUILD_DIR)/$(CONFIG_LOWER)/$(PACKAGE)
+APP_BUNDLE          := $(DIST_DIR)/$(PACKAGE).app
+APP_CONTENTS        := $(APP_BUNDLE)/Contents
+APP_MACOS           := $(APP_CONTENTS)/MacOS
+APP_RESOURCES       := $(APP_CONTENTS)/Resources
+INFOPLIST_TEMPLATE  ?= assets/plist/Info.plist.template
 
+BUNDLE_BUILD        ?= 1
+APP_ICON            ?= assets/icon/launchy.icns
 
-BUNDLE_BUILD  ?= 1
-APP_ICON      ?= assets/icon/launchy.icns
-
-SWIFT        := swift
-SWIFTFORMAT  ?= swiftformat
-SWIFTLINT    ?= swiftlint
-XCODEBUILD   := xcodebuild
-PLISTBUDDY   := /usr/libexec/PlistBuddy
-PKGROOT      := $(shell pwd)
-ARCHIVE_PATH := $(BUILD_DIR)/archives/$(PACKAGE).xcarchive
-PKG_PATH     := $(DIST_DIR)/$(PACKAGE).pkg
-DMG_PATH     := $(DIST_DIR)/$(PACKAGE).dmg
+SWIFT               := swift
+SWIFTFORMAT         ?= swiftformat
+SWIFTLINT           ?= swiftlint
+XCODEBUILD          := xcodebuild
+PLISTBUDDY          := /usr/libexec/PlistBuddy
+PKGROOT             := $(shell pwd)
+ARCHIVE_PATH        := $(BUILD_DIR)/archives/$(PACKAGE).xcarchive
+PKG_PATH            := $(DIST_DIR)/$(PACKAGE).pkg
+DMG_PATH            := $(DIST_DIR)/$(PACKAGE).dmg
 
 # Default target
 .DEFAULT_GOAL := bundle
 
 # Convenience helper; make sure directories exist before writing artifacts
 MKDIR_P = mkdir -p
+
+# Version: prefer explicit VERSION, else parse from Package.swift (let appVersion = "x.y.z"),
+# else fall back to git describe, else 0.1.0
+BUNDLE_VERSION ?= $(shell bash -c 'v=$$(awk -F "\"" '\''/let[[:space:]]+appVersion[[:space:]]*=/{print $$2; exit}'\'' Package.swift 2>/dev/null); if [ -z "$$v" ]; then v=$$(git describe --tags --always --dirty 2>/dev/null || echo 0.1.0); fi; echo $$v')
 
 .PHONY: help
 help:
@@ -57,6 +59,7 @@ help:
 	@echo "  make archive       # Create signed xcarchive"
 	@echo "  make pkg           # Build signed installer package"
 	@echo "  make dmg           # Create distributable dmg"
+	@echo "  make deploy        # Merge release branch into production via scripts/deploy"
 
 .PHONY: build
 build:
@@ -122,6 +125,10 @@ lint:
 .PHONY: clean
 clean:
 	rm -rf $(BUILD_DIR) $(DIST_DIR)
+
+.PHONY: deploy
+deploy:
+	./scripts/deploy $(DEPLOY_ARGS)
 
 # ----- Distribution-oriented targets below this line -----
 

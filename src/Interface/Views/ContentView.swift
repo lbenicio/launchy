@@ -52,14 +52,19 @@ struct ContentView: View {
       }
       .onChange(of: containerSize) { containerDimensions = $0 }
       .onExitCommand {
-        if store.isEditing {
-          store.endEditing()
-        }
-        if store.presentedFolder != nil {
-          store.dismissPresentedFolder()
-        }
+        let handled = store.dismissPresentedFolderOrClearSearch()
         store.clearEditingCompletionFlag()
-        NSApp.terminate(nil)
+        guard !handled else { return }
+
+        if settings.daemonModeEnabled {
+          if let delegate = NSApp.delegate as? AppLifecycleDelegate {
+            delegate.hideToBackground()
+          } else {
+            NSApp.deactivate()
+          }
+        } else {
+          NSApp.terminate(nil)
+        }
       }
       .onChange(of: store.presentedFolder) {
         updateFolderAnchor(for: $0)
