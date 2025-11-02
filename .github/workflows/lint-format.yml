@@ -23,7 +23,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Swift toolchain
-        uses: swiftlang/setup-swift@v1
+        uses: swift-actions/setup-swift@v1
         with:
           swift-version: "5.10"
 
