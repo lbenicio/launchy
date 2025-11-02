@@ -27,6 +27,11 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      - name: Set up Swift toolchain
+        uses: swift-actions/setup-swift@v1
+        with:
+          swift-version: "6.2"
+
       - name: Ensure release version
         id: prepare
         shell: bash
