@@ -1,29 +1,171 @@
-#!/bin/zsh
+#!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 
-echo "Deploying changes from 'develop' to 'main' branch..."
-git checkout main $2> /dev/null || {
-  echo "Error: Could not switch to 'main' branch. Please ensure it exists."
-  exit 1
-}
-git pull origin main $2> /dev/null || {
-  echo "Error: Could not pull latest changes from 'main' branch."
-  exit 1
-}
+usage() {
+  cat <<'EOF'
+Usage: scripts/deploy [options]
 
-echo "Merging 'develop' into 'main' branch..."
-git merge develop --strategy-option theirs --no-ff --message "Merge branch 'develop' into main" $2> /dev/null || {
-  echo "Error: Merge conflict occurred. Please resolve conflicts manually."
-  exit 1
+Options:
+  --from <branch>    Source branch to deploy (default: develop)
+  --to <branch>      Target branch to update (default: main)
+  --remote <name>    Git remote to push (default: origin)
+  --dry-run          Show the actions without executing them
+  --skip-tests       Skip release build verification
+  -h, --help         Show this help message and exit
+EOF
 }
 
-echo "Pushing changes to 'main' branch..."
-git push origin main $2> /dev/null || {
-  echo "Error: Could not push changes to 'main' branch."
-  exit 1
+log() {
+  printf '[deploy] %s\n' "$*"
 }
-git checkout develop $2> /dev/null || {
-  echo "Error: Could not switch back to 'develop' branch."
-  exit 1
+
+err() {
+  printf '[deploy] ERROR: %s\n' "$*" >&2
 }
+
+run() {
+  log "+ $*"
+  if [ "$DRY_RUN" -eq 1 ]; then
+    return 0
+  fi
+  "$@"
+}
+
+cleanup() {
+  local status=$?
+  trap - EXIT
+  if [ "$DRY_RUN" -eq 0 ] && [ "$DETACHED" -eq 0 ]; then
+    local git_dir
+    git_dir=$(git rev-parse --git-dir 2>/dev/null || true)
+    if [ -n "$git_dir" ] && [ ! -f "$git_dir/MERGE_HEAD" ]; then
+      git checkout "$CURRENT_BRANCH" >/dev/null 2>&1 || true
+    elif [ -n "$git_dir" ] && [ -f "$git_dir/MERGE_HEAD" ]; then
+      log "Merge in progress; repository left on $(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')."
+    fi
+  fi
+  exit $status
+}
+
+REMOTE="origin"
+SOURCE="develop"
+TARGET="main"
+DRY_RUN=0
+SKIP_TESTS=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --from)
+      [[ $# -ge 2 ]] || { err "Missing value for --from"; usage; exit 1; }
+      SOURCE="$2"
+      shift 2
+      ;;
+    --to)
+      [[ $# -ge 2 ]] || { err "Missing value for --to"; usage; exit 1; }
+      TARGET="$2"
+      shift 2
+      ;;
+    --remote)
+      [[ $# -ge 2 ]] || { err "Missing value for --remote"; usage; exit 1; }
+      REMOTE="$2"
+      shift 2
+      ;;
+    --dry-run)
+      DRY_RUN=1
+      shift
+      ;;
+    --skip-tests)
+      SKIP_TESTS=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      err "Unknown option: $1"
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+if [ "$DRY_RUN" -eq 1 ]; then
+  log "Dry run enabled; no changes will be made."
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/.."
+
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  err "This script must be executed inside a Git repository."
+  exit 1
+fi
+
+if ! git remote get-url "$REMOTE" >/dev/null 2>&1; then
+  err "Remote '$REMOTE' not found."
+  exit 1
+fi
+
+if [[ -n $(git status --porcelain=v1 2>/dev/null) ]]; then
+  if [ "$DRY_RUN" -eq 1 ]; then
+    log "Working tree has uncommitted changes; continuing due to dry run."
+  else
+    err "Working tree contains uncommitted changes. Commit or stash them before deploying."
+    exit 1
+  fi
+fi
+
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+if [ "$CURRENT_BRANCH" = "HEAD" ]; then
+  err "Detached HEAD state detected. Check out a branch before deploying."
+  exit 1
+fi
+
+DETACHED=0
+trap 'cleanup' EXIT
+
+run git fetch "$REMOTE" --prune
+
+if ! git show-ref --verify --quiet "refs/heads/$SOURCE"; then
+  if git show-ref --verify --quiet "refs/remotes/$REMOTE/$SOURCE"; then
+    run git checkout -B "$SOURCE" "$REMOTE/$SOURCE"
+  else
+    err "Source branch '$SOURCE' does not exist locally or on '$REMOTE'."
+    exit 1
+  fi
+fi
+
+if ! git show-ref --verify --quiet "refs/heads/$TARGET"; then
+  if git show-ref --verify --quiet "refs/remotes/$REMOTE/$TARGET"; then
+    run git checkout -B "$TARGET" "$REMOTE/$TARGET"
+  else
+    err "Target branch '$TARGET' does not exist locally or on '$REMOTE'."
+    exit 1
+  fi
+fi
+
+run git checkout "$TARGET"
+run git pull --ff-only "$REMOTE" "$TARGET"
+
+run git checkout "$SOURCE"
+run git pull --ff-only "$REMOTE" "$SOURCE"
+
+run git checkout "$TARGET"
+run git merge --no-ff --no-edit "$SOURCE"
+
+if [ "$SKIP_TESTS" -eq 0 ]; then
+  run swift build -c release
+else
+  log "Release build skipped by request."
+fi
+
+run git push "$REMOTE" "$TARGET"
+
+if [ "$DRY_RUN" -eq 1 ]; then
+  log "Dry run complete; no changes were made."
+else
+  log "Deployment from '$SOURCE' to '$TARGET' completed successfully."
+fi
+
+exit 0
