@@ -152,7 +152,7 @@ run git checkout "$SOURCE"
 run git pull --ff-only "$REMOTE" "$SOURCE"
 
 run git checkout "$TARGET"
-run git merge --no-ff --no-edit "$SOURCE"
+run git merge --no-ff --no-edit "$SOURCE" --message="release: v$(make version)"
 
 if [ "$SKIP_TESTS" -eq 0 ]; then
   run swift build -c release

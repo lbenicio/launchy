@@ -211,7 +211,7 @@ Use macOS System Settings > Users & Groups > Login Items and add the built `.app
 Delete the `UserDefaults` domain: `defaults delete dev.lbenicio.launchy` and relaunch. Layout files are stored under `~/Library/Application Support/Launchy/layout.json`.
 
 **Where are icons generated from?**
-App icons are read from each discovered bundle (`.app` directories). The project itself ships with an `.icns` at `assets/icon/launchy.icns` for the status item and bundle resources.
+App icons are read from each discovered bundle (`.app` directories). Launchy ships with an `.icns` bundle icon at `assets/icon/launchy.icns` so the app itself has a proper icon.
 
 ---
 

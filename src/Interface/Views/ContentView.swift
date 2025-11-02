@@ -21,7 +21,11 @@ struct ContentView: View {
   var body: some View {
     GeometryReader { proxy in
       let containerSize = proxy.size
-      let metrics = gridMetrics(for: containerSize)
+      let metrics = GridMetricsCalculator.make(
+        containerSize: containerSize,
+        columns: settings.gridColumns,
+        rows: settings.gridRows
+      )
       ZStack {
         backgroundLayer
         contentLayer(gridMetrics: metrics)
@@ -42,6 +46,9 @@ struct ContentView: View {
       }
       .overlay {
         folderOverlay(for: containerSize)
+      }
+      .overlay(alignment: .bottomTrailing) {
+        settingsShortcut
       }
       .background(TransparentWindowConfigurator())
       .task { await store.refreshCatalogIfNeeded() }
@@ -113,6 +120,30 @@ struct ContentView: View {
       .onTapGesture {
         NSApp.terminate(nil)
       }
+  }
+
+  private var settingsShortcut: some View {
+    Button {
+      SettingsWindowManager.shared.settingsProvider = { settings }
+      SettingsWindowManager.shared.show()
+    } label: {
+      Image(systemName: "gearshape.fill")
+        .font(.system(size: 12, weight: .semibold))
+        .foregroundColor(.white.opacity(0.85))
+        .padding(8)
+        .background(
+          Circle().fill(Color.white.opacity(0.08))
+        )
+        .overlay(
+          Circle().stroke(Color.white.opacity(0.18), lineWidth: 1)
+        )
+    }
+    .buttonStyle(.plain)
+    .padding(.trailing, 24)
+    .padding(.bottom, 24)
+    .opacity(0.9)
+    .accessibilityLabel("Open Settings")
+    .help("Open Settings")
   }
 
   private func contentLayer(gridMetrics: GridMetrics) -> some View {
@@ -433,62 +464,6 @@ struct ContentView: View {
     return pages
   }
 
-  private func gridMetrics(for containerSize: CGSize) -> GridMetrics {
-    let spacing: CGFloat = 24
-    let horizontalPadding: CGFloat = 72
-    var columns = max(1, min(settings.gridColumns, 8))
-    let rows = max(1, min(settings.gridRows, 6))
-
-    let availableWidth = max(0, containerSize.width - horizontalPadding * 2)
-    var tileWidth: CGFloat = 140
-    if availableWidth > 0 {
-      var computedWidth: CGFloat = 0
-      var candidateColumns = columns
-      while candidateColumns >= 1 {
-        let raw =
-          (availableWidth - spacing * CGFloat(candidateColumns - 1)) / CGFloat(candidateColumns)
-        if raw >= 120 {
-          computedWidth = raw
-          columns = candidateColumns
-          break
-        }
-        candidateColumns -= 1
-      }
-      if computedWidth <= 0 {
-        columns = 1
-        computedWidth = availableWidth
-      }
-      tileWidth = max(120, computedWidth)
-    }
-
-    let verticalReserve: CGFloat = 320
-    let availableHeight = max(160, containerSize.height - verticalReserve)
-    let tileHeightRaw = (availableHeight - spacing * CGFloat(rows - 1)) / CGFloat(rows)
-    let tileHeight = max(140, tileHeightRaw)
-
-    let gridItems = Array(
-      repeating: GridItem(.fixed(tileWidth), spacing: spacing, alignment: .top),
-      count: columns
-    )
-
-    return GridMetrics(
-      columns: gridItems,
-      tileSize: CGSize(width: tileWidth, height: tileHeight),
-      spacing: spacing,
-      horizontalPadding: horizontalPadding,
-      rows: rows
-    )
-  }
-}
-
-private struct GridMetrics {
-  let columns: [GridItem]
-  let tileSize: CGSize
-  let spacing: CGFloat
-  let horizontalPadding: CGFloat
-  let rows: Int
-
-  var capacity: Int { max(1, columns.count * rows) }
 }
 
 private enum EdgeAutoAdvanceDirection {
