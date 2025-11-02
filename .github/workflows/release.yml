@@ -99,18 +99,18 @@ jobs:
           CHANNEL_LABEL="Stable"
           if [ "$PRERELEASE" = "true" ]; then CHANNEL_LABEL="Pre-release"; fi
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
-## 🚀 Launchy Release Snapshot
+          ## 🚀 Launchy Release Snapshot
 
-| 📦 Artifact | 💾 Size | 🔖 Version | 🧪 Channel |
-| --- | --- | --- | --- |
-| ${DMG_NAME} | ${DMG_SIZE} | ${VER} | ${CHANNEL_LABEL} |
+          | 📦 Artifact | 💾 Size | 🔖 Version | 🧪 Channel |
+          | --- | --- | --- | --- |
+          | ${DMG_NAME} | ${DMG_SIZE} | ${VER} | ${CHANNEL_LABEL} |
 
-- ✅ Build completed on **${{ runner.os }}** using the CI Swift toolchain.
-- 📁 Artifact stored at \`artifact/${DMG_NAME}\` and ready for publishing.
-- 🔐 Tag will be created automatically if missing before release publication.
+          - ✅ Build completed on **${{ runner.os }}** using the CI Swift toolchain.
+          - 📁 Artifact stored at \`artifact/${DMG_NAME}\` and ready for publishing.
+          - 🔐 Tag will be created automatically if missing before release publication.
 
-> Tip: Re-run this workflow after confirming the DMG artifact is still available.
-EOF
+          > Tip: Re-run this workflow after confirming the DMG artifact is still available.
+          EOF
 
       - name: Create tag if missing
         shell: bash

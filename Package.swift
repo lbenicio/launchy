@@ -33,14 +33,19 @@ let package = Package(
 private func computeExcludeList(for targetPath: String) -> [String] {
   let fm = FileManager.default
   var excludes: [String] = []
+  let appendExclude: (String) -> Void = { path in
+    if !excludes.contains(path) {
+      excludes.append(path)
+    }
+  }
   let resourcesPath = "\(targetPath)/assets"
   if fm.fileExists(atPath: resourcesPath) {
-    excludes.append("assets")
+    appendExclude("assets")
   }
   if let enumerator = fm.enumerator(atPath: targetPath) {
     for case let file as String in enumerator {
       if file.hasSuffix("/.DS_Store") || file == ".DS_Store" {
-        excludes.append("\(targetPath)/\(file)")
+        appendExclude(file)
       }
     }
   }

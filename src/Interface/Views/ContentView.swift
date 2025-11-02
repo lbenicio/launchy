@@ -52,19 +52,7 @@ struct ContentView: View {
       }
       .onChange(of: containerSize) { containerDimensions = $0 }
       .onExitCommand {
-        let handled = store.dismissPresentedFolderOrClearSearch()
-        store.clearEditingCompletionFlag()
-        guard !handled else { return }
-
-        if settings.daemonModeEnabled {
-          if let delegate = NSApp.delegate as? AppLifecycleDelegate {
-            delegate.hideToBackground()
-          } else {
-            NSApp.deactivate()
-          }
-        } else {
-          NSApp.terminate(nil)
-        }
+        NSApp.terminate(nil)
       }
       .onChange(of: store.presentedFolder) {
         updateFolderAnchor(for: $0)
@@ -121,6 +109,10 @@ struct ContentView: View {
   private var backgroundLayer: some View {
     Color.black.opacity(0.35)
       .ignoresSafeArea()
+      .contentShape(Rectangle())
+      .onTapGesture {
+        NSApp.terminate(nil)
+      }
   }
 
   private func contentLayer(gridMetrics: GridMetrics) -> some View {
