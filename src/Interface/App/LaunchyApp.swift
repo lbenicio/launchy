@@ -1,18 +1,26 @@
 import AppKit
+import Combine
 import SwiftUI
 
 @main
 struct LaunchyApp: App {
     @NSApplicationDelegateAdaptor(AppLifecycleDelegate.self) private var appDelegate
-    @StateObject private var catalogStore = AppCatalogStore()
-    @StateObject private var settings = AppSettings()
+  @StateObject private var catalogStore: AppCatalogStore
+  @StateObject private var settings: AppSettings
 
     init() {
-        appDelegate.activationHandler = {
-            NSApp.activate(ignoringOtherApps: true)
-            NSApp.windows.first?.makeKeyAndOrderFront(nil)
-        }
+    let store = AppCatalogStore()
+    let appSettings = AppSettings()
+    _catalogStore = StateObject(wrappedValue: store)
+    _settings = StateObject(wrappedValue: appSettings)
+    appDelegate.activationHandler = { [weak delegate = appDelegate] in
+      guard let delegate else { return }
+      Task { @MainActor in
+        delegate.presentPrimaryWindow()
+      }
     }
+    appDelegate.settings = appSettings
+  }
 
     var body: some Scene {
         WindowGroup {
@@ -25,11 +33,7 @@ struct LaunchyApp: App {
                         blendingMode: .behindWindow
                     )
                 )
-                .ignoresSafeArea()
-                .onAppear {
-                    NSApp.activate(ignoringOtherApps: true)
-          appDelegate.settings = settings
-                }
+        .ignoresSafeArea()
         }
         .windowResizability(.contentSize)
         .defaultSize(width: 1280, height: 800)
@@ -64,25 +68,55 @@ struct LaunchyApp: App {
 
 final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     var activationHandler: (() -> Void)?
-  var settings: AppSettings?
+  var settings: AppSettings? {
+    didSet {
+      guard settings !== oldValue else { return }
+      Task { @MainActor [weak self] in
+        guard let self else { return }
+        self.cancellables.removeAll()
+        if let settings = self.settings {
+          self.daemonModeEnabled = settings.daemonModeEnabled
+          settings.$daemonModeEnabled
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] enabled in
+              self?.handleDaemonPreferenceChange(enabled)
+            }
+            .store(in: &self.cancellables)
+        } else {
+          self.daemonModeEnabled = true
+        }
+      }
+    }
+  }
 
+  private var cancellables: Set<AnyCancellable> = []
     private var storedPresentationOptions: NSApplication.PresentationOptions = []
     private var presentationStored = false
     private var statusItem: NSStatusItem?
+  private var daemonModeEnabled = true
+  private var currentActivationPolicy: NSApplication.ActivationPolicy?
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.regular)
+  func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.appearance = NSAppearance(named: .vibrantDark)
-        setupStatusItem()
-        NSApp.activate(ignoringOtherApps: true)
+    setupStatusItem()
         AccessibilityPermission.requestIfNeeded()
+    Task { @MainActor [weak self] in
+      guard let self else { return }
+      try? await Task.sleep(nanoseconds: 15_000_000)
+      self.updateActivationPolicy()
+      if self.daemonModeEnabled {
+        _ = self.hidePrimaryWindow()
+      } else {
+        self.showPrimaryWindow()
+      }
+    }
     }
 
   @MainActor
     func applicationDidBecomeActive(_ notification: Notification) {
-    guard let window = NSApp.windows.first(where: { $0.level == .launchyPrimary }) else {
-      return
-    }
+    updateActivationPolicy()
+    guard let window = primaryWindow else { return }
         if !presentationStored {
             storedPresentationOptions = NSApp.presentationOptions
             presentationStored = true
@@ -109,12 +143,22 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+  @MainActor
+  func presentPrimaryWindow() {
+    showPrimaryWindow()
+  }
+
+  @MainActor
+  func hideToBackground() {
+    _ = hidePrimaryWindow()
+  }
+
     @objc private func openMainWindow() {
         activationHandler?()
     }
 
   @objc private func openSettings() {
-    guard let settings = settings else { return }
+    guard let settings else { return }
     Task { @MainActor in
       SettingsWindowManager.shared.settingsProvider = { settings }
       SettingsWindowManager.shared.show()
@@ -168,4 +212,42 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
 
         return menu
     }
+
+  @MainActor
+  private func handleDaemonPreferenceChange(_ enabled: Bool) {
+    daemonModeEnabled = enabled
+    updateActivationPolicy()
+  }
+
+  @MainActor
+  private func updateActivationPolicy() {
+    let target: NSApplication.ActivationPolicy = daemonModeEnabled ? .accessory : .regular
+    guard currentActivationPolicy != target else { return }
+    if NSApp.setActivationPolicy(target) {
+      currentActivationPolicy = target
+    }
+  }
+
+  private var primaryWindow: NSWindow? {
+    NSApp.windows.first { $0.level == .launchyPrimary }
+  }
+
+  @MainActor
+  private func showPrimaryWindow() {
+    updateActivationPolicy()
+    guard let window = primaryWindow else { return }
+    NSApp.activate(ignoringOtherApps: true)
+    window.makeKeyAndOrderFront(nil)
+    window.orderFrontRegardless()
+  }
+
+  @discardableResult
+  @MainActor
+  private func hidePrimaryWindow() -> Bool {
+    updateActivationPolicy()
+    guard let window = primaryWindow else { return false }
+    window.orderOut(nil)
+    NSApp.deactivate()
+    return true
+  }
 }
