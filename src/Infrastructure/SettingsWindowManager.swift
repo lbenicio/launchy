@@ -15,6 +15,7 @@ final class SettingsWindowManager: NSObject, NSWindowDelegate {
         }
 
         if let window = windowController?.window {
+            configurePresentation(for: window)
             window.makeKeyAndOrderFront(nil)
             window.orderFrontRegardless()
             NSApp.activate(ignoringOtherApps: true)
@@ -23,6 +24,11 @@ final class SettingsWindowManager: NSObject, NSWindowDelegate {
 
         let controller = makeController(with: settings)
         controller.showWindow(nil)
+        if let window = controller.window {
+            configurePresentation(for: window)
+            window.makeKeyAndOrderFront(nil)
+            window.orderFrontRegardless()
+        }
         windowController = controller
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -43,11 +49,20 @@ final class SettingsWindowManager: NSObject, NSWindowDelegate {
         window.contentView = hostingView
         window.center()
         window.level = .launchyAuxiliary
-        window.collectionBehavior.insert(.fullScreenAuxiliary)
+        configurePresentation(for: window)
         window.delegate = self
 
         let controller = NSWindowController(window: window)
         return controller
+    }
+
+    private func configurePresentation(for window: NSWindow) {
+        window.collectionBehavior.insert([.fullScreenAuxiliary, .canJoinAllSpaces])
+        window.collectionBehavior.remove(.managed)
+    }
+
+    var isShowing: Bool {
+        windowController?.window?.isVisible == true
     }
 
     func windowWillClose(_ notification: Notification) {

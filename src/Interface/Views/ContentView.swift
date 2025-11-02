@@ -26,16 +26,18 @@ struct ContentView: View {
         backgroundLayer
         contentLayer(gridMetrics: metrics)
       }
-      .overlay(alignment: .topTrailing) {
-        RefreshButton()
-          .padding(32)
-      }
       .overlay {
         ScrollWheelCaptureView(onScroll: { delta in
           Task { @MainActor in
             handleScrollInput(delta: delta)
           }
         })
+        .allowsHitTesting(false)
+      }
+      .overlay {
+        KeyPressCaptureView { event in
+          handleKeyPress(event)
+        }
         .allowsHitTesting(false)
       }
       .overlay {
@@ -200,10 +202,6 @@ struct ContentView: View {
       }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .overlay(alignment: .bottom) {
-      ControlFooter()
-        .padding(.bottom, 24)
-    }
     .onChange(of: pageCount) { newValue in
       let maxPage = max(0, newValue - 1)
       if selectedPage > maxPage {
@@ -359,7 +357,7 @@ struct ContentView: View {
     guard store.draggingEntryID == nil else { return }
     guard currentPageCount > 1 else { return }
     guard store.presentedFolder == nil else { return }
-    let adjustedDelta = -delta * 0.6
+    let adjustedDelta = delta * 1.25
     guard abs(adjustedDelta) > 0.5 else { return }
 
     if (scrollAccumulation > 0 && adjustedDelta < 0)
@@ -384,6 +382,39 @@ struct ContentView: View {
       }
       scrollAccumulation = 0
     }
+  }
+
+  @MainActor
+  private func handleKeyPress(_ event: NSEvent) -> Bool {
+    guard event.type == .keyDown else { return false }
+    guard !searchFocused else { return false }
+    guard let keyWindow = NSApp.keyWindow, keyWindow.level == .launchyPrimary else {
+      return false
+    }
+
+    let disallowedModifiers: NSEvent.ModifierFlags = [.command, .option, .control]
+    if !event.modifierFlags.intersection(disallowedModifiers).isEmpty {
+      return false
+    }
+
+    guard let characters = event.characters, !characters.isEmpty else { return false }
+    let scalars = characters.unicodeScalars
+    guard !scalars.contains(where: { $0.properties.generalCategory == .control }) else {
+      return false
+    }
+
+    if store.isEditing {
+      store.endEditing()
+    }
+    if store.presentedFolder != nil {
+      store.dismissPresentedFolder()
+    }
+
+    searchFocused = true
+    store.query.append(contentsOf: characters)
+    scrollAccumulation = 0
+
+    return true
   }
 
   private func paginatedEntries(using metrics: GridMetrics) -> [[CatalogEntry]] {
@@ -505,26 +536,6 @@ private struct SearchBar: View {
   }
 }
 
-private struct ControlFooter: View {
-  var body: some View {
-    HStack(spacing: 24) {
-      ControlRow(icon: "esc", description: "Close app")
-      ControlRow(icon: "Hold", description: "Drag to move or folder")
-      ControlRow(icon: "⌘R", description: "Reload catalog")
-    }
-    .padding(.horizontal, 28)
-    .padding(.vertical, 12)
-    .background(
-      RoundedRectangle(cornerRadius: 14)
-        .fill(Color.white.opacity(0.08))
-    )
-    .overlay(
-      RoundedRectangle(cornerRadius: 14)
-        .stroke(Color.white.opacity(0.12), lineWidth: 1)
-    )
-  }
-}
-
 private struct PageIndicator: View {
   let currentPage: Int
   let totalPages: Int
@@ -557,56 +568,6 @@ private struct PageIndicator: View {
   }
 }
 
-private struct ControlRow: View {
-  let icon: String
-  let description: String
-
-  var body: some View {
-    HStack(spacing: 10) {
-      Text(icon)
-        .font(.system(size: 16, weight: .semibold, design: .rounded))
-        .foregroundColor(.white.opacity(0.85))
-      Text(description)
-        .font(.system(size: 15, weight: .medium, design: .rounded))
-        .foregroundColor(.white.opacity(0.75))
-    }
-  }
-}
-
-private struct RefreshButton: View {
-  @EnvironmentObject private var store: AppCatalogStore
-  @State private var isRefreshing = false
-
-  var body: some View {
-    Button(action: refresh) {
-      Image(systemName: "arrow.clockwise.circle.fill")
-        .resizable()
-        .scaledToFit()
-        .frame(width: 36, height: 36)
-        .foregroundColor(.white.opacity(0.8))
-        .shadow(radius: 4, y: 2)
-        .rotationEffect(.degrees(isRefreshing ? 360 : 0))
-        .animation(
-          isRefreshing
-            ? .linear(duration: 0.6).repeatForever(autoreverses: false) : .default,
-          value: isRefreshing
-        )
-    }
-    .buttonStyle(.plain)
-    .help("Reload installed applications")
-    .keyboardShortcut("r", modifiers: [.command])
-  }
-
-  private func refresh() {
-    guard !isRefreshing else { return }
-    isRefreshing = true
-    Task {
-      await store.reloadCatalog()
-      await MainActor.run { isRefreshing = false }
-    }
-  }
-}
-
 private struct CatalogEntryTile: View {
   let entry: CatalogEntry
   let tileFrames: [String: CGRect]
@@ -632,7 +593,7 @@ private struct CatalogEntryTile: View {
       .opacity(isHiddenDuringFolderDrag ? 0 : 1)
       .allowsHitTesting(!isHiddenDuringFolderDrag)
       .overlay(dropHighlight)
-      .contentShape(Rectangle())
+      .contentShape(tileHitShape)
       .simultaneousGesture(longPressToEdit)
       .highPriorityGesture(dragGesture)
   }
@@ -751,6 +712,28 @@ private struct CatalogEntryTile: View {
   private var isHiddenDuringFolderDrag: Bool {
     store.draggingFromFolder && store.draggingEntryID == entry.id
   }
+
+  private var tileHitShape: CatalogTileHitShape {
+    let targetWidth = min(preferredSize.width, 128)
+    let targetHeight = min(preferredSize.height, 168)
+    return CatalogTileHitShape(targetWidth: targetWidth, targetHeight: targetHeight)
+  }
+}
+
+private struct CatalogTileHitShape: Shape {
+  let targetWidth: CGFloat
+  let targetHeight: CGFloat
+
+  func path(in rect: CGRect) -> Path {
+    let width = min(rect.width, targetWidth)
+    let height = min(rect.height, targetHeight)
+    let dx = max(0, (rect.width - width) / 2)
+    let dy = max(0, (rect.height - height) / 2)
+    let insetRect = rect.insetBy(dx: dx, dy: dy)
+    let cornerRadius: CGFloat = 24
+    return RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+      .path(in: insetRect)
+  }
 }
 
 private struct WiggleModifier: ViewModifier {
@@ -845,6 +828,56 @@ private struct ScrollWheelCaptureView: NSViewRepresentable {
 
       DispatchQueue.main.async {
         handler(adjusted)
+      }
+    }
+  }
+}
+
+private struct KeyPressCaptureView: NSViewRepresentable {
+  let onKeyPress: (NSEvent) -> Bool
+
+  func makeNSView(context: Context) -> NSView {
+    let view = KeyCaptureView()
+    view.onKeyPress = onKeyPress
+    return view
+  }
+
+  func updateNSView(_ nsView: NSView, context: Context) {
+    if let view = nsView as? KeyCaptureView {
+      view.onKeyPress = onKeyPress
+    }
+  }
+
+  private final class KeyCaptureView: NSView {
+    var onKeyPress: ((NSEvent) -> Bool)?
+    private var monitor: Any?
+
+    override func viewDidMoveToWindow() {
+      super.viewDidMoveToWindow()
+      if window != nil {
+        installMonitor()
+      } else {
+        removeMonitor()
+      }
+    }
+
+    deinit {
+      removeMonitor()
+    }
+
+    private func installMonitor() {
+      guard monitor == nil else { return }
+      monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        guard let self else { return event }
+        let consumed = self.onKeyPress?(event) ?? false
+        return consumed ? nil : event
+      }
+    }
+
+    private func removeMonitor() {
+      if let monitor {
+        NSEvent.removeMonitor(monitor)
+        self.monitor = nil
       }
     }
   }

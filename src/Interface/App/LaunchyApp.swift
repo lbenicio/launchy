@@ -78,6 +78,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
         AccessibilityPermission.requestIfNeeded()
     }
 
+  @MainActor
     func applicationDidBecomeActive(_ notification: Notification) {
     guard let window = NSApp.windows.first(where: { $0.level == .launchyPrimary }) else {
       return
@@ -90,7 +91,8 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
         if let screen = window.screen ?? NSScreen.main {
             window.setFrame(screen.frame, display: true)
         }
-    if NSApp.keyWindow === window || NSApp.keyWindow == nil {
+    let settingsVisible = SettingsWindowManager.shared.isShowing
+    if !settingsVisible && (NSApp.keyWindow === window || NSApp.keyWindow == nil) {
       window.makeKeyAndOrderFront(nil)
       window.orderFrontRegardless()
     }

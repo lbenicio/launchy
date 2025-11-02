@@ -21,7 +21,7 @@ struct AppIconView: View {
             }
       .padding(.vertical, 2)
       .padding(.horizontal, 4)
-            .frame(maxWidth: .infinity)
+      .frame(maxWidth: 124)
             .background(
         RoundedRectangle(cornerRadius: 18)
           .fill(Color.white.opacity(isHighlighted ? 0.16 : 0))
@@ -91,7 +91,7 @@ struct FolderIconView: View {
             }
       .padding(.vertical, 2)
       .padding(.horizontal, 4)
-            .frame(maxWidth: .infinity)
+      .frame(maxWidth: 124)
             .background(
         RoundedRectangle(cornerRadius: 18)
           .fill(Color.white.opacity(isHighlighted ? 0.16 : 0))

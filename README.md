@@ -1,6 +1,6 @@
-# LaunchpadClone
+# Launchy
 
-LaunchpadClone is a Swift Package-based macOS application that recreates the classic full-screen Launchpad experience. It scans your installed applications, organises them into a grid, supports folder browsing, and offers instant search.
+Launchy is a Swift macOS application that recreates the classic full-screen Launchpad experience. It scans your installed applications, organises them into a grid, supports folder browsing, and offers instant search.
 
 ## Requirements
 

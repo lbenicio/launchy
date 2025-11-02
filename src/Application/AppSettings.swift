@@ -3,8 +3,8 @@ import Foundation
 
 @MainActor
 final class AppSettings: ObservableObject {
-  static let scrollThresholdRange: ClosedRange<Double> = 24...120
-  static let defaultScrollThreshold: Double = 48
+  static let scrollThresholdRange: ClosedRange<Double> = 1...120
+  static let defaultScrollThreshold: Double = 1
 
     @Published var gridColumns: Int {
         didSet { persist() }
