@@ -23,9 +23,9 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Swift toolchain
-        uses: swiftlang/swift@v1
+        uses: swiftlang/setup-swift@v1
         with:
-          release: "5.10"
+          swift-version: "5.10"
 
       - name: Install SwiftFormat
         shell: bash
