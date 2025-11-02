@@ -67,7 +67,7 @@ The `src/` directory is split into four primary modules. Each module has a focus
 ## Assets
 
 - `assets/icon/launchy.icns`
-  - Icon used for the application bundle and status bar item.
+  - App bundle icon packaged during `make bundle`.
 - `assets/plist/Info.plist.template`
   - Template used by the Makefile when assembling `.app` bundles.
 
