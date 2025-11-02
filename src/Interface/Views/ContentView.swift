@@ -5,20 +5,18 @@ private let launchyCoordinateSpace = "launchySpace"
 
 struct ContentView: View {
   @EnvironmentObject private var store: AppCatalogStore
+  @EnvironmentObject private var settings: AppSettings
   @FocusState private var searchFocused: Bool
   @State private var tileFrames: [String: CGRect] = [:]
   @State private var folderAnchor: CGRect? = nil
 
-  private let gridLayout = [
-    GridItem(.adaptive(minimum: 120, maximum: 160), spacing: 24)
-  ]
-
   var body: some View {
     GeometryReader { proxy in
       let containerSize = proxy.size
+      let metrics = gridMetrics(for: containerSize)
       ZStack {
         backgroundLayer
-        contentLayer
+        contentLayer(gridMetrics: metrics)
       }
       .overlay(alignment: .topTrailing) {
         RefreshButton()
@@ -69,21 +67,22 @@ struct ContentView: View {
       .ignoresSafeArea()
   }
 
-  private var contentLayer: some View {
+  private func contentLayer(gridMetrics: GridMetrics) -> some View {
     VStack(spacing: 24) {
       SearchBar(text: $store.query, isFocused: $searchFocused)
         .padding(.top, 32)
       ScrollView {
-        LazyVGrid(columns: gridLayout, spacing: 24) {
+        LazyVGrid(columns: gridMetrics.columns, spacing: gridMetrics.spacing) {
           ForEach(store.activeEntries) { entry in
             CatalogEntryTile(
               entry: entry,
               tileFrames: tileFrames,
-              onFrameChange: { frame in tileFrames[entry.id] = frame }
+              onFrameChange: { frame in tileFrames[entry.id] = frame },
+              preferredSize: gridMetrics.tileSize
             )
           }
         }
-        .padding(.horizontal, 72)
+        .padding(.horizontal, gridMetrics.horizontalPadding)
         .padding(.bottom, 48)
       }
       .scrollIndicators(.hidden)
@@ -124,6 +123,59 @@ struct ContentView: View {
   private func folderTileKey(for folder: FolderItem) -> String {
     CatalogEntry.folder(folder).id
   }
+
+  private func gridMetrics(for containerSize: CGSize) -> GridMetrics {
+    let spacing: CGFloat = 24
+    let horizontalPadding: CGFloat = 72
+    var columns = max(1, min(settings.gridColumns, 8))
+    let rows = max(1, min(settings.gridRows, 6))
+
+    let availableWidth = max(0, containerSize.width - horizontalPadding * 2)
+    var tileWidth: CGFloat = 140
+    if availableWidth > 0 {
+      var computedWidth: CGFloat = 0
+      var candidateColumns = columns
+      while candidateColumns >= 1 {
+        let raw =
+          (availableWidth - spacing * CGFloat(candidateColumns - 1)) / CGFloat(candidateColumns)
+        if raw >= 120 {
+          computedWidth = raw
+          columns = candidateColumns
+          break
+        }
+        candidateColumns -= 1
+      }
+      if computedWidth <= 0 {
+        columns = 1
+        computedWidth = availableWidth
+      }
+      tileWidth = max(120, computedWidth)
+    }
+
+    let verticalReserve: CGFloat = 320
+    let availableHeight = max(160, containerSize.height - verticalReserve)
+    let tileHeightRaw = (availableHeight - spacing * CGFloat(rows - 1)) / CGFloat(rows)
+    let tileHeight = max(140, tileHeightRaw)
+
+    let gridItems = Array(
+      repeating: GridItem(.fixed(tileWidth), spacing: spacing, alignment: .top),
+      count: columns
+    )
+
+    return GridMetrics(
+      columns: gridItems,
+      tileSize: CGSize(width: tileWidth, height: tileHeight),
+      spacing: spacing,
+      horizontalPadding: horizontalPadding
+    )
+  }
+}
+
+private struct GridMetrics {
+  let columns: [GridItem]
+  let tileSize: CGSize
+  let spacing: CGFloat
+  let horizontalPadding: CGFloat
 }
 
 private struct SearchBar: View {
@@ -237,9 +289,9 @@ private struct CatalogEntryTile: View {
   let entry: CatalogEntry
   let tileFrames: [String: CGRect]
   let onFrameChange: (CGRect) -> Void
+  let preferredSize: CGSize
 
   @EnvironmentObject private var store: AppCatalogStore
-  @State private var tileSize: CGSize = CGSize(width: 140, height: 150)
   @State private var tileFrame: CGRect = .zero
   @State private var dragOffset: CGSize = .zero
   @State private var dropLocation: CGPoint? = nil
@@ -248,7 +300,7 @@ private struct CatalogEntryTile: View {
 
   var body: some View {
     content
-      .frame(width: tileSize.width, height: tileSize.height)
+      .frame(width: preferredSize.width, height: preferredSize.height)
       .background(frameTracker)
       .modifier(WiggleModifier(isActive: store.isEditing, seed: wiggleSeed))
       .scaleEffect(store.draggingEntryID == entry.id ? 1.05 : 1.0)
@@ -353,10 +405,6 @@ private struct CatalogEntryTile: View {
     if !frame.isNull && !frame.isInfinite {
       tileFrame = frame
       onFrameChange(frame)
-    }
-    let size = geometry.size
-    if size.width.isFinite && size.height.isFinite {
-      tileSize = size
     }
   }
 

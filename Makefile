@@ -37,6 +37,9 @@ ARCHIVE_PATH := $(BUILD_DIR)/archives/$(PACKAGE).xcarchive
 PKG_PATH     := $(DIST_DIR)/$(PACKAGE).pkg
 DMG_PATH     := $(DIST_DIR)/$(PACKAGE).dmg
 
+# Default target
+.DEFAULT_GOAL := bundle
+
 # Convenience helper; make sure directories exist before writing artifacts
 MKDIR_P = mkdir -p
 

@@ -37,7 +37,7 @@ jobs:
 
       - name: Build app (make bundle)
         env:
-          VERSION: ${{ steps.vars.outputs.version }}
+          BUNDLE_VERSION: ${{ steps.vars.outputs.version }}
           SKIP_CODESIGN: "1"
         run: |
           make clean
@@ -47,15 +47,15 @@ jobs:
         run: |
           set -euo pipefail
           VER="${{ steps.vars.outputs.version }}"
-          DMG="dist/Launchy-${VER}.dmg"
-          hdiutil create -volname "Launchy" -srcfolder "dist/Launchy.app" -ov -format UDZO "$DMG"
+          DMG=".build/dist/Launchy-${VER}.dmg"
+          hdiutil create -volname "Launchy" -srcfolder ".build/dist/Launchy.app" -ov -format UDZO "$DMG"
           ls -la "$DMG"
 
       - name: Upload artifact (DMG)
         uses: actions/upload-artifact@v4
         with:
           name: LaunchyDMG
-          path: dist/*.dmg
+          path: .build/dist/*.dmg
           if-no-files-found: error
 
   release:

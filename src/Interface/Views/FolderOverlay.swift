@@ -38,7 +38,7 @@ struct FolderOverlay: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(isExpanded ? 0.55 : 0)
+      Color.black.opacity(isExpanded ? 0.72 : 0)
                 .ignoresSafeArea()
                 .animation(animation, value: isExpanded)
                 .onTapGesture { close() }
@@ -100,16 +100,16 @@ struct FolderOverlay: View {
         .padding(28)
         .background(
             RoundedRectangle(cornerRadius: 34, style: .continuous)
-                .fill(Color.white.opacity(0.15))
+        .fill(Color.black.opacity(0.62))
                 .background(
                     RoundedRectangle(cornerRadius: 34, style: .continuous)
-                        .fill(Color.white.opacity(0.08))
-                        .blur(radius: 20)
+            .fill(Color.black.opacity(0.45))
+            .blur(radius: 24)
                 )
         )
         .overlay(
             RoundedRectangle(cornerRadius: 34, style: .continuous)
-                .stroke(Color.white.opacity(0.18), lineWidth: 1)
+        .stroke(Color.white.opacity(0.24), lineWidth: 1.2)
         )
         .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
     }

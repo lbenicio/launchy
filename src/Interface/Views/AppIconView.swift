@@ -111,7 +111,39 @@ struct FolderIconView: View {
                 isHighlighted = hovering
             }
         }
+        .contextMenu {
+            if store.isEditing {
+                Button("Rename…") { promptRename() }
+            } else {
+                Button("Open") { store.present(folder) }
+            }
+        }
         .help("Open folder")
+    }
+
+    private func promptRename() {
+        let alert = NSAlert()
+        alert.messageText = "Rename Folder"
+        alert.informativeText = "Enter a new name for \(folder.name)."
+        let textField = NSTextField(string: folder.name)
+        textField.frame = NSRect(x: 0, y: 0, width: 240, height: 24)
+        textField.placeholderString = "Folder Name"
+        alert.accessoryView = textField
+        alert.addButton(withTitle: "Rename")
+        alert.addButton(withTitle: "Cancel")
+
+        if let window = NSApp.keyWindow {
+            alert.beginSheetModal(for: window) { response in
+                if response == .alertFirstButtonReturn {
+                    store.renameFolder(id: folder.id, to: textField.stringValue)
+                }
+            }
+        } else {
+            let response = alert.runModal()
+            if response == .alertFirstButtonReturn {
+                store.renameFolder(id: folder.id, to: textField.stringValue)
+            }
+        }
     }
 }
 
