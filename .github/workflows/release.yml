@@ -11,14 +11,15 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
     name: Build app and DMG
     runs-on: macos-latest
     outputs:
-      version: ${{ steps.vars.outputs.version }}
+      version: ${{ steps.prepare.outputs.version }}
+      clean_version: ${{ steps.prepare.outputs.clean_version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,30 +27,46 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Compute version
-        id: vars
+      - name: Ensure release version
+        id: prepare
         shell: bash
         run: |
           set -euo pipefail
-          VERSION=$(make version | tr -d '[:space:]')
-          echo "version=v$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Version: v$VERSION"
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
 
-      - name: Verify changelog entry exists
-        shell: bash
-        run: |
-          set -euo pipefail
-          VERSION='${{ steps.vars.outputs.version }}'
-          CLEAN_VERSION="${VERSION#v}"
-          if ! grep -q "^## \[$CLEAN_VERSION\]" CHANGELOG.md; then
-            echo "::error file=CHANGELOG.md::Changelog entry for version $CLEAN_VERSION not found. Did you already cut this release?" >&2
-            exit 1
+          VERSION=$(make version | tr -d '[:space:]')
+          TAG_NAME="v${VERSION}"
+
+          if ! grep -q "^## \[$VERSION\]" CHANGELOG.md || git rev-parse -q --verify "refs/tags/$TAG_NAME" >/dev/null; then
+            echo "Preparing new patch release (current version: $VERSION)."
+            if ! ./scripts/update_changelog.sh --bump patch --date "$(date +%F)"; then
+              echo "::error file=scripts/update_changelog.sh::Failed to update changelog." >&2
+              exit 1
+            fi
+
+            git add CHANGELOG.md Package.swift
+
+            if git diff --cached --quiet; then
+              echo "::error::Changelog updater produced no changes. Ensure there are commits since the previous release." >&2
+              exit 1
+            fi
+
+            NEW_VERSION=$(make version | tr -d '[:space:]')
+            git commit -m "chore(release): prepare v${NEW_VERSION}"
+            git push origin HEAD
+            VERSION="$NEW_VERSION"
+            TAG_NAME="v${NEW_VERSION}"
+            echo "Bumped to version $VERSION"
           fi
 
+          echo "version=$TAG_NAME" >> "$GITHUB_OUTPUT"
+          echo "clean_version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version ready: $TAG_NAME"
 
       - name: Build app (make bundle)
         env:
-          BUNDLE_VERSION: ${{ steps.vars.outputs.version }}
+          BUNDLE_VERSION: ${{ steps.prepare.outputs.version }}
           SKIP_CODESIGN: "1"
         run: |
           make clean
@@ -58,7 +75,7 @@ jobs:
       - name: Create DMG
         run: |
           set -euo pipefail
-          VER="${{ steps.vars.outputs.version }}"
+          VER="${{ steps.prepare.outputs.version }}"
           DMG=".build/dist/Launchy-${VER}.dmg"
           hdiutil create -volname "Launchy" -srcfolder ".build/dist/Launchy.app" -ov -format UDZO "$DMG"
           ls -la "$DMG"
@@ -97,7 +114,7 @@ jobs:
           PRERELEASE=false
           if [[ "$VER" =~ -rc[0-9]+$ ]]; then PRERELEASE=true; fi
           echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
-          CLEAN_VERSION="${VER#v}"
+          CLEAN_VERSION='${{ needs.build.outputs.clean_version }}'
           echo "clean_version=$CLEAN_VERSION" >> "$GITHUB_OUTPUT"
           echo "Using version: $VER (prerelease=$PRERELEASE)"
 
