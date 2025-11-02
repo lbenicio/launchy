@@ -54,12 +54,12 @@ struct ContentView: View {
       .onExitCommand {
         if store.isEditing {
           store.endEditing()
-        } else if store.exitHandledDuringEditing {
-          store.clearEditingCompletionFlag()
-          NSApp.terminate(nil)
-        } else {
-          NSApp.terminate(nil)
         }
+        if store.presentedFolder != nil {
+          store.dismissPresentedFolder()
+        }
+        store.clearEditingCompletionFlag()
+        NSApp.terminate(nil)
       }
       .onChange(of: store.presentedFolder) {
         updateFolderAnchor(for: $0)
