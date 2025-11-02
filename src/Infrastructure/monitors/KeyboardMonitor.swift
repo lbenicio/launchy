@@ -69,6 +69,12 @@ final class KeyboardMonitor {
                     store.dismissPresentedFolder()
                 } else if !store.query.isEmpty {
                     store.query = ""
+                } else if let delegate = NSApp.delegate as? AppLifecycleDelegate {
+                    if delegate.isDaemonModeActive {
+                        delegate.hideToBackground()
+                    } else {
+                        NSApp.terminate(nil)
+                    }
                 }
             }
         default:

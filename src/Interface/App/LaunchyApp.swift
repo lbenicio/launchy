@@ -67,6 +67,8 @@ struct LaunchyApp: App {
 }
 
 final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
+  static weak var shared: AppLifecycleDelegate?
+
     var activationHandler: (() -> Void)?
   var settings: AppSettings? {
     didSet {
@@ -96,6 +98,13 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
   private var daemonModeEnabled = true
   private var currentActivationPolicy: NSApplication.ActivationPolicy?
+  private var suppressNextPresentation = false
+  private var hasPresentedPrimaryWindow = false
+
+  override init() {
+    super.init()
+    AppLifecycleDelegate.shared = self
+  }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.appearance = NSAppearance(named: .vibrantDark)
@@ -103,9 +112,9 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
         AccessibilityPermission.requestIfNeeded()
     Task { @MainActor [weak self] in
       guard let self else { return }
-      try? await Task.sleep(nanoseconds: 15_000_000)
       self.updateActivationPolicy()
       if self.daemonModeEnabled {
+        self.suppressNextPresentation = true
         _ = self.hidePrimaryWindow()
       } else {
         self.showPrimaryWindow()
@@ -125,6 +134,9 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
         if let screen = window.screen ?? NSScreen.main {
             window.setFrame(screen.frame, display: true)
         }
+    guard !skipPresentationForDaemonMode else {
+      return
+    }
     let settingsVisible = SettingsWindowManager.shared.isShowing
     if !settingsVisible && (NSApp.keyWindow === window || NSApp.keyWindow == nil) {
       window.makeKeyAndOrderFront(nil)
@@ -145,6 +157,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
 
   @MainActor
   func presentPrimaryWindow() {
+    hasPresentedPrimaryWindow = true
     showPrimaryWindow()
   }
 
@@ -215,8 +228,16 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
 
   @MainActor
   private func handleDaemonPreferenceChange(_ enabled: Bool) {
+    let previous = daemonModeEnabled
     daemonModeEnabled = enabled
     updateActivationPolicy()
+    if enabled {
+      suppressNextPresentation = false
+      _ = hidePrimaryWindow()
+    } else if previous {
+      hasPresentedPrimaryWindow = true
+      showPrimaryWindow()
+    }
   }
 
   @MainActor
@@ -236,9 +257,13 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
   private func showPrimaryWindow() {
     updateActivationPolicy()
     guard let window = primaryWindow else { return }
+    suppressNextPresentation = false
+    hasPresentedPrimaryWindow = true
+    window.alphaValue = 1
+    window.isReleasedWhenClosed = false
+    window.orderFrontRegardless()
     NSApp.activate(ignoringOtherApps: true)
     window.makeKeyAndOrderFront(nil)
-    window.orderFrontRegardless()
   }
 
   @discardableResult
@@ -246,8 +271,27 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
   private func hidePrimaryWindow() -> Bool {
     updateActivationPolicy()
     guard let window = primaryWindow else { return false }
+    window.alphaValue = 0
     window.orderOut(nil)
-    NSApp.deactivate()
+    if daemonModeEnabled {
+      NSApp.deactivate()
+    }
     return true
+  }
+
+  var isDaemonModeActive: Bool {
+    daemonModeEnabled
+  }
+
+  private var skipPresentationForDaemonMode: Bool {
+    daemonModeEnabled && !hasPresentedPrimaryWindow
+  }
+
+  @MainActor
+  func consumeSuppressedPresentation(for window: NSWindow) {
+    guard suppressNextPresentation else { return }
+    suppressNextPresentation = false
+    window.alphaValue = 0
+    window.orderOut(nil)
   }
 }
