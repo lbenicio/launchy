@@ -9,12 +9,16 @@ final class AppCatalogStore: ObservableObject {
   @Published var isEditing: Bool = false
   @Published var draggingEntryID: String? = nil
   @Published var targetedEntryID: String? = nil
+  @Published private(set) var draggingFromFolder: Bool = false
+  @Published private(set) var exitHandledDuringEditing: Bool = false
 
   private var lastLoaded: Date? = nil
   private let loader = AppCatalogLoader()
   private let layoutPersistence = LayoutPersistence()
   private let folderCreationThreshold: CGFloat = 48
   private var reorderPending = false
+  private var folderDragContext: FolderDragContext? = nil
+  private var lastReorderPair: (draggingID: String, targetID: String)? = nil
 
   var activeEntries: [CatalogEntry] {
     if !query.isEmpty {
@@ -36,6 +40,10 @@ final class AppCatalogStore: ObservableObject {
     draggingEntryID = nil
     targetedEntryID = nil
     reorderPending = false
+    draggingFromFolder = false
+    folderDragContext = nil
+    lastReorderPair = nil
+    exitHandledDuringEditing = false
     lastLoaded = Date()
     persistLayout()
   }
@@ -55,7 +63,6 @@ final class AppCatalogStore: ObservableObject {
   }
 
   func present(_ folder: FolderItem) {
-    guard !isEditing else { return }
     presentedFolder = folder
   }
 
@@ -79,14 +86,18 @@ final class AppCatalogStore: ObservableObject {
     return false
   }
 
-  func beginEditing() {
+  func beginEditing(preservingFolder: Bool = false) {
     if !query.isEmpty {
       query = ""
     }
-    presentedFolder = nil
+    if !preservingFolder {
+      presentedFolder = nil
+    }
     isEditing = true
     targetedEntryID = nil
     reorderPending = false
+    lastReorderPair = nil
+    exitHandledDuringEditing = false
   }
 
   func endEditing() {
@@ -94,6 +105,14 @@ final class AppCatalogStore: ObservableObject {
     draggingEntryID = nil
     targetedEntryID = nil
     reorderPending = false
+    draggingFromFolder = false
+    folderDragContext = nil
+    lastReorderPair = nil
+    exitHandledDuringEditing = true
+  }
+
+  func clearEditingCompletionFlag() {
+    exitHandledDuringEditing = false
   }
 
   func beginDragging(entryID: String) {
@@ -101,6 +120,67 @@ final class AppCatalogStore: ObservableObject {
     draggingEntryID = entryID
     targetedEntryID = nil
     reorderPending = false
+    lastReorderPair = nil
+  }
+
+  func beginDraggingAppFromFolder(folderID: String, appID: String) {
+    guard isEditing else { return }
+    guard folderDragContext == nil else { return }
+    guard
+      let folderIndex = rootEntries.firstIndex(where: { entry in
+        if case .folder(let folder) = entry {
+          return folder.id == folderID
+        }
+        return false
+      }),
+      case .folder(let originalFolder) = rootEntries[folderIndex],
+      let appIndex = originalFolder.apps.firstIndex(where: { $0.id == appID })
+    else { return }
+
+    var updatedFolder = originalFolder
+    let app = updatedFolder.apps.remove(at: appIndex)
+    let entry = CatalogEntry.app(app)
+    let entryID = entry.id
+
+    let folderBecameEmpty = updatedFolder.apps.isEmpty
+    if folderBecameEmpty {
+      withAnimation(.easeInOut(duration: 0.18)) {
+        _ = rootEntries.remove(at: folderIndex)
+      }
+    } else {
+      withAnimation(.easeInOut(duration: 0.18)) {
+        rootEntries[folderIndex] = .folder(updatedFolder)
+      }
+    }
+
+    var insertionIndex = folderIndex
+    if !folderBecameEmpty {
+      insertionIndex += 1
+    }
+    insertionIndex = min(insertionIndex, rootEntries.count)
+
+    withAnimation(.easeInOut(duration: 0.18)) {
+      rootEntries.insert(entry, at: insertionIndex)
+    }
+
+    folderDragContext = FolderDragContext(
+      originalFolder: originalFolder,
+      updatedFolder: folderBecameEmpty ? nil : updatedFolder,
+      folderIndex: folderIndex,
+      app: app,
+      appIndex: appIndex,
+      entryID: entryID,
+      insertionIndex: insertionIndex,
+      folderRemoved: folderBecameEmpty
+    )
+
+    draggingFromFolder = true
+    draggingEntryID = entryID
+    targetedEntryID = nil
+    reorderPending = false
+    lastReorderPair = nil
+
+    presentedFolder = updatedFolder
   }
 
   func updateDraggingTarget(entryID: String?, location: CGPoint?, tileSize: CGSize?) {
@@ -122,43 +202,72 @@ final class AppCatalogStore: ObservableObject {
     if shouldMerge {
       targetedEntryID = entryID
       reorderPending = false
+      lastReorderPair = nil
     } else {
+      if let lastReorderPair, lastReorderPair.draggingID == draggingID,
+        lastReorderPair.targetID == entryID
+      {
+        return
+      }
       targetedEntryID = nil
       let reordered = moveEntry(draggingID: draggingID, before: entryID, persist: false)
       if reordered {
         reorderPending = true
+        lastReorderPair = (draggingID: draggingID, targetID: entryID)
+      } else if lastReorderPair?.targetID == entryID {
+        lastReorderPair = nil
       }
     }
   }
 
   func completeDrop(on targetID: String?, location: CGPoint?, tileSize: CGSize?) -> Bool {
-    defer {
-      draggingEntryID = nil
-      targetedEntryID = nil
-      reorderPending = false
-    }
     guard let draggingID = draggingEntryID else { return false }
-    guard presentedFolder == nil else { return false }
+    var dropSucceeded = false
 
     if let targetID {
       let shouldMerge = shouldMergeDrop(at: location, tileSize: tileSize)
-      if shouldMerge, mergeEntry(draggingID: draggingID, targetID: targetID) {
-        return true
+      if shouldMerge {
+        dropSucceeded = mergeEntry(draggingID: draggingID, targetID: targetID)
+      } else {
+        dropSucceeded = moveEntry(draggingID: draggingID, before: targetID)
       }
-      return moveEntry(draggingID: draggingID, before: targetID)
     } else {
       if reorderPending {
         persistLayout()
-        return true
+        dropSucceeded = true
+      } else if folderDragContext != nil {
+        persistLayout()
+        dropSucceeded = true
       }
-      return moveDraggingEntryToTail(with: draggingID)
+      if !dropSucceeded {
+        dropSucceeded = moveDraggingEntryToTail(with: draggingID)
+      }
     }
-  }
 
-  func abandonDrag() {
+    if dropSucceeded {
+      finalizeFolderDragContext()
+    } else {
+      restoreFolderDragContext()
+    }
+
     draggingEntryID = nil
     targetedEntryID = nil
     reorderPending = false
+    draggingFromFolder = false
+    lastReorderPair = nil
+
+    return dropSucceeded
+  }
+
+  func abandonDrag() {
+    if folderDragContext != nil {
+      restoreFolderDragContext()
+    }
+    draggingEntryID = nil
+    targetedEntryID = nil
+    reorderPending = false
+    draggingFromFolder = false
+    lastReorderPair = nil
   }
 
   private var shouldReload: Bool {
@@ -347,13 +456,79 @@ final class AppCatalogStore: ObservableObject {
     }
   }
 
+  private func finalizeFolderDragContext() {
+    guard let context = folderDragContext else { return }
+    folderDragContext = nil
+    if context.folderRemoved {
+      presentedFolder = nil
+    } else if let updated = context.updatedFolder {
+      presentedFolder = updated
+    }
+  }
+
+  private func restoreFolderDragContext() {
+    guard let context = folderDragContext else { return }
+
+    if let entryIndex = rootEntries.firstIndex(where: { $0.id == context.entryID }) {
+      withAnimation(.easeInOut(duration: 0.18)) {
+        _ = rootEntries.remove(at: entryIndex)
+      }
+    }
+
+    if context.folderRemoved {
+      withAnimation(.easeInOut(duration: 0.18)) {
+        rootEntries.insert(
+          .folder(context.originalFolder),
+          at: min(context.folderIndex, rootEntries.count)
+        )
+      }
+      presentedFolder = context.originalFolder
+    } else if let updated = context.updatedFolder {
+      if let folderIndex = rootEntries.firstIndex(where: { entry in
+        if case .folder(let folder) = entry {
+          return folder.id == updated.id
+        }
+        return false
+      }) {
+        var folder = updated
+        folder.apps.insert(context.app, at: context.appIndex)
+        withAnimation(.easeInOut(duration: 0.18)) {
+          rootEntries[folderIndex] = .folder(folder)
+        }
+        presentedFolder = folder
+      } else {
+        withAnimation(.easeInOut(duration: 0.18)) {
+          rootEntries.insert(
+            .folder(context.originalFolder),
+            at: min(context.folderIndex, rootEntries.count)
+          )
+        }
+        presentedFolder = context.originalFolder
+      }
+    }
+
+    folderDragContext = nil
+    draggingFromFolder = false
+    persistLayout()
+  }
+
+  private struct FolderDragContext {
+    let originalFolder: FolderItem
+    let updatedFolder: FolderItem?
+    let folderIndex: Int
+    let app: AppItem
+    let appIndex: Int
+    let entryID: String
+    let insertionIndex: Int
+    let folderRemoved: Bool
+  }
   private func shouldMergeDrop(at location: CGPoint?, tileSize: CGSize?) -> Bool {
     guard let location, let tileSize else { return false }
     let center = CGPoint(x: tileSize.width / 2, y: tileSize.height / 2)
     let dx = location.x - center.x
     let dy = location.y - center.y
     let distance = sqrt(dx * dx + dy * dy)
-    let radius = min(tileSize.width, tileSize.height) * 0.38
+    let radius = min(tileSize.width, tileSize.height) * 0.5
     return distance <= max(radius, folderCreationThreshold)
   }
 
@@ -383,5 +558,35 @@ final class AppCatalogStore: ObservableObject {
     let primaryToken = primary.split(separator: " ").first.map(String.init) ?? primary
     let secondaryToken = secondary.split(separator: " ").first.map(String.init) ?? secondary
     return "\(primaryToken) & \(secondaryToken)"
+  }
+
+  func dissolveFolder(id folderID: String) {
+    guard isEditing else { return }
+    guard
+      let index = rootEntries.firstIndex(where: { entry in
+        if case .folder(let folder) = entry {
+          return folder.id == folderID
+        }
+        return false
+      }),
+      case .folder(let folder) = rootEntries[index]
+    else { return }
+
+    guard !folder.apps.isEmpty else {
+      withAnimation(.easeInOut(duration: 0.18)) {
+        _ = rootEntries.remove(at: index)
+      }
+      presentedFolder = nil
+      persistLayout()
+      return
+    }
+
+    withAnimation(.easeInOut(duration: 0.18)) {
+      _ = rootEntries.remove(at: index)
+      let entries = folder.apps.map { CatalogEntry.app($0) }
+      rootEntries.insert(contentsOf: entries, at: index)
+    }
+    presentedFolder = nil
+    persistLayout()
   }
 }

@@ -5,6 +5,7 @@ struct SettingsView: View {
 
     private let columnRange = 2...8
     private let rowRange = 2...6
+  private let scrollRange = AppSettings.scrollThresholdRange
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -31,12 +32,26 @@ struct SettingsView: View {
                     }
                     .labelsHidden()
                 }
+
+        VStack(alignment: .leading, spacing: 6) {
+          Text("Scroll Sensitivity")
+          HStack(spacing: 12) {
+            Slider(value: $settings.scrollThreshold, in: scrollRange, step: 4)
+            Text("\(Int(settings.scrollThreshold))")
+              .monospacedDigit()
+              .frame(width: 44, alignment: .trailing)
+          }
+          Text("Lower values need smaller scroll gestures to change pages.")
+            .font(.footnote)
+            .foregroundColor(.secondary)
+        }
             }
 
             Spacer()
         }
         .padding()
         .frame(minWidth: 280, minHeight: 160)
+    .background(AuxiliaryWindowConfigurator())
     }
 }
 

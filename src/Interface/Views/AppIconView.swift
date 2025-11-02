@@ -17,18 +17,14 @@ struct AppIconView: View {
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
-                    .frame(maxWidth: 140)
+          .frame(maxWidth: 100)
             }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 8)
+      .padding(.vertical, 2)
+      .padding(.horizontal, 4)
             .frame(maxWidth: .infinity)
             .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.white.opacity(isHighlighted ? 0.12 : 0.06))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.white.opacity(isHighlighted ? 0.35 : 0.2), lineWidth: 1)
+        RoundedRectangle(cornerRadius: 18)
+          .fill(Color.white.opacity(isHighlighted ? 0.16 : 0))
             )
         }
         .buttonStyle(.plain)
@@ -91,18 +87,14 @@ struct FolderIconView: View {
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
-                    .frame(maxWidth: 140)
+          .frame(maxWidth: 100)
             }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 8)
+      .padding(.vertical, 2)
+      .padding(.horizontal, 4)
             .frame(maxWidth: .infinity)
             .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.white.opacity(isHighlighted ? 0.12 : 0.06))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.white.opacity(isHighlighted ? 0.35 : 0.2), lineWidth: 1)
+        RoundedRectangle(cornerRadius: 18)
+          .fill(Color.white.opacity(isHighlighted ? 0.16 : 0))
             )
         }
         .buttonStyle(.plain)
@@ -131,6 +123,11 @@ struct FolderIconView: View {
         alert.accessoryView = textField
         alert.addButton(withTitle: "Rename")
         alert.addButton(withTitle: "Cancel")
+        
+    let alertWindow = alert.window
+    alertWindow.level = .launchyAuxiliary
+    alertWindow.collectionBehavior.insert(.fullScreenAuxiliary)
+    alertWindow.orderFrontRegardless()
 
         if let window = NSApp.keyWindow {
             alert.beginSheetModal(for: window) { response in

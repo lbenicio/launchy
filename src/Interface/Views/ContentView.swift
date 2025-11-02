@@ -9,6 +9,14 @@ struct ContentView: View {
   @FocusState private var searchFocused: Bool
   @State private var tileFrames: [String: CGRect] = [:]
   @State private var folderAnchor: CGRect? = nil
+  @State private var selectedPage: Int = 0
+  @State private var horizontalDragOffset: CGFloat = 0
+  @State private var containerDimensions: CGSize = .zero
+  @State private var currentPageCount: Int = 1
+  @State private var edgeAutoAdvanceDirection: EdgeAutoAdvanceDirection? = nil
+  @State private var edgeAutoAdvanceTask: Task<Void, Never>? = nil
+  @State private var lastEdgeDragLocation: CGPoint? = nil
+  @State private var scrollAccumulation: CGFloat = 0
 
   var body: some View {
     GeometryReader { proxy in
@@ -23,6 +31,14 @@ struct ContentView: View {
           .padding(32)
       }
       .overlay {
+        ScrollWheelCaptureView(onScroll: { delta in
+          Task { @MainActor in
+            handleScrollInput(delta: delta)
+          }
+        })
+        .allowsHitTesting(false)
+      }
+      .overlay {
         folderOverlay(for: containerSize)
       }
       .background(TransparentWindowConfigurator())
@@ -30,14 +46,27 @@ struct ContentView: View {
       .onAppear {
         searchFocused = true
         KeyboardMonitor.shared.configure(with: store)
+        containerDimensions = containerSize
       }
+      .onChange(of: containerSize) { containerDimensions = $0 }
       .onExitCommand {
-        if store.dismissPresentedFolderOrClearSearch() {
-          return
+        if store.isEditing {
+          store.endEditing()
+        } else if store.exitHandledDuringEditing {
+          store.clearEditingCompletionFlag()
+          NSApp.terminate(nil)
+        } else {
+          NSApp.terminate(nil)
         }
-        NSApp.terminate(nil)
       }
-      .onChange(of: store.presentedFolder) { updateFolderAnchor(for: $0) }
+      .onChange(of: store.presentedFolder) {
+        updateFolderAnchor(for: $0)
+        if $0 == nil {
+          Task { @MainActor in
+            handleEdgeHover(with: nil)
+          }
+        }
+      }
       .onChange(of: tileFrames) { frames in
         if let folder = store.presentedFolder,
           let frame = frames[folderTileKey(for: folder)]
@@ -51,14 +80,34 @@ struct ContentView: View {
         } else if store.presentedFolder == nil && store.query.isEmpty {
           searchFocused = true
         }
+        if !editing {
+          Task { @MainActor in
+            handleEdgeHover(with: nil)
+          }
+        }
       }
       .onChange(of: store.activeEntries.map { $0.id }) { ids in
         let valid = Set(ids)
         tileFrames = tileFrames.filter { valid.contains($0.key) }
       }
+      .onChange(of: store.draggingEntryID) { id in
+        if id == nil {
+          Task { @MainActor in
+            handleEdgeHover(with: nil)
+          }
+        }
+      }
+      .onChange(of: store.query) { _ in
+        selectedPage = 0
+        horizontalDragOffset = 0
+        Task { @MainActor in
+          handleEdgeHover(with: nil)
+        }
+      }
       .animation(.easeInOut(duration: 0.2), value: store.activeEntries.count)
       .animation(.easeInOut(duration: 0.2), value: store.presentedFolder?.id ?? "")
     }
+    .onDisappear { cancelEdgeAutoAdvance() }
     .coordinateSpace(name: launchyCoordinateSpace)
   }
 
@@ -68,29 +117,99 @@ struct ContentView: View {
   }
 
   private func contentLayer(gridMetrics: GridMetrics) -> some View {
-    VStack(spacing: 24) {
+    let pages = paginatedEntries(using: gridMetrics)
+    let pageCount = pages.count
+    updateCurrentPageCount(pageCount)
+
+    return VStack(spacing: 24) {
       SearchBar(text: $store.query, isFocused: $searchFocused)
         .padding(.top, 32)
-      ScrollView {
-        LazyVGrid(columns: gridMetrics.columns, spacing: gridMetrics.spacing) {
-          ForEach(store.activeEntries) { entry in
-            CatalogEntryTile(
-              entry: entry,
-              tileFrames: tileFrames,
-              onFrameChange: { frame in tileFrames[entry.id] = frame },
-              preferredSize: gridMetrics.tileSize
-            )
+      GeometryReader { pagingProxy in
+        let pageWidth = max(1, pagingProxy.size.width)
+        let pageHeight = pagingProxy.size.height
+
+        HStack(spacing: 0) {
+          ForEach(pages.indices, id: \.self) { index in
+            let entries = pages[index]
+            LazyVGrid(columns: gridMetrics.columns, spacing: gridMetrics.spacing) {
+              ForEach(entries) { entry in
+                CatalogEntryTile(
+                  entry: entry,
+                  tileFrames: tileFrames,
+                  onFrameChange: { frame in tileFrames[entry.id] = frame },
+                  preferredSize: gridMetrics.tileSize,
+                  onDragLocationChange: { point in
+                    Task { @MainActor in
+                      handleEdgeHover(with: point)
+                    }
+                  }
+                )
+              }
+            }
+            .padding(.horizontal, gridMetrics.horizontalPadding)
+            .padding(.bottom, 48)
+            .frame(width: pageWidth, height: pageHeight, alignment: .top)
           }
         }
-        .padding(.horizontal, gridMetrics.horizontalPadding)
-        .padding(.bottom, 48)
+        .offset(x: -CGFloat(selectedPage) * pageWidth + horizontalDragOffset)
+        .animation(.easeInOut(duration: 0.25), value: selectedPage)
+        .simultaneousGesture(
+          DragGesture(minimumDistance: 10)
+            .onChanged { value in
+              guard store.draggingEntryID == nil else {
+                horizontalDragOffset = 0
+                return
+              }
+              let translation = value.translation.width
+              if (selectedPage == 0 && translation > 0)
+                || (selectedPage == pageCount - 1 && translation < 0)
+              {
+                horizontalDragOffset = translation / 3
+              } else {
+                horizontalDragOffset = translation
+              }
+            }
+            .onEnded { value in
+              guard store.draggingEntryID == nil else {
+                horizontalDragOffset = 0
+                return
+              }
+              let threshold = pageWidth * 0.2
+              var newPage = selectedPage
+              if value.translation.width < -threshold {
+                newPage = min(selectedPage + 1, pageCount - 1)
+              } else if value.translation.width > threshold {
+                newPage = max(selectedPage - 1, 0)
+              }
+              selectedPage = newPage
+              horizontalDragOffset = 0
+            }
+        )
       }
-      .scrollIndicators(.hidden)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .clipped()
+
+      if pageCount > 1 {
+        PageIndicator(currentPage: selectedPage, totalPages: pageCount) { index in
+          guard index >= 0 && index < pageCount else { return }
+          selectedPage = index
+          horizontalDragOffset = 0
+        }
+        .padding(.bottom, 12)
+        .transition(.opacity)
+      }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .overlay(alignment: .bottom) {
       ControlFooter()
         .padding(.bottom, 24)
+    }
+    .onChange(of: pageCount) { newValue in
+      let maxPage = max(0, newValue - 1)
+      if selectedPage > maxPage {
+        selectedPage = maxPage
+      }
+      horizontalDragOffset = 0
     }
   }
 
@@ -99,7 +218,17 @@ struct ContentView: View {
     if let folder = store.presentedFolder,
       let anchor = folderAnchor
     {
-      FolderOverlay(folder: folder, anchor: anchor, containerSize: containerSize)
+      FolderOverlay(
+        folder: folder,
+        anchor: anchor,
+        containerSize: containerSize,
+        tileFrames: tileFrames,
+        onDragLocationChange: { point in
+          Task { @MainActor in
+            handleEdgeHover(with: point)
+          }
+        }
+      )
         .transition(.opacity)
         .zIndex(2)
     }
@@ -122,6 +251,155 @@ struct ContentView: View {
 
   private func folderTileKey(for folder: FolderItem) -> String {
     CatalogEntry.folder(folder).id
+  }
+
+  private func updateCurrentPageCount(_ newValue: Int) {
+    guard currentPageCount != newValue else { return }
+    Task { @MainActor in
+      currentPageCount = newValue
+      if selectedPage >= newValue {
+        selectedPage = max(0, newValue - 1)
+      }
+    }
+  }
+
+  @MainActor
+  private func handleEdgeHover(with globalPoint: CGPoint?) {
+    guard store.draggingEntryID != nil else {
+      cancelEdgeAutoAdvance()
+      lastEdgeDragLocation = nil
+      return
+    }
+
+    guard containerDimensions.width > 0 else { return }
+
+    guard let point = globalPoint else {
+      lastEdgeDragLocation = nil
+      cancelEdgeAutoAdvance()
+      return
+    }
+
+    lastEdgeDragLocation = point
+
+    let inset: CGFloat = 96
+    var direction: EdgeAutoAdvanceDirection? = nil
+    if point.x <= inset {
+      direction = .previous
+    } else if point.x >= containerDimensions.width - inset {
+      direction = .next
+    }
+
+    guard let resolvedDirection = direction else {
+      cancelEdgeAutoAdvance()
+      return
+    }
+
+    if edgeAutoAdvanceDirection != resolvedDirection {
+      edgeAutoAdvanceDirection = resolvedDirection
+      edgeAutoAdvanceTask?.cancel()
+      edgeAutoAdvanceTask = scheduleEdgeAutoAdvance(direction: resolvedDirection)
+    } else if edgeAutoAdvanceTask == nil {
+      edgeAutoAdvanceTask = scheduleEdgeAutoAdvance(direction: resolvedDirection)
+    }
+  }
+
+  private func scheduleEdgeAutoAdvance(direction: EdgeAutoAdvanceDirection)
+    -> Task<Void, Never>
+  {
+    Task {
+      try? await Task.sleep(nanoseconds: 260_000_000)
+      if Task.isCancelled { return }
+      await MainActor.run {
+        applyEdgeAutoAdvance(direction)
+      }
+    }
+  }
+
+  @MainActor
+  private func applyEdgeAutoAdvance(_ direction: EdgeAutoAdvanceDirection) {
+    guard currentPageCount > 1 else {
+      cancelEdgeAutoAdvance()
+      return
+    }
+
+    switch direction {
+    case .previous:
+      guard selectedPage > 0 else {
+        cancelEdgeAutoAdvance()
+        return
+      }
+      selectedPage -= 1
+    case .next:
+      guard selectedPage < currentPageCount - 1 else {
+        cancelEdgeAutoAdvance()
+        return
+      }
+      selectedPage += 1
+    }
+
+    horizontalDragOffset = 0
+    scrollAccumulation = 0
+    edgeAutoAdvanceTask = nil
+
+    if let lastPoint = lastEdgeDragLocation {
+      handleEdgeHover(with: lastPoint)
+    }
+  }
+
+  @MainActor
+  private func cancelEdgeAutoAdvance() {
+    edgeAutoAdvanceTask?.cancel()
+    edgeAutoAdvanceTask = nil
+    edgeAutoAdvanceDirection = nil
+    lastEdgeDragLocation = nil
+  }
+
+  @MainActor
+  private func handleScrollInput(delta: CGFloat) {
+    guard store.draggingEntryID == nil else { return }
+    guard currentPageCount > 1 else { return }
+    guard store.presentedFolder == nil else { return }
+    guard abs(delta) > 0.5 else { return }
+
+    if (scrollAccumulation > 0 && delta < 0) || (scrollAccumulation < 0 && delta > 0) {
+      scrollAccumulation = delta
+    } else {
+      scrollAccumulation += delta
+    }
+
+    let threshold = CGFloat(settings.scrollThreshold)
+    if scrollAccumulation <= -threshold {
+      if selectedPage < currentPageCount - 1 {
+        selectedPage += 1
+        horizontalDragOffset = 0
+      }
+      scrollAccumulation = 0
+    } else if scrollAccumulation >= threshold {
+      if selectedPage > 0 {
+        selectedPage -= 1
+        horizontalDragOffset = 0
+      }
+      scrollAccumulation = 0
+    }
+  }
+
+  private func paginatedEntries(using metrics: GridMetrics) -> [[CatalogEntry]] {
+    let entries = store.activeEntries
+    let capacity = metrics.capacity
+    guard capacity > 0 else { return entries.isEmpty ? [[]] : [entries] }
+
+    if entries.isEmpty {
+      return [[]]
+    }
+
+    var pages: [[CatalogEntry]] = []
+    var index = 0
+    while index < entries.count {
+      let end = min(index + capacity, entries.count)
+      pages.append(Array(entries[index..<end]))
+      index = end
+    }
+    return pages
   }
 
   private func gridMetrics(for containerSize: CGSize) -> GridMetrics {
@@ -166,7 +444,8 @@ struct ContentView: View {
       columns: gridItems,
       tileSize: CGSize(width: tileWidth, height: tileHeight),
       spacing: spacing,
-      horizontalPadding: horizontalPadding
+      horizontalPadding: horizontalPadding,
+      rows: rows
     )
   }
 }
@@ -176,6 +455,14 @@ private struct GridMetrics {
   let tileSize: CGSize
   let spacing: CGFloat
   let horizontalPadding: CGFloat
+  let rows: Int
+
+  var capacity: Int { max(1, columns.count * rows) }
+}
+
+private enum EdgeAutoAdvanceDirection {
+  case previous
+  case next
 }
 
 private struct SearchBar: View {
@@ -218,7 +505,7 @@ private struct SearchBar: View {
 private struct ControlFooter: View {
   var body: some View {
     HStack(spacing: 24) {
-      ControlRow(icon: "esc", description: "Close / cancel edit")
+      ControlRow(icon: "esc", description: "Close app")
       ControlRow(icon: "Hold", description: "Drag to move or folder")
       ControlRow(icon: "⌘R", description: "Reload catalog")
     }
@@ -231,6 +518,38 @@ private struct ControlFooter: View {
     .overlay(
       RoundedRectangle(cornerRadius: 14)
         .stroke(Color.white.opacity(0.12), lineWidth: 1)
+    )
+  }
+}
+
+private struct PageIndicator: View {
+  let currentPage: Int
+  let totalPages: Int
+  let onSelect: (Int) -> Void
+
+  var body: some View {
+    HStack(spacing: 10) {
+      ForEach(0..<totalPages, id: \.self) { index in
+        Button {
+          onSelect(index)
+        } label: {
+          Circle()
+            .fill(Color.white.opacity(index == currentPage ? 0.9 : 0.35))
+            .frame(width: index == currentPage ? 10 : 8, height: index == currentPage ? 10 : 8)
+            .animation(.easeInOut(duration: 0.2), value: currentPage)
+        }
+        .buttonStyle(.plain)
+      }
+    }
+    .padding(.horizontal, 16)
+    .padding(.vertical, 6)
+    .background(
+      Capsule()
+        .fill(Color.white.opacity(0.12))
+    )
+    .overlay(
+      Capsule()
+        .stroke(Color.white.opacity(0.18), lineWidth: 1)
     )
   }
 }
@@ -290,6 +609,7 @@ private struct CatalogEntryTile: View {
   let tileFrames: [String: CGRect]
   let onFrameChange: (CGRect) -> Void
   let preferredSize: CGSize
+  let onDragLocationChange: (CGPoint?) -> Void
 
   @EnvironmentObject private var store: AppCatalogStore
   @State private var tileFrame: CGRect = .zero
@@ -306,6 +626,8 @@ private struct CatalogEntryTile: View {
       .scaleEffect(store.draggingEntryID == entry.id ? 1.05 : 1.0)
       .offset(store.draggingEntryID == entry.id ? dragOffset : .zero)
       .zIndex(store.draggingEntryID == entry.id ? 2 : 0)
+      .opacity(isHiddenDuringFolderDrag ? 0 : 1)
+      .allowsHitTesting(!isHiddenDuringFolderDrag)
       .overlay(dropHighlight)
       .contentShape(Rectangle())
       .simultaneousGesture(longPressToEdit)
@@ -364,9 +686,11 @@ private struct CatalogEntryTile: View {
           dropLocation = nil
           dropTileSize = nil
         }
+        onDragLocationChange(globalPoint)
       }
       .onEnded { _ in
         completeDrop()
+        onDragLocationChange(nil)
       }
   }
 
@@ -398,6 +722,7 @@ private struct CatalogEntryTile: View {
     dragOffset = .zero
     dropLocation = nil
     dropTileSize = nil
+    onDragLocationChange(nil)
   }
 
   private func updateGeometry(with geometry: GeometryProxy) {
@@ -419,6 +744,10 @@ private struct CatalogEntryTile: View {
         value: store.targetedEntryID == entry.id && store.isEditing
       )
   }
+
+  private var isHiddenDuringFolderDrag: Bool {
+    store.draggingFromFolder && store.draggingEntryID == entry.id
+  }
 }
 
 private struct WiggleModifier: ViewModifier {
@@ -430,14 +759,89 @@ private struct WiggleModifier: ViewModifier {
       if isActive {
         TimelineView(.animation) { timeline in
           let time = timeline.date.timeIntervalSinceReferenceDate
-          let angle = sin(time * 8 + seed) * 2.4
-          let scaleVariance = sin(time * 6 + seed) * 0.015
+          let angle = sin(time * 5 + seed) * 2.4
+          let scaleVariance = sin(time * 3.5 + seed) * 0.015
           content
             .rotationEffect(.degrees(angle))
             .scaleEffect(1 + scaleVariance)
         }
       } else {
         content
+      }
+    }
+  }
+}
+
+private struct ScrollWheelCaptureView: NSViewRepresentable {
+  let onScroll: (CGFloat) -> Void
+
+  func makeNSView(context: Context) -> NSView {
+    let view = ScrollCaptureView()
+    view.onScroll = onScroll
+    return view
+  }
+
+  func updateNSView(_ nsView: NSView, context: Context) {
+    if let view = nsView as? ScrollCaptureView {
+      view.onScroll = onScroll
+    }
+  }
+
+  private final class ScrollCaptureView: NSView {
+    var onScroll: ((CGFloat) -> Void)?
+    private var eventMonitor: Any?
+
+    override func viewDidMoveToWindow() {
+      super.viewDidMoveToWindow()
+      if window != nil {
+        installMonitor()
+      } else {
+        removeMonitor()
+      }
+    }
+
+    deinit {
+      removeMonitor()
+    }
+
+    private func installMonitor() {
+      guard eventMonitor == nil else { return }
+      eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+        self?.forward(event: event)
+        return event
+      }
+    }
+
+    private func removeMonitor() {
+      if let eventMonitor {
+        NSEvent.removeMonitor(eventMonitor)
+        self.eventMonitor = nil
+      }
+    }
+
+    private func forward(event: NSEvent) {
+      guard let handler = onScroll else { return }
+
+      let horizontal = event.scrollingDeltaX
+      let vertical = event.scrollingDeltaY
+      var delta: CGFloat = 0
+      if abs(horizontal) >= abs(vertical), horizontal != 0 {
+        delta = horizontal
+      } else if vertical != 0 {
+        delta = -vertical
+      }
+      guard delta != 0 else { return }
+
+      var adjusted = delta
+      if event.hasPreciseScrollingDeltas {
+        adjusted *= 10
+      }
+      if event.isDirectionInvertedFromDevice {
+        adjusted = -adjusted
+      }
+
+      DispatchQueue.main.async {
+        handler(adjusted)
       }
     }
   }

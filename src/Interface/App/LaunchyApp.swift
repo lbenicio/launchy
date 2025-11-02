@@ -81,7 +81,9 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
-        guard let window = NSApp.windows.first else { return }
+    guard let window = NSApp.windows.first(where: { $0.level == .launchyPrimary }) else {
+      return
+    }
         if !presentationStored {
             storedPresentationOptions = NSApp.presentationOptions
             presentationStored = true
@@ -90,8 +92,10 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
         if let screen = window.screen ?? NSScreen.main {
             window.setFrame(screen.frame, display: true)
         }
-        window.makeKeyAndOrderFront(nil)
-        window.orderFrontRegardless()
+    if NSApp.keyWindow === window || NSApp.keyWindow == nil {
+      window.makeKeyAndOrderFront(nil)
+      window.orderFrontRegardless()
+    }
     }
 
     func applicationDidResignActive(_ notification: Notification) {

@@ -1,6 +1,13 @@
 import AppKit
 import SwiftUI
 
+extension NSWindow.Level {
+    static let launchyPrimary = NSWindow.Level.screenSaver
+    static let launchyAuxiliary = NSWindow.Level(
+        rawValue: NSWindow.Level.screenSaver.rawValue + 1
+    )
+}
+
 struct TransparentWindowConfigurator: NSViewRepresentable {
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -50,7 +57,7 @@ struct TransparentWindowConfigurator: NSViewRepresentable {
             }
         }
 
-        window.level = .screenSaver
+        window.level = .launchyPrimary
         window.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
         window.ignoresMouseEvents = false
         window.acceptsMouseMovedEvents = true
@@ -59,5 +66,30 @@ struct TransparentWindowConfigurator: NSViewRepresentable {
     final class Coordinator {
         var window: NSWindow?
         var didConfigureStyle = false
+    }
+}
+
+struct AuxiliaryWindowConfigurator: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        DispatchQueue.main.async {
+            self.configure(window: view.window)
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            self.configure(window: nsView.window)
+        }
+    }
+
+    private func configure(window: NSWindow?) {
+        guard let window else { return }
+        if window.level != .launchyAuxiliary {
+            window.level = .launchyAuxiliary
+            window.collectionBehavior.insert(.fullScreenAuxiliary)
+            window.orderFrontRegardless()
+        }
     }
 }
