@@ -25,24 +25,16 @@ final class AppSettings: ObservableObject {
     }
   }
 
-  @Published var daemonModeEnabled: Bool {
-    didSet {
-      persist()
-    }
-  }
-
     private let defaults: UserDefaults
     private let columnsKey = "settings.gridColumns"
     private let rowsKey = "settings.gridRows"
   private let scrollThresholdKey = "settings.scrollThreshold"
-  private let daemonModeKey = "settings.daemonModeEnabled"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         let storedColumns = defaults.integer(forKey: columnsKey)
         let storedRows = defaults.integer(forKey: rowsKey)
     let storedThreshold = defaults.object(forKey: scrollThresholdKey) as? Double
-    let storedDaemon = defaults.object(forKey: daemonModeKey) as? Bool
         gridColumns = (2...8).contains(storedColumns) ? storedColumns : 5
         gridRows = (2...6).contains(storedRows) ? storedRows : 3
     if let storedThreshold {
@@ -50,14 +42,12 @@ final class AppSettings: ObservableObject {
     } else {
       scrollThreshold = AppSettings.defaultScrollThreshold
     }
-    daemonModeEnabled = storedDaemon ?? true
     }
 
     private func persist() {
         defaults.set(gridColumns, forKey: columnsKey)
         defaults.set(gridRows, forKey: rowsKey)
     defaults.set(scrollThreshold, forKey: scrollThresholdKey)
-    defaults.set(daemonModeEnabled, forKey: daemonModeKey)
   }
 
   private static func clampScrollThreshold(_ value: Double) -> Double {

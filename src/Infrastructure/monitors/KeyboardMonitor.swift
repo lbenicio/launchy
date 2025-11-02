@@ -1,31 +1,30 @@
 import AppKit
 import ApplicationServices
-import Combine
 
 final class KeyboardMonitor {
     static let shared = KeyboardMonitor()
 
     private var localMonitor: Any?
     private var globalMonitor: Any?
-    private weak var store: AppCatalogStore?
+    private var monitorsInstalled = false
     private let accessQueue = DispatchQueue(label: "launchy.keyboard-monitor")
 
     private init() {}
 
-    func configure(with store: AppCatalogStore) {
+    func configure(with _: AppCatalogStore) {
         accessQueue.sync {
-            if self.store === store {
+            if monitorsInstalled {
                 return
             }
-            self.store = store
             installMonitors()
+            monitorsInstalled = true
         }
     }
 
     func teardown() {
         accessQueue.sync {
             removeMonitors()
-            store = nil
+            monitorsInstalled = false
         }
     }
 
@@ -63,30 +62,8 @@ final class KeyboardMonitor {
         guard event.type == .keyDown else { return false }
         switch event.keyCode {
         case 53:  // Escape key
-            Task { @MainActor [weak self] in
-                guard let self, let store = self.store else { return }
-                var clearedState = false
-                if store.isEditing {
-                    store.endEditing()
-                    clearedState = true
-                }
-                if store.presentedFolder != nil {
-                    store.dismissPresentedFolder()
-                    clearedState = true
-                }
-                if !store.query.isEmpty {
-                    store.query = ""
-                    clearedState = true
-                }
-                if let delegate = NSApp.delegate as? AppLifecycleDelegate {
-                    if delegate.isDaemonModeActive {
-                        delegate.hideToBackground()
-                    } else if !clearedState {
-                        NSApp.terminate(nil)
-                    }
-                } else if !clearedState {
-                    NSApp.terminate(nil)
-                }
+            Task { @MainActor in
+                NSApp.terminate(nil)
             }
             return true
         default:

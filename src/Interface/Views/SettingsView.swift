@@ -55,17 +55,6 @@ struct SettingsView: View {
             .font(.footnote)
             .foregroundColor(.secondary)
         }
-
-        Divider()
-
-        Toggle(isOn: $settings.daemonModeEnabled) {
-          VStack(alignment: .leading, spacing: 2) {
-            Text("Run in background")
-            Text("Keep Launchy running as a daemon and reopen it instantly when needed.")
-              .font(.footnote)
-              .foregroundStyle(.secondary)
-          }
-        }
             }
 
             Spacer()

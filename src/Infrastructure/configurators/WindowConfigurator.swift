@@ -33,8 +33,7 @@ struct TransparentWindowConfigurator: NSViewRepresentable {
 
         if coordinator.window !== window {
             coordinator.window = window
-            coordinator.didConfigureStyle = false
-      AppLifecycleDelegate.shared?.registerPrimaryWindow(window)
+      coordinator.didConfigureStyle = false
         }
 
         if !coordinator.didConfigureStyle {
@@ -64,13 +63,6 @@ struct TransparentWindowConfigurator: NSViewRepresentable {
         window.ignoresMouseEvents = false
         window.acceptsMouseMovedEvents = true
 
-    if let delegate = AppLifecycleDelegate.shared {
-      if delegate.shouldSuppressWindowPresentation {
-        window.alphaValue = 0
-        window.setIsVisible(false)
-      }
-      delegate.consumeSuppressedPresentation(for: window)
-    }
     }
 
     final class Coordinator {
