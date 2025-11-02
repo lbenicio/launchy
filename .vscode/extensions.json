@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "swiftlang.swift-vscode",
+    "vadimcn.vscode-lldb",
+    "ms-vscode.makefile-tools",
+    "DavidAnson.vscode-markdownlint",
+    "EditorConfig.EditorConfig"
+  ],
+  "unwantedRecommendations": ["esbenp.prettier-vscode", "eamodio.gitlens"]
+}

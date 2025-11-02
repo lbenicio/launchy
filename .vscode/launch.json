@@ -5,26 +5,6 @@
       "request": "launch",
       "args": [],
       "cwd": "${workspaceFolder:launchpad}",
-      "name": "Debug LaunchpadClone",
-      "target": "LaunchpadClone",
-      "configuration": "debug",
-      "preLaunchTask": "swift: Build Debug LaunchpadClone"
-    },
-    {
-      "type": "swift",
-      "request": "launch",
-      "args": [],
-      "cwd": "${workspaceFolder:launchpad}",
-      "name": "Release LaunchpadClone",
-      "target": "LaunchpadClone",
-      "configuration": "release",
-      "preLaunchTask": "swift: Build Release LaunchpadClone"
-    },
-    {
-      "type": "swift",
-      "request": "launch",
-      "args": [],
-      "cwd": "${workspaceFolder:launchpad}",
       "name": "Debug Launchy",
       "target": "Launchy",
       "configuration": "debug",
