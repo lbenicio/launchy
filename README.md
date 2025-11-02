@@ -1,5 +1,10 @@
 # Launchy
 
+[![Build and Release](https://github.com/lbenicio/launchy/actions/workflows/release.yml/badge.svg)](https://github.com/lbenicio/launchy/actions/workflows/release.yml)
+[![Version](https://img.shields.io/badge/version-0.1.0-informational.svg)](Package.swift)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE.txt)
+[![Platform](https://img.shields.io/badge/platform-macOS%2013+-lightgrey.svg)](#requirements)
+
 Launchy is a macOS launcher that recreates the full-screen Launchpad experience with a modern SwiftUI interface. It keeps your apps one keypress away, supports folders and search, and can live quietly in the background as a status-item daemon.
 
 ## Features
