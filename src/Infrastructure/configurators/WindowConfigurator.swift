@@ -63,7 +63,13 @@ struct TransparentWindowConfigurator: NSViewRepresentable {
         window.ignoresMouseEvents = false
         window.acceptsMouseMovedEvents = true
 
-    AppLifecycleDelegate.shared?.consumeSuppressedPresentation(for: window)
+    if let delegate = AppLifecycleDelegate.shared {
+      if delegate.shouldSuppressWindowPresentation {
+        window.alphaValue = 0
+        window.setIsVisible(false)
+      }
+      delegate.consumeSuppressedPresentation(for: window)
+    }
     }
 
     final class Coordinator {

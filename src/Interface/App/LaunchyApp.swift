@@ -163,6 +163,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
 
   @MainActor
   func hideToBackground() {
+    suppressNextPresentation = false
     _ = hidePrimaryWindow()
   }
 
@@ -232,7 +233,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     daemonModeEnabled = enabled
     updateActivationPolicy()
     if enabled {
-      suppressNextPresentation = false
+      suppressNextPresentation = true
       _ = hidePrimaryWindow()
     } else if previous {
       hasPresentedPrimaryWindow = true
@@ -259,6 +260,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     guard let window = primaryWindow else { return }
     suppressNextPresentation = false
     hasPresentedPrimaryWindow = true
+    window.setIsVisible(true)
     window.alphaValue = 1
     window.isReleasedWhenClosed = false
     window.orderFrontRegardless()
@@ -272,6 +274,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     updateActivationPolicy()
     guard let window = primaryWindow else { return false }
     window.alphaValue = 0
+    window.setIsVisible(false)
     window.orderOut(nil)
     if daemonModeEnabled {
       NSApp.deactivate()
@@ -292,6 +295,11 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     guard suppressNextPresentation else { return }
     suppressNextPresentation = false
     window.alphaValue = 0
+    window.setIsVisible(false)
     window.orderOut(nil)
+  }
+
+  var shouldSuppressWindowPresentation: Bool {
+    suppressNextPresentation || skipPresentationForDaemonMode
   }
 }
