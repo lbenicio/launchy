@@ -61,7 +61,7 @@ final class KeyboardMonitor {
     private func handle(event: NSEvent) -> Bool {
         guard event.type == .keyDown else { return false }
         switch event.keyCode {
-        case 53:  // Escape key
+        case 53: // Escape key
             Task { @MainActor in
                 NSApp.terminate(nil)
             }

@@ -129,8 +129,8 @@ clean:
 
 .PHONY: deploy
 deploy:
-  scripts/update_changelog.sh
-	scripts/deploy.sh $(DEPLOY_ARGS)
+	./scripts/update_changelog.sh
+	./scripts/deploy.sh $(DEPLOY_ARGS)
 
 # ----- Distribution-oriented targets below this line -----
 

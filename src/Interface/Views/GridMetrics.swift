@@ -40,7 +40,7 @@ enum GridMetricsCalculator {
             while candidateColumns >= 1 {
                 let raw =
                     (availableWidth - spacing * CGFloat(candidateColumns - 1))
-                    / CGFloat(candidateColumns)
+                        / CGFloat(candidateColumns)
                 if raw >= 120 {
                     computedWidth = raw
                     columns = candidateColumns
@@ -62,7 +62,8 @@ enum GridMetricsCalculator {
 
         let gridItems = Array(
             repeating: GridItem(.fixed(tileWidth), spacing: spacing, alignment: .top),
-            count: columns)
+            count: columns
+        )
 
         return GridMetrics(
             columns: gridItems,
