@@ -28,6 +28,7 @@ struct LaunchyApp: App {
                 .ignoresSafeArea()
                 .onAppear {
                     NSApp.activate(ignoringOtherApps: true)
+          appDelegate.settings = settings
                 }
         }
         .windowResizability(.contentSize)
@@ -35,7 +36,7 @@ struct LaunchyApp: App {
         .commands {
             CommandGroup(replacing: .appSettings) {
                 Button("Settings…") {
-                    openSettingsWindow()
+          openSettingsWindow()
                 }
                 .keyboardShortcut(",", modifiers: [.command])
             }
@@ -51,22 +52,19 @@ struct LaunchyApp: App {
                 }
                 .keyboardShortcut("r", modifiers: [.command])
             }
-        }
-        Settings {
-            SettingsView()
-                .environmentObject(settings)
-                .frame(width: 320)
-                .padding(20)
-        }
+    }
     }
 
+  @MainActor
     private func openSettingsWindow() {
-        NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+    SettingsWindowManager.shared.settingsProvider = { settings }
+    SettingsWindowManager.shared.show()
     }
 }
 
 final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
     var activationHandler: (() -> Void)?
+  var settings: AppSettings?
 
     private var storedPresentationOptions: NSApplication.PresentationOptions = []
     private var presentationStored = false
@@ -113,8 +111,12 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
         activationHandler?()
     }
 
-    @objc private func openSettings() {
-        NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+  @objc private func openSettings() {
+    guard let settings = settings else { return }
+    Task { @MainActor in
+      SettingsWindowManager.shared.settingsProvider = { settings }
+      SettingsWindowManager.shared.show()
+    }
     }
 
     @objc private func quitApp() {

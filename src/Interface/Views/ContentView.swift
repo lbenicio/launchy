@@ -359,12 +359,15 @@ struct ContentView: View {
     guard store.draggingEntryID == nil else { return }
     guard currentPageCount > 1 else { return }
     guard store.presentedFolder == nil else { return }
-    guard abs(delta) > 0.5 else { return }
+    let adjustedDelta = -delta * 0.6
+    guard abs(adjustedDelta) > 0.5 else { return }
 
-    if (scrollAccumulation > 0 && delta < 0) || (scrollAccumulation < 0 && delta > 0) {
-      scrollAccumulation = delta
+    if (scrollAccumulation > 0 && adjustedDelta < 0)
+      || (scrollAccumulation < 0 && adjustedDelta > 0)
+    {
+      scrollAccumulation = adjustedDelta
     } else {
-      scrollAccumulation += delta
+      scrollAccumulation += adjustedDelta
     }
 
     let threshold = CGFloat(settings.scrollThreshold)
