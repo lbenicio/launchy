@@ -1,0 +1,41 @@
+name: Lint and Format
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Swift format checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Swift toolchain
+        uses: swiftlang/swift@v1
+        with:
+          release: "5.10"
+
+      - name: Install swiftformat
+        run: |
+          if ! command -v swiftformat >/dev/null 2>&1; then
+            curl -Ls https://github.com/nicklockwood/SwiftFormat/releases/download/0.53.11/swiftformat_linux.zip -o swiftformat.zip
+            unzip -o swiftformat.zip -d swiftformat_bin
+            sudo mv swiftformat_bin/swiftformat /usr/local/bin/swiftformat
+            sudo chmod +x /usr/local/bin/swiftformat
+          fi
+
+      - name: SwiftFormat (lint mode)
+        run: |
+          swiftformat --lint src tests
