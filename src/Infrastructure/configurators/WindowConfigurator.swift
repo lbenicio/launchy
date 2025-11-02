@@ -34,6 +34,7 @@ struct TransparentWindowConfigurator: NSViewRepresentable {
         if coordinator.window !== window {
             coordinator.window = window
             coordinator.didConfigureStyle = false
+      AppLifecycleDelegate.shared?.registerPrimaryWindow(window)
         }
 
         if !coordinator.didConfigureStyle {
