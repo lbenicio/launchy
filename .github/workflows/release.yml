@@ -120,7 +120,7 @@ jobs:
           if ! git rev-parse -q --verify "refs/tags/$VER" >/dev/null; then
             git config user.name "github-actions"
             git config user.email "github-actions@github.com"
-            git tag -a "$VER" -m "Release $VER"
+            git tag -a "$VER" -m "$VER"
             git push origin "$VER"
           fi
 
@@ -128,7 +128,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.version }}
-          name: v${{ steps.meta.outputs.version }}
+          name: ${{ steps.meta.outputs.version }}
           prerelease: ${{ steps.meta.outputs.prerelease }}
           body_path: CHANGELOG.md
           files: |
