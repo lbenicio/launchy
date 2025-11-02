@@ -125,12 +125,12 @@ lint:
 
 .PHONY: clean
 clean:
-	rm -rf $(BUILD_DIR) $(DIST_DIR)
+	rm -rf $(DIST_DIR) $(BUILD_DIR)
 
 .PHONY: deploy
 deploy:
-  ./scripts/update_changelog.sh 
-	./scripts/deploy.sh $(DEPLOY_ARGS)
+  scripts/update_changelog.sh
+	scripts/deploy.sh $(DEPLOY_ARGS)
 
 # ----- Distribution-oriented targets below this line -----
 
