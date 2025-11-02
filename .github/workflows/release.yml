@@ -35,6 +35,18 @@ jobs:
           echo "version=v$VERSION" >> "$GITHUB_OUTPUT"
           echo "Version: v$VERSION"
 
+      - name: Verify changelog entry exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION='${{ steps.vars.outputs.version }}'
+          CLEAN_VERSION="${VERSION#v}"
+          if ! grep -q "^## \[$CLEAN_VERSION\]" CHANGELOG.md; then
+            echo "::error file=CHANGELOG.md::Changelog entry for version $CLEAN_VERSION not found. Did you already cut this release?" >&2
+            exit 1
+          fi
+
+
       - name: Build app (make bundle)
         env:
           BUNDLE_VERSION: ${{ steps.vars.outputs.version }}
@@ -85,7 +97,43 @@ jobs:
           PRERELEASE=false
           if [[ "$VER" =~ -rc[0-9]+$ ]]; then PRERELEASE=true; fi
           echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+          CLEAN_VERSION="${VER#v}"
+          echo "clean_version=$CLEAN_VERSION" >> "$GITHUB_OUTPUT"
           echo "Using version: $VER (prerelease=$PRERELEASE)"
+
+      - name: Extract release notes from changelog
+        id: notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION='${{ steps.meta.outputs.clean_version }}'
+          OUTPUT='release-notes.md'
+          awk -v ver="$VERSION" '
+            BEGIN {
+              target = "^## \\[" ver "\\]"
+              in_section = 0
+            }
+            /^## \[/ {
+              if (in_section && $0 !~ target) {
+                exit 0
+              }
+            }
+            {
+              if ($0 ~ target) {
+                in_section = 1
+              }
+              if (in_section) {
+                print
+              }
+            }
+          ' CHANGELOG.md > "$OUTPUT"
+
+          if [[ ! -s "$OUTPUT" ]]; then
+            echo "error: changelog entry for version $VERSION not found" >&2
+            exit 1
+          fi
+
+          echo "body_path=$OUTPUT" >> "$GITHUB_OUTPUT"
 
       - name: Post release summary
         shell: bash
@@ -130,7 +178,7 @@ jobs:
           tag_name: ${{ steps.meta.outputs.version }}
           name: ${{ steps.meta.outputs.version }}
           prerelease: ${{ steps.meta.outputs.prerelease }}
-          body_path: CHANGELOG.md
+          body_path: ${{ steps.notes.outputs.body_path }}
           files: |
             artifact/*.dmg
         env:
