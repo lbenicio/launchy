@@ -1,0 +1,112 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build app and DMG
+    runs-on: macos-latest
+    outputs:
+      version: ${{ steps.vars.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Compute version
+        id: vars
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo 0.1.0)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION"
+
+      - name: Build app (make bundle)
+        env:
+          VERSION: ${{ steps.vars.outputs.version }}
+          SKIP_CODESIGN: "1"
+        run: |
+          make clean
+          make bundle
+
+      - name: Create DMG
+        run: |
+          set -euo pipefail
+          VER="${{ steps.vars.outputs.version }}"
+          DMG="dist/Launchy-${VER}.dmg"
+          hdiutil create -volname "Launchy" -srcfolder "dist/Launchy.app" -ov -format UDZO "$DMG"
+          ls -la "$DMG"
+
+      - name: Upload artifact (DMG)
+        uses: actions/upload-artifact@v4
+        with:
+          name: LaunchyDMG
+          path: dist/*.dmg
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: LaunchyDMG
+          path: artifact
+
+      - name: Set version and prerelease flag
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          VER='${{ needs.build.outputs.version }}'
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          PRERELEASE=false
+          if [[ "$VER" =~ -rc[0-9]+$ ]]; then PRERELEASE=true; fi
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+          echo "Using version: $VER (prerelease=$PRERELEASE)"
+
+      - name: Create tag if missing
+        shell: bash
+        run: |
+          set -euo pipefail
+          VER='${{ steps.meta.outputs.version }}'
+          if ! git rev-parse -q --verify "refs/tags/$VER" >/dev/null; then
+            git config user.name "github-actions"
+            git config user.email "github-actions@github.com"
+            git tag -a "$VER" -m "Release $VER"
+            git push origin "$VER"
+          fi
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.version }}
+          name: Launchy ${{ steps.meta.outputs.version }}
+          prerelease: ${{ steps.meta.outputs.prerelease }}
+          body_path: CHANGELOG.md
+          files: |
+            artifact/*.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,43 @@
+name: Telegram notification
+
+concurrency:
+  group: notification-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_run:
+    workflows:
+      - Deploy new version to Github Pages
+      - Release new package version
+      - Publish Docker image to GHCR
+    branches:
+      - master
+    types:
+      - completed
+  workflow_dispatch:
+jobs:
+  notification:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Send Telegram message
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.CHATID }}
+          token: ${{ secrets.BOTTOKEN }}
+          format: markdown
+          message: |
+            Code Deployed: ${{ github.repository }}
+
+            ${{ github.actor }} created commit:
+            ${{ github.event.workflow_run.head_commit.message }}
+
+            [View action run](${{ github.event.workflow_run.html_url }})
+            [Cancel action run](${{ github.event.workflow_run.cancel_url }})
+
+            Workflow: ${{ github.event.workflow_run.name }}
+            Job status: ${{ github.event.workflow_run.conclusion == 'success' && '✅' || '🚫' }} ${{ github.event.workflow_run.conclusion }}
+
+            See changes: https://github.com/${{ github.repository }}/commit/${{github.sha}}

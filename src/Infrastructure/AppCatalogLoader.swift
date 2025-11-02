@@ -1,14 +1,17 @@
-import Foundation
 import AppKit
+import Foundation
 
 struct AppCatalogLoader {
     private let roots: [URL]
 
-    init(roots: [URL] = [
-        URL(fileURLWithPath: "/Applications", isDirectory: true),
-        URL(fileURLWithPath: "/System/Applications", isDirectory: true),
-        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications", isDirectory: true)
-    ]) {
+    init(
+        roots: [URL] = [
+            URL(fileURLWithPath: "/Applications", isDirectory: true),
+            URL(fileURLWithPath: "/System/Applications", isDirectory: true),
+            FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
+                "Applications", isDirectory: true),
+        ]
+    ) {
         self.roots = roots
     }
 
@@ -29,7 +32,13 @@ struct AppCatalogLoader {
         let fileManager = FileManager.default
 
         for root in roots {
-            guard let contents = try? fileManager.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) else {
+            guard
+                let contents = try? fileManager.contentsOfDirectory(
+                    at: root,
+                    includingPropertiesForKeys: [.isDirectoryKey],
+                    options: [.skipsHiddenFiles]
+                )
+            else {
                 continue
             }
             for url in contents {
@@ -48,7 +57,10 @@ struct AppCatalogLoader {
                         let folder = FolderItem(
                             id: url.path,
                             name: prettifiedFolderName(folderName),
-                            apps: folderApps.sorted(by: { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending })
+                            apps: folderApps.sorted(by: { lhs, rhs in
+                                lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName)
+                                    == .orderedAscending
+                            })
                         )
                         folderEntries[folder.id] = folder
                     }
@@ -69,7 +81,13 @@ struct AppCatalogLoader {
     }
 
     private static func collectApps(in folderURL: URL, fileManager: FileManager) -> [AppItem] {
-        guard let enumerator = fileManager.enumerator(at: folderURL, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) else {
+        guard
+            let enumerator = fileManager.enumerator(
+                at: folderURL,
+                includingPropertiesForKeys: [.isDirectoryKey],
+                options: [.skipsHiddenFiles]
+            )
+        else {
             return []
         }
         var apps: [AppItem] = []
@@ -84,9 +102,10 @@ struct AppCatalogLoader {
 
     private static func makeAppItem(from bundleURL: URL) -> AppItem? {
         guard let bundle = Bundle(url: bundleURL) else { return nil }
-        let displayName = bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ??
-            bundle.object(forInfoDictionaryKey: "CFBundleName") as? String ??
-            bundleURL.deletingPathExtension().lastPathComponent
+        let displayName =
+            bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? bundle.object(
+                forInfoDictionaryKey: "CFBundleName") as? String
+            ?? bundleURL.deletingPathExtension().lastPathComponent
         let identifier = bundle.bundleIdentifier
         return AppItem(
             id: bundleURL.path,

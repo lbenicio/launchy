@@ -19,6 +19,26 @@
       "target": "LaunchpadClone",
       "configuration": "release",
       "preLaunchTask": "swift: Build Release LaunchpadClone"
+    },
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:launchpad}",
+      "name": "Debug Launchy",
+      "target": "Launchy",
+      "configuration": "debug",
+      "preLaunchTask": "swift: Build Debug Launchy"
+    },
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:launchpad}",
+      "name": "Release Launchy",
+      "target": "Launchy",
+      "configuration": "release",
+      "preLaunchTask": "swift: Build Release Launchy"
     }
   ]
 }

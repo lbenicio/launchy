@@ -1,5 +1,5 @@
-import Foundation
 import AppKit
+import Foundation
 
 final class IconStore {
     static let shared = IconStore()

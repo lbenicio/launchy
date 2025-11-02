@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 @main
-struct LaunchpadCloneApp: App {
+struct LaunchyApp: App {
     @NSApplicationDelegateAdaptor(AppLifecycleDelegate.self) private var appDelegate
     @StateObject private var catalogStore = AppCatalogStore()
 
@@ -25,7 +25,7 @@ struct LaunchpadCloneApp: App {
         .defaultSize(width: 1280, height: 800)
         .commands {
             CommandGroup(replacing: .appTermination) {
-                Button("Quit LaunchpadClone") {
+                Button("Quit Launchy") {
                     NSApp.terminate(nil)
                 }
                 .keyboardShortcut("q")
@@ -48,7 +48,7 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.regular)
         NSApp.appearance = NSAppearance(named: .vibrantDark)
         NSApp.activate(ignoringOtherApps: true)
-    AccessibilityPermission.requestIfNeeded()
+        AccessibilityPermission.requestIfNeeded()
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
