@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://lbenicio.github.io/launchy/sitemap.xml

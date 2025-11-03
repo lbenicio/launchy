@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Launchy rocket icon">
+  <defs>
+    <linearGradient id="body" x1="20" x2="44" y1="10" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#38bdf8" />
+      <stop offset="1" stop-color="#0ea5e9" />
+    </linearGradient>
+    <linearGradient id="flame" x1="30" x2="34" y1="44" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f97316" />
+      <stop offset="1" stop-color="#fb923c" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="12" fill="#0b0d11" />
+  <path d="M32 6c-7.5 7.8-12 19-12 30 0 5.6 1 11 3 16l9-4 9 4c2-5 3-10 3-16 0-11-4.5-22.2-12-30Z" fill="url(#body)" />
+  <path d="M24 42 16 52l10-3z" fill="#1d4ed8" opacity="0.8" />
+  <path d="M40 42 48 52l-10-3z" fill="#1d4ed8" opacity="0.8" />
+  <circle cx="32" cy="28" r="6" fill="#e0f2fe" />
+  <circle cx="32" cy="28" r="3.2" fill="#0f172a" opacity="0.6" />
+  <path d="M30 44h4v8c0 3-2 6-4 8-2-2-4-5-4-8Z" fill="url(#flame)" />
+  <path d="M26 18c1.8-2.4 4-4.6 6-6 2 1.4 4.2 3.6 6 6-3.8-1.2-8.2-1.2-12 0Z" fill="#bae6fd" opacity="0.6" />
+</svg>
