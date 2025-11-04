@@ -62,6 +62,7 @@ help:
 	@echo "  make dmg           # Create distributable dmg"
 	@echo "  make deploy        # Merge release branch into production via scripts/deploy"
 	@echo "  make changelog     # Generate changelog entry via scripts/update_changelog.sh"
+	@echo "  make wiki          # Sync docs/ into the GitHub Wiki"
 
 .PHONY: build
 build:
@@ -135,6 +136,10 @@ deploy:
 .PHONY: changelog
 changelog:
 	./scripts/update_changelog.sh $(ARGS)
+
+.PHONY: wiki
+wiki:
+	./scripts/sync_docs_to_wiki.sh $(ARGS)
 
 # ----- Distribution-oriented targets below this line -----
 
