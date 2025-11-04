@@ -61,6 +61,7 @@ help:
 	@echo "  make pkg           # Build signed installer package"
 	@echo "  make dmg           # Create distributable dmg"
 	@echo "  make deploy        # Merge release branch into production via scripts/deploy"
+	@echo "  make changelog     # Generate changelog entry via scripts/update_changelog.sh"
 
 .PHONY: build
 build:
@@ -129,8 +130,11 @@ clean:
 
 .PHONY: deploy
 deploy:
-	./scripts/update_changelog.sh
 	./scripts/deploy.sh $(DEPLOY_ARGS)
+
+.PHONY: changelog
+changelog:
+	./scripts/update_changelog.sh $(ARGS)
 
 # ----- Distribution-oriented targets below this line -----
 

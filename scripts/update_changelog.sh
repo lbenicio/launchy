@@ -173,8 +173,12 @@ fi
 tmp_file=$(mktemp)
 trap 'rm -f "$tmp_file"' EXIT
 
-awk -v entry="$entry" -v version="$version" '
+entry_escaped=${entry//$'\n'/\\n}
+
+awk -v entry_escaped="$entry_escaped" -v version="$version" '
   BEGIN {
+    entry = entry_escaped
+    gsub(/\\n/, "\n", entry)
     inserted = 0
     saw_unreleased = 0
   }
