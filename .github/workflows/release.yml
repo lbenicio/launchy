@@ -22,7 +22,7 @@ jobs:
       clean_version: ${{ steps.prepare.outputs.clean_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -93,7 +93,7 @@ jobs:
           ls -la "$DMG"
 
       - name: Upload artifact (DMG)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: LaunchyDMG
           path: .build/dist/*.dmg
@@ -105,7 +105,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           fetch-tags: true
