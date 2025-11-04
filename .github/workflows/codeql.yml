@@ -1,0 +1,55 @@
+name: CodeQL
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+  schedule:
+    - cron: "0 8 * * 1"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: CodeQL
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        language: ["swift"]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Swift 6.2 toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          TOOLCHAIN_PKG="swift-6.2-RELEASE-osx.pkg"
+          TOOLCHAIN_URL="https://download.swift.org/swift-6.2-release/xcode/swift-6.2-RELEASE/${TOOLCHAIN_PKG}"
+          curl -fL "$TOOLCHAIN_URL" -o "$TOOLCHAIN_PKG"
+          sudo installer -pkg "$TOOLCHAIN_PKG" -target /
+          rm "$TOOLCHAIN_PKG"
+          echo "/Library/Developer/Toolchains/swift-6.2-RELEASE.xctoolchain/usr/bin" >> "$GITHUB_PATH"
+          swift --version
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Build project
+        run: swift build
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
