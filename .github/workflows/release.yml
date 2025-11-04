@@ -93,7 +93,7 @@ jobs:
           ls -la "$DMG"
 
       - name: Upload artifact (DMG)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: LaunchyDMG
           path: .build/dist/*.dmg
