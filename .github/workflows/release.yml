@@ -27,10 +27,17 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Set up Swift toolchain
-        uses: swift-actions/setup-swift@v1
-        with:
-          swift-version: "6.2"
+      - name: Install Swift 6.2 toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          TOOLCHAIN_PKG="swift-6.2-RELEASE-osx.pkg"
+          TOOLCHAIN_URL="https://download.swift.org/swift-6.2-release/xcode/swift-6.2-RELEASE/${TOOLCHAIN_PKG}"
+          curl -fL "$TOOLCHAIN_URL" -o "$TOOLCHAIN_PKG"
+          sudo installer -pkg "$TOOLCHAIN_PKG" -target /
+          rm "$TOOLCHAIN_PKG"
+          echo "/Library/Developer/Toolchains/swift-6.2-RELEASE.xctoolchain/usr/bin" >> "$GITHUB_PATH"
+          swift --version
 
       - name: Ensure release version
         id: prepare
