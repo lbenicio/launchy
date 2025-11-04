@@ -17,14 +17,14 @@ struct AppIconView: View {
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
-          .frame(maxWidth: 100)
+                    .frame(maxWidth: 100)
             }
-      .padding(.vertical, 2)
-      .padding(.horizontal, 4)
-      .frame(maxWidth: 124)
+            .padding(.vertical, 2)
+            .padding(.horizontal, 4)
+            .frame(maxWidth: 124)
             .background(
-        RoundedRectangle(cornerRadius: 18)
-          .fill(Color.white.opacity(isHighlighted ? 0.16 : 0))
+                RoundedRectangle(cornerRadius: 18)
+                    .fill(Color.white.opacity(isHighlighted ? 0.16 : 0))
             )
         }
         .buttonStyle(.plain)
@@ -46,7 +46,7 @@ struct AppIconView: View {
 
 private struct AppIconImage: View {
     let app: AppItem
-    @State private var icon: NSImage? = nil
+    @State private var icon: NSImage?
 
     var body: some View {
         ZStack {
@@ -87,14 +87,14 @@ struct FolderIconView: View {
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
-          .frame(maxWidth: 100)
+                    .frame(maxWidth: 100)
             }
-      .padding(.vertical, 2)
-      .padding(.horizontal, 4)
-      .frame(maxWidth: 124)
+            .padding(.vertical, 2)
+            .padding(.horizontal, 4)
+            .frame(maxWidth: 124)
             .background(
-        RoundedRectangle(cornerRadius: 18)
-          .fill(Color.white.opacity(isHighlighted ? 0.16 : 0))
+                RoundedRectangle(cornerRadius: 18)
+                    .fill(Color.white.opacity(isHighlighted ? 0.16 : 0))
             )
         }
         .buttonStyle(.plain)
@@ -123,11 +123,11 @@ struct FolderIconView: View {
         alert.accessoryView = textField
         alert.addButton(withTitle: "Rename")
         alert.addButton(withTitle: "Cancel")
-        
-    let alertWindow = alert.window
-    alertWindow.level = .launchyAuxiliary
-    alertWindow.collectionBehavior.insert(.fullScreenAuxiliary)
-    alertWindow.orderFrontRegardless()
+
+        let alertWindow = alert.window
+        alertWindow.level = .launchyAuxiliary
+        alertWindow.collectionBehavior.insert(.fullScreenAuxiliary)
+        alertWindow.orderFrontRegardless()
 
         if let window = NSApp.keyWindow {
             alert.beginSheetModal(for: window) { response in

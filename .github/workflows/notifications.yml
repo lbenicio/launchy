@@ -7,9 +7,8 @@ concurrency:
 on:
   workflow_run:
     workflows:
-      - Deploy new version to Github Pages
-      - Release new package version
-      - Publish Docker image to GHCR
+      - Build and Release
+      - Auto merge dependabot PRs
     branches:
       - master
     types:

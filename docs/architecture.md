@@ -1,6 +1,6 @@
 # Architecture Overview
 
-This document explains the high-level design of Launchy. It focuses on how the application is composed, how data flows through the system, and how the runtime lifecycle supports both full-screen and daemon modes.
+This document summarises Launchy’s high-level design, data flow, and runtime lifecycle. It complements the top-level guide with deeper notes about how components interact at runtime.
 
 ## Layered Design
 
@@ -21,71 +21,78 @@ Launchy uses a layered architecture to keep responsibilities separated. Each lay
 +------------------------------------------------------------+
 ```
 
-- **Interface** (`src/Interface`): SwiftUI views, scenes, and UI composition. Responsible for rendering the grid, folders, search bar, and settings window.
-- **Application** (`src/Application`): Observable stores (`AppCatalogStore`, `AppSettings`) encapsulating state transitions and side effects triggered by UI interactions.
-- **Domain** (`src/Domain`): Lightweight models (`AppItem`, `FolderItem`, `CatalogEntry`) used across the application, kept free of platform dependencies.
-- **Infrastructure** (`src/Infrastructure`): System-level integrations (filesystem scans, layout persistence, keyboard monitoring, window configuration, status item management).
+- **Interface** (`src/Interface`): SwiftUI views, scenes, and UI composition. Responsible for rendering the grid, search bar, folder overlays, and settings window.
+- **Application** (`src/Application`): Observable stores (`AppCatalogStore`, `AppSettings`) that coordinate asynchronous work, mutate state, and emit updates consumed by the UI.
+- **Domain** (`src/Domain`): Lightweight models (`AppItem`, `FolderItem`, `CatalogEntry`) shared by all layers and free of AppKit/SwiftUI dependencies.
+- **Infrastructure** (`src/Infrastructure`): System-level integrations—catalog scanning, layout persistence, accessibility permission prompts, keyboard monitoring, icon caching, and window configuration.
 
 ## Data Flow
 
 1. **Catalog Loading**
-   - At launch, `AppCatalogStore` calls `AppCatalogLoader.loadCatalog()` to enumerate `.app` bundles from standard directories.
-   - Results are normalized into `AppItem` and `FolderItem` instances, then persisted order is merged via `LayoutPersistence`.
-   - The store publishes `rootEntries`, which drives the UI grid.
+   - At launch, `AppCatalogStore.reloadCatalog()` invokes `AppCatalogLoader.loadCatalog()` which scans known application directories on a background queue.
+   - Results become `AppItem`/`FolderItem` values merged with the saved layout snapshot to restore user ordering.
+   - The store publishes `rootEntries`, used directly by SwiftUI views via `@EnvironmentObject` bindings.
 
 2. **User Interaction**
-   - UI gestures (drag, scroll, search) mutate `AppCatalogStore` state. Combine publishes updates that re-render SwiftUI views.
-   - Edits to preferences (grid dimensions, scroll threshold, daemon mode) change `AppSettings`, which writes through to `UserDefaults`.
+   - Gestures (drag, hover, scroll) and commands (keyboard shortcuts, context menus) call into `AppCatalogStore` APIs.
+   - Store mutations are `@MainActor` and drive SwiftUI updates automatically through `@Published` properties.
 
 3. **Persistence**
-   - Layout updates trigger `LayoutPersistence.save()` asynchronously, keeping disk writes off the main thread.
-   - Preferences are persisted immediately inside `AppSettings.persist()` to ensure crash-safe settings.
+   - Layout changes enqueue async `Task` work that calls `LayoutPersistence.save(entries:)` off the main actor.
+   - `AppSettings` writes immediately to `UserDefaults` in property observers, ensuring values survive crashes or sudden quits.
 
 ## Lifecycle & Daemon Mode
 
 `AppLifecycleDelegate` bridges SwiftUI with AppKit:
 
-- Adjusts the activation policy between `.regular` and `.accessory` based on `AppSettings.daemonModeEnabled`.
-- Configures the primary borderless window to mirror the current screen and hide system UI when active.
-- Manages a status item when in daemon mode, exposing actions to reopen Launchy, show settings, or quit.
-- Handles app activation events, ensuring the overlay is brought forward only when appropriate.
+- Sets the appearance and activation policy to keep Launchy frontmost and immersive.
+- Mirrors the active screen’s bounds and restores the overlay whenever the app becomes active.
+- Stores presentation options (Dock/Menu Bar visibility) and restores them when the app resigns active.
+- Terminates the app on reopen requests (⌘Q, status menu) and ensures the primary window remains visible when appropriate.
 
-ESC key behavior is context-aware:
+ESC key behaviour is orchestrated by `ContentView`, `AppCatalogStore`, and `KeyboardMonitor`:
 
-- If the user is editing or viewing a folder, the action cancels the modal state.
-- When idle in daemon mode, ESC hides the window instead of terminating.
-- Otherwise, ESC quits the app (non-daemon mode) via `NSApp.terminate(nil)`.
+- When editing, ESC ends edit mode.
+- With a folder presented, ESC dismisses the overlay.
+- When a search query exists, ESC clears it.
+- If none apply, ESC terminates the app via `NSApp.terminate(nil)`.
 
 ## Settings Synchronisation
 
-`AppSettings` is an `ObservableObject` exposed to both views and the lifecycle delegate. It coordinates:
+`AppSettings` is an `ObservableObject` shared between the SwiftUI hierarchy and lifecycle delegate. It coordinates:
 
 - Grid layout (columns & rows)
-- Scroll threshold (minimum scroll delta before paging)
-- Daemon mode flag
+- Scroll threshold (minimum accumulated scroll delta before paging)
 
-The delegate observes the daemon flag to update the activation policy live without restarting the app.
+Published values flow automatically into views and drive the `GridMetricsCalculator` that resizes tiles to fit the active display.
 
 ## Keyboard Handling
 
 `KeyboardMonitor` installs both local and global event taps:
 
-- Local monitor ensures ESC, Return, and other keys work when Launchy is frontmost.
-- Global monitor requires accessibility permission; it captures keystrokes to refocus search even when Launchy is in the background.
-- Events are funneled back to `AppCatalogStore`, which manipulates state (exiting folders, clearing search, ending edit mode).
+- Local monitor ensures ESC and other keys work while Launchy is key.
+- When accessibility permission is granted, a global monitor forwards key presses back into the app so the search field can activate quickly.
+- Tests toggle monitors via `resetForTesting()`; production builds never expose this API.
 
 ## Rendering Pipeline
 
-- The grid is rendered via `LazyVGrid` with adaptive sizing derived from `AppSettings`.
-- Paging relies on tracking drag and scroll deltas, with thresholds and elasticity to mimic Launchpad.
-- Folder overlays animate using spring interpolations for smooth open/close transitions.
-- Settings window leverages `NSHostingView` embedded into an AppKit window configured at the auxiliary level.
+- The grid is rendered via `LazyVGrid` with adaptive sizing derived from `GridMetricsCalculator`.
+- Paging relies on drag gestures and accumulated scroll deltas bounded by the user-defined threshold.
+- Folder overlays animate via spring-based transitions and can spawn intra-folder drag operations.
+- Settings UI is hosted inside an AppKit window configured at the auxiliary level via `AuxiliaryWindowConfigurator`.
 
 ## Error Handling & Resilience
 
-- All filesystem operations in `AppCatalogLoader` are guarded with optional chaining; missing directories simply yield empty results.
-- Layout persistence errors are logged in debug builds but do not crash the app.
-- Deployment script (`scripts/deploy`) uses strict failure checks (`set -euo pipefail`) and provides dry-run support for rehearsals.
+- Filesystem operations in `AppCatalogLoader` ignore missing directories and skip unreadable bundles.
+- Layout persistence catches write errors and logs them in debug builds without interrupting the UI.
+- Accessibility prompts are skipped during automated tests to prevent dialogs from blocking CI.
+
+## Future Enhancements
+
+- Expand unit test coverage for drag-and-drop edge cases (e.g., nested folder merges).
+- Consider persisting additional UI preferences (appearance, animation speed).
+- Explore SwiftData/Core Data integration if catalog metadata grows in complexity.
+- Profile animation performance on lower-powered hardware using Instruments.
 
 ## Future Enhancements (Ideas)
 

@@ -61,6 +61,7 @@ help:
 	@echo "  make pkg           # Build signed installer package"
 	@echo "  make dmg           # Create distributable dmg"
 	@echo "  make deploy        # Merge release branch into production via scripts/deploy"
+	@echo "  make changelog     # Generate changelog entry via scripts/update_changelog.sh"
 
 .PHONY: build
 build:
@@ -118,18 +119,22 @@ format:
 .PHONY: lint
 lint:
 	@if command -v $(SWIFTLINT) >/dev/null 2>&1; then \
-		$(SWIFTLINT); \
+		$(SWIFTLINT) --fix; \
 	else \
 		echo "swiftlint not installed. Install via 'brew install swiftlint'"; \
 	fi
 
 .PHONY: clean
 clean:
-	rm -rf $(BUILD_DIR) $(DIST_DIR)
+	rm -rf $(DIST_DIR) $(BUILD_DIR)
 
 .PHONY: deploy
 deploy:
-	./scripts/deploy $(DEPLOY_ARGS)
+	./scripts/deploy.sh $(DEPLOY_ARGS)
+
+.PHONY: changelog
+changelog:
+	./scripts/update_changelog.sh $(ARGS)
 
 # ----- Distribution-oriented targets below this line -----
 

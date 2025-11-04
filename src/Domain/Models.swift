@@ -27,22 +27,22 @@ enum CatalogEntry: Identifiable, Equatable, Hashable {
 
     var id: String {
         switch self {
-        case .app(let app):
-            return "app-\(app.id)"
-        case .folder(let folder):
-            return "folder-\(folder.id)"
+        case let .app(app):
+            "app-\(app.id)"
+        case let .folder(folder):
+            "folder-\(folder.id)"
         }
     }
 
     var app: AppItem? {
-        if case .app(let app) = self {
+        if case let .app(app) = self {
             return app
         }
         return nil
     }
 
     var folder: FolderItem? {
-        if case .folder(let folder) = self {
+        if case let .folder(folder) = self {
             return folder
         }
         return nil

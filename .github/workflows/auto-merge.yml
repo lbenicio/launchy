@@ -30,4 +30,5 @@ jobs:
         uses: "pascalgn/automerge-action@v0.16.4"
         env:
           MERGE_LABELS: ""
+          MERGE_FILTER_AUTHOR: "dependabot[bot]"
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"

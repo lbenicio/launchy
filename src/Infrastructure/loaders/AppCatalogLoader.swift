@@ -9,7 +9,8 @@ struct AppCatalogLoader {
             URL(fileURLWithPath: "/Applications", isDirectory: true),
             URL(fileURLWithPath: "/System/Applications", isDirectory: true),
             FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
-                "Applications", isDirectory: true),
+                "Applications", isDirectory: true
+            )
         ]
     ) {
         self.roots = roots
@@ -37,8 +38,7 @@ struct AppCatalogLoader {
                     at: root,
                     includingPropertiesForKeys: [.isDirectoryKey],
                     options: [.skipsHiddenFiles]
-                )
-            else {
+                ) else {
                 continue
             }
             for url in contents {
@@ -86,8 +86,7 @@ struct AppCatalogLoader {
                 at: folderURL,
                 includingPropertiesForKeys: [.isDirectoryKey],
                 options: [.skipsHiddenFiles]
-            )
-        else {
+            ) else {
             return []
         }
         var apps: [AppItem] = []
@@ -117,10 +116,10 @@ struct AppCatalogLoader {
 
     private static func prettifiedFolderName(_ name: String) -> String {
         switch name.lowercased() {
-        case "utilities": return "Utilities"
-        case "other": return "Other"
-        case "tools": return "Tools"
-        default: return name.replacingOccurrences(of: "-", with: " ").capitalized
+        case "utilities": "Utilities"
+        case "other": "Other"
+        case "tools": "Tools"
+        default: name.replacingOccurrences(of: "-", with: " ").capitalized
         }
     }
 }

@@ -1,108 +1,134 @@
 # Project Structure
 
-This document describes the directory layout of the Launchy repository and summarises the purpose of the most important files.
+This document maps the Launchy repository layout and highlights the responsibility of key files. Use it as a quick reference when navigating the codebase.
 
 ## Top-Level Layout
 
 ```text
 .
-|-- assets/                # Static resources (icons, Info.plist templates)
-|-- docs/                  # Project documentation (architecture, ops, etc.)
-|-- scripts/               # Automation scripts (deployment, tooling)
-|-- src/                   # Application source code
-|-- CODE_OF_CONDUCT.md     # Community guidelines
-|-- CONTRIBUTING.md        # Contribution workflow
-|-- LICENSE.txt            # MIT license text
-|-- Makefile               # Common build/test/deploy commands
-|-- Package.swift          # Swift Package manifest
-|-- README.md              # Project overview and quick start
-|-- SECURITY.md            # Vulnerability reporting policy
+|-- assets/                  # Static resources (icons, plist templates)
+|-- docs/                    # Engineering documentation (this directory)
+|-- scripts/                 # Developer automation (deploy, tooling helpers)
+|-- src/                     # Application source code (Swift Package target)
+|-- tests/                   # XCTest target mirroring the source layout
+|-- .github/                 # Issue templates and CI workflows
+|-- CODE_OF_CONDUCT.md
+|-- CONTRIBUTING.md
+|-- LICENSE.txt
+|-- Makefile
+|-- Package.swift
+|-- README.md
+|-- SECURITY.md
 ```
 
 ## Source Tree (`src/`)
 
-The `src/` directory is split into four primary modules. Each module has a focused responsibility.
+`src/` contains the executable target `Launchy`, separated into four top-level modules. Each folder should be mirrored in `tests/` with equivalent subdirectories.
 
 ### `Application/`
 
 - `AppCatalogStore.swift`
-  - Observable store powering the grid. Manages catalog loading, drag-and-drop, folder presentation, and search state.
+  - Main `@MainActor` store that fetches the catalog, manages drag-and-drop, folder presentation, and dismiss/escape flows.
 - `AppSettings.swift`
-  - Manages persisted user preferences (grid size, scroll sensitivity, daemon mode) using `UserDefaults` and Combine.
+  - `ObservableObject` wrapping `UserDefaults` values for grid dimensions and scroll sensitivity with automatic clamping and persistence.
 
 ### `Domain/`
 
 - `Models.swift`
-  - Defines `AppItem`, `FolderItem`, and `CatalogEntry` value types used across the UI and data layers.
+  - Declares `AppItem`, `FolderItem`, and `CatalogEntry` value types plus convenience accessors used throughout the app and tests.
 
 ### `Infrastructure/`
 
-- `AppCatalogLoader.swift`
-  - Enumerates `.app` bundles, normalises metadata, and groups apps into folders.
-- `LayoutPersistence.swift`
-  - Persists the user-customised layout to disk and restores it at launch.
-- `KeyboardMonitor.swift`
-  - Installs global/local keyboard event taps to steer search focus and ESC behaviour.
-- `SettingsWindowManager.swift`
-  - Manages the detached settings window using `NSHostingView` inside an AppKit window.
-- `WindowConfigurator.swift`
-  - Provides helpers to configure window styles and stacking levels for the overlay and auxiliary views.
+- `configurators/WindowConfigurator.swift`
+  - Defines helper representables to configure NSWindow levels (`launchyPrimary`, `launchyAuxiliary`) for the overlay and auxiliary windows.
+- `loaders/AppCatalogLoader.swift`
+  - Scans standard application directories, produces `CatalogEntry` arrays, and normalises bundle metadata.
+- `managers/SettingsWindowManager.swift`
+  - Owns the AppKit settings window lifecycle, presenting a SwiftUI `SettingsView` inside an auxiliary-level window.
+- `monitors/KeyboardMonitor.swift`
+  - Installs local/global keyboard monitors (with optional accessibility permission) and exposes test-only reset helpers behind `#if DEBUG`.
+- `permissions/AccessibilityPermission.swift`
+  - Requests accessibility prompts when needed and skips prompting inside automated tests.
+- `persistence/LayoutPersistence.swift`
+  - Loads and saves layout snapshots asynchronously, ensuring folder/app ordering survives relaunches.
+- `stores/IconStore.swift`
+  - Caches `NSImage` icons retrieved from application bundles to avoid repeated lookups.
 
 ### `Interface/`
 
 - `App/LaunchyApp.swift`
-  - SwiftUI entry point and `NSApplication` delegate integration (activation policy, status item, ESC handling).
+  - SwiftUI entry point containing `LaunchyApp` and `AppLifecycleDelegate` that manage activation policy, presentation options, and window visibility.
 - `Views/ContentView.swift`
-  - Main overlay showing the app grid, search field, paging, and folder overlays.
+  - Core overlay view responsible for pagination, drag-and-drop, folder presentation, and search field focus management.
+- `Views/AppIconView.swift`
+  - Renders app and folder tiles, including hover states, context menus, and rename prompts.
+- `Views/FolderOverlay.swift`
+  - Presents folder contents in an animated overlay, handling drag state and pagination inside folders.
+- `Views/GridMetrics.swift`
+  - Supplies sizing logic shared across grid surfaces.
 - `Views/SettingsView.swift`
-  - Preferences UI for grid layout, scroll sensitivity, and daemon mode toggle.
-- `Views` subcomponents
-  - `AppIconView`, `FolderOverlay`, `SearchBar`, etc., each encapsulating a portion of the UI.
+  - SwiftUI preferences UI backed by `AppSettings`.
+- `Views/components/VisualEffectView.swift`
+  - NSViewRepresentable wrapper for configurating `NSVisualEffectView` instances.
+
+## Tests (`tests/`)
+
+The `LaunchyTests` target mirrors the `src/` layout. Highlights:
+
+- `Application/AppCatalogStoreTests.swift` – verifies store state transitions for editing, folder dismissal, and drag scaffolding.
+- `Application/AppSettingsTests.swift` – ensures user defaults integration and clamping logic work under test suites.
+- `Domain/ModelsTests.swift` – validates value semantics and identifier derivation.
+- `Infrastructure/*Tests.swift` – covers catalog loading, layout persistence, accessibility permissions, keyboard monitoring, icon caching, and window configurators.
+- `Interface/*Tests.swift` – asserts SwiftUI views can be hosted inside `NSHostingView` and that lifecycle delegates adjust presentation options correctly.
+
+Tests invoke production types directly and rely on debug-only helpers guarded by compilation flags to avoid shipping testing logic.
 
 ## Scripts
 
 - `scripts/deploy`
-  - Hardened deployment script that merges `develop` into `main`, runs a release build, and pushes updates. Supports dry-run and configurable branches/remotes.
+  - Merge-orchestrated release helper with `--dry-run` support. Employs `set -euo pipefail` safeguards and performs release builds before pushing.
 
 ## Assets
 
 - `assets/icon/launchy.icns`
-  - App bundle icon packaged during `make bundle`.
+  - Launchy application icon embedded in bundled builds.
 - `assets/plist/Info.plist.template`
-  - Template used by the Makefile when assembling `.app` bundles.
+  - Template consumed by the Makefile when constructing `.app` bundles.
 
 ## Documentation (`docs/`)
 
 - `README.md`
-  - Consolidated technical documentation and links to deeper guides.
-- `architecture/overview.md`
-  - Layered architecture, data flow, lifecycle, and resilience notes.
-- Additional Markdown files (such as this one) cover focused topics.
+  - Comprehensive engineering handbook with build/test/ops guidance.
+- `architecture.md`
+  - Layered architecture, data flow, runtime lifecycle, and resilience strategies.
+- `structure.md`
+  - (This file) Directory-level map and responsibilities.
 
 ## Makefile Targets
 
-The Makefile encapsulates the most common workflows:
+The Makefile wraps common tasks:
 
 | Target          | Description                                 |
 |-----------------|---------------------------------------------|
 | `make build`    | Debug build via `swift build`                |
-| `make release`  | Release build into `.build/release/Launchy`  |
-| `make bundle`   | Assemble `.app` bundle under `.build/dist`   |
+| `make release`  | Optimised build into `.build/release/`       |
+| `make bundle`   | Assemble `.app` bundle in `.build/dist`      |
 | `make run`      | Run the debug executable                     |
 | `make test`     | Execute unit tests                           |
-| `make format`   | Run `swiftformat` if available               |
-| `make lint`     | Run `swiftlint` if available                 |
-| `make deploy`   | Merge & release using `scripts/deploy`       |
+| `make format`   | Run `swiftformat` when available             |
+| `make lint`     | Run `swiftlint` when available               |
+| `make deploy`   | Merge and release using `scripts/deploy`     |
 
 ## Configuration Files
 
 - `.editorconfig` – Editor defaults (indentation, line endings)
-- `.vscode/` – VS Code workspace settings
-- `.github/` – Issue/PR templates and workflows
+- `.vscode/` – Workspace preferences for VS Code (if present)
+- `.github/` – Issue/PR templates and GitHub Actions workflows
 
 ## Where to Start
 
-- Read `README.md` for a quick start.
-- Browse `docs/README.md` and `docs/architecture/overview.md` for deep dives.
-- Explore `src/Interface/Views/ContentView.swift` to understand grid behaviour.
-- Review `AppCatalogStore` to see how the store coordinates data and animations.
+- Read the repository `README.md` for onboarding.
+- Review this document and [`docs/architecture.md`](architecture.md) for structural context.
+- Explore `src/Interface/Views/ContentView.swift` to understand UI flow and user interactions.
+- Inspect `src/Application/AppCatalogStore.swift` for state management and drag-and-drop orchestration.
+- Refer to the mirrored test files under `tests/` for usage examples and behavioural expectations.

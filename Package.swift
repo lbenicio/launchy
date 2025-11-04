@@ -1,9 +1,9 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.2
 import Foundation
 import PackageDescription
 
 // Single source-of-truth for package version used by build scripts or about dialogs.
-let packageVersion = "0.1.0"
+let packageVersion = "0.1.1"
 
 let package = Package(
   name: "Launchy",
@@ -26,6 +26,11 @@ let package = Package(
         .linkedFramework("SwiftUI"),
         .linkedFramework("ApplicationServices"),
       ]
+    ),
+    .testTarget(
+      name: "LaunchyTests",
+      dependencies: ["Launchy"],
+      path: "tests"
     )
   ]
 )

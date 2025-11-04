@@ -168,4 +168,8 @@ else
   log "Deployment from '$SOURCE' to '$TARGET' completed successfully."
 fi
 
+run git checkout "$SOURCE"
+run git merge origin/"$TARGET"
+run git push "$REMOTE" "$SOURCE"
+
 exit 0
