@@ -159,8 +159,8 @@ if [[ -n "$bump_type" ]]; then
   awk -v ver="$version" '
     BEGIN { done = 0 }
     {
-      if (!done && match($0, /(packageVersion[[:space:]]*=[[:space:]]*")([^"]*)(".*)/, parts)) {
-        $0 = parts[1] ver parts[3]
+      if (!done && $0 ~ /packageVersion[[:space:]]*=[[:space:]]*"/) {
+        sub(/(packageVersion[[:space:]]*=[[:space:]]*")[^"]*(".*)/, "\\1" ver "\\2")
         done = 1
       }
       print
