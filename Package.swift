@@ -3,7 +3,7 @@ import Foundation
 import PackageDescription
 
 // Single source-of-truth for package version used by build scripts or about dialogs.
-let packageVersion = "0.1.1"
+let \10.1.2\2
 
 let package = Package(
   name: "Launchy",
