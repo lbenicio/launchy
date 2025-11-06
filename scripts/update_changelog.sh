@@ -160,7 +160,7 @@ if [[ -n "$bump_type" ]]; then
     BEGIN { done = 0 }
     {
       if (!done && $0 ~ /packageVersion[[:space:]]*=[[:space:]]*"/) {
-        sub(/(packageVersion[[:space:]]*=[[:space:]]*")[^"]*(".*)/, "\\1" ver "\\2")
+        sub(/packageVersion[[:space:]]*=[[:space:]]*"[^"]*"/, "packageVersion = \"" ver "\"")
         done = 1
       }
       print
