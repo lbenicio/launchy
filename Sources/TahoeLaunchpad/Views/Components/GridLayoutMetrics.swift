@@ -22,7 +22,9 @@ struct GridLayoutMetrics {
         let widthPerItem = (availableWidth - columnSpacingTotal) / CGFloat(max(settings.columns, 1))
         let heightPerItem = (availableHeight - rowSpacingTotal) / CGFloat(max(settings.rows, 1))
 
-        let dimension = max(72, min(widthPerItem, heightPerItem)) * settings.iconScale
+        let baseDimension = min(widthPerItem, heightPerItem)
+        let clampedDimension = min(max(baseDimension, 80), 120)
+        let dimension = clampedDimension * settings.iconScale
 
         self.itemDimension = dimension
         self.horizontalSpacing = horizontalSpacing

@@ -41,8 +41,14 @@ struct LaunchpadRootView: View {
                     }
 
                     if pages.count > 1 {
-                        PageControlView(currentPage: viewModel.currentPage, totalPages: pages.count)
-                            .padding(.bottom, 8)
+                        PageControlView(
+                            currentPage: viewModel.currentPage,
+                            totalPages: pages.count,
+                            onSelect: { index in
+                                viewModel.selectPage(index, totalPages: pages.count)
+                            }
+                        )
+                        .padding(.bottom, 8)
                     }
                 }
                 .padding(.bottom, 60)
@@ -72,12 +78,12 @@ struct LaunchpadRootView: View {
             .background(WindowConfigurator())
         #endif
         .onChange(of: searchText) { _, _ in
-            viewModel.currentPage = 0
+            viewModel.selectPage(0, totalPages: pages.count)
         }
         .onChange(of: pages.count) { _, newCount in
             let maxIndex = max(newCount - 1, 0)
             if viewModel.currentPage > maxIndex {
-                viewModel.currentPage = maxIndex
+                viewModel.selectPage(maxIndex, totalPages: newCount)
             }
         }
     }
@@ -87,7 +93,7 @@ struct LaunchpadRootView: View {
             DesktopBackdropView()
                 .overlay {
                     backgroundGradient
-                        .opacity(0.25)
+                        .opacity(0.14)
                 }
                 .ignoresSafeArea()
         }
@@ -165,20 +171,26 @@ struct LaunchpadRootView: View {
 struct PageControlView: View {
     let currentPage: Int
     let totalPages: Int
+    var onSelect: (Int) -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             ForEach(0..<totalPages, id: \.self) { index in
-                Capsule()
-                    .fill(
-                        index == currentPage ? Color.white.opacity(0.8) : Color.white.opacity(0.3)
-                    )
-                    .frame(width: index == currentPage ? 28 : 10, height: 6)
-                    .animation(.easeInOut(duration: 0.2), value: currentPage)
+                let isActive = index == currentPage
+                Button {
+                    onSelect(index)
+                } label: {
+                    Capsule()
+                        .fill(isActive ? Color.white.opacity(0.85) : Color.white.opacity(0.3))
+                        .frame(width: isActive ? 28 : 12, height: 8)
+                        .animation(.easeInOut(duration: 0.2), value: currentPage)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Go to page \(index + 1)")
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(Color.black.opacity(0.25), in: Capsule())
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(Color.black.opacity(0.28), in: Capsule())
     }
 }

@@ -15,6 +15,8 @@ final class LaunchpadViewModel: ObservableObject {
     let settingsStore: GridSettingsStore
 
     private var cancellables: Set<AnyCancellable> = []
+    private var pendingStackWorkItem: DispatchWorkItem?
+    private var pendingStackTargetID: UUID?
 
     init(dataStore: LaunchpadDataStore, settingsStore: GridSettingsStore) {
         self.dataStore = dataStore
@@ -70,6 +72,7 @@ final class LaunchpadViewModel: ObservableObject {
         withAnimationIfPossible {
             isEditing.toggle()
             if !isEditing {
+                cancelPendingStacking()
                 dragItemID = nil
             }
         }
@@ -85,6 +88,7 @@ final class LaunchpadViewModel: ObservableObject {
         if commit {
             persist()
         }
+        cancelPendingStacking()
         dragItemID = nil
         dragSourceFolderID = nil
     }
@@ -161,6 +165,7 @@ final class LaunchpadViewModel: ObservableObject {
     }
 
     func stackDraggedItem(onto targetID: UUID) {
+        cancelPendingStacking()
         guard let draggedID = dragItemID,
             draggedID != targetID,
             let draggedIndex = items.firstIndex(where: { $0.id == draggedID }),
@@ -193,6 +198,7 @@ final class LaunchpadViewModel: ObservableObject {
         presentedFolderID = folder.id
         dragItemID = nil
         dragSourceFolderID = nil
+        ensureCurrentPageInBounds()
         persist()
     }
 
@@ -233,12 +239,74 @@ final class LaunchpadViewModel: ObservableObject {
         return index / capacity
     }
 
+    func selectPage(_ index: Int, totalPages: Int) {
+        let maxIndex = max(totalPages - 1, 0)
+        let clamped = min(max(index, 0), maxIndex)
+        if currentPage != clamped {
+            cancelPendingStacking()
+            currentPage = clamped
+        }
+    }
+
+    func goToPreviousPage(totalPages: Int) {
+        selectPage(currentPage - 1, totalPages: totalPages)
+    }
+
+    func goToNextPage(totalPages: Int) {
+        selectPage(currentPage + 1, totalPages: totalPages)
+    }
+
+    func requestStacking(onto targetID: UUID) {
+        guard let draggedID = dragItemID,
+            draggedID != targetID,
+            canStack(draggedID: draggedID, onto: targetID)
+        else {
+            cancelPendingStacking()
+            return
+        }
+
+        if pendingStackTargetID == targetID {
+            return
+        }
+
+        cancelPendingStacking()
+
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.stackDraggedItem(onto: targetID)
+        }
+
+        pendingStackTargetID = targetID
+        pendingStackWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: workItem)
+    }
+
+    func cancelPendingStacking() {
+        pendingStackWorkItem?.cancel()
+        pendingStackWorkItem = nil
+        pendingStackTargetID = nil
+    }
+
     private func persist() {
         dataStore.save(items)
     }
 
     private func defaultFolderName(from _: String) -> String {
         "Folder"
+    }
+
+    private func canStack(draggedID: UUID, onto targetID: UUID) -> Bool {
+        guard let draggedIndex = items.firstIndex(where: { $0.id == draggedID }),
+            let targetIndex = items.firstIndex(where: { $0.id == targetID })
+        else {
+            return false
+        }
+
+        if case .app = items[draggedIndex], case .app = items[targetIndex] {
+            return true
+        }
+
+        return false
     }
 
     private func ensureCurrentPageInBounds() {

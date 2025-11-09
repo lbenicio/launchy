@@ -14,32 +14,42 @@ struct LaunchpadItemDropDelegate: DropDelegate {
         viewModel.extractDraggedItemIfNeeded()
         guard let dragID = viewModel.dragItemID, dragID != item.id else { return }
         viewModel.moveItem(dragID, before: item.id)
+        updateStackingState(with: info)
     }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
+        updateStackingState(with: info)
+        return DropProposal(operation: .move)
+    }
+
+    func dropExited(info: DropInfo) {
+        viewModel.cancelPendingStacking()
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        viewModel.cancelPendingStacking()
+        viewModel.endDrag(commit: true)
+        return true
+    }
+
+    private func updateStackingState(with info: DropInfo) {
         guard viewModel.isEditing,
             case .app = item,
-            let dragID = viewModel.dragItemID,
-            dragID != item.id,
             let frame = frameProvider()
         else {
-            return DropProposal(operation: .move)
+            viewModel.cancelPendingStacking()
+            return
         }
 
         let center = CGPoint(x: frame.midX, y: frame.midY)
         let distance = hypot(info.location.x - center.x, info.location.y - center.y)
-        let activationRadius = min(frame.width, frame.height) * 0.34
+        let activationRadius = min(frame.width, frame.height) * 0.55
 
         if distance <= activationRadius {
-            viewModel.stackDraggedItem(onto: item.id)
+            viewModel.requestStacking(onto: item.id)
+        } else {
+            viewModel.cancelPendingStacking()
         }
-
-        return DropProposal(operation: .move)
-    }
-
-    func performDrop(info: DropInfo) -> Bool {
-        viewModel.endDrag(commit: true)
-        return true
     }
 }
 
@@ -51,12 +61,14 @@ struct LaunchpadTrailingDropDelegate: DropDelegate {
     }
 
     func dropEntered(info: DropInfo) {
+        viewModel.cancelPendingStacking()
         viewModel.extractDraggedItemIfNeeded()
         guard let dragID = viewModel.dragItemID else { return }
         viewModel.moveItem(dragID, before: nil)
     }
 
     func performDrop(info: DropInfo) -> Bool {
+        viewModel.cancelPendingStacking()
         viewModel.endDrag(commit: true)
         return true
     }
@@ -71,12 +83,14 @@ struct FolderDropDelegate: DropDelegate {
     }
 
     func dropEntered(info: DropInfo) {
+        viewModel.cancelPendingStacking()
         viewModel.extractDraggedItemIfNeeded()
         guard let dragID = viewModel.dragItemID else { return }
         viewModel.addApp(dragID, toFolder: folderID)
     }
 
     func performDrop(info: DropInfo) -> Bool {
+        viewModel.cancelPendingStacking()
         viewModel.endDrag(commit: true)
         return true
     }
@@ -93,6 +107,7 @@ struct FolderAppDropDelegate: DropDelegate {
 
     func dropEntered(info: DropInfo) {
         guard let dragID = viewModel.dragItemID else { return }
+        viewModel.cancelPendingStacking()
 
         if viewModel.dragSourceFolderID == folderID {
             viewModel.moveAppWithinFolder(folderID: folderID, appID: dragID, before: targetAppID)
@@ -103,6 +118,7 @@ struct FolderAppDropDelegate: DropDelegate {
     }
 
     func performDrop(info: DropInfo) -> Bool {
+        viewModel.cancelPendingStacking()
         viewModel.endDrag(commit: true)
         return true
     }
@@ -118,6 +134,7 @@ struct FolderTrailingDropDelegate: DropDelegate {
 
     func dropEntered(info: DropInfo) {
         guard let dragID = viewModel.dragItemID else { return }
+        viewModel.cancelPendingStacking()
 
         if viewModel.dragSourceFolderID == folderID {
             viewModel.moveAppWithinFolder(folderID: folderID, appID: dragID, before: nil)
@@ -128,6 +145,7 @@ struct FolderTrailingDropDelegate: DropDelegate {
     }
 
     func performDrop(info: DropInfo) -> Bool {
+        viewModel.cancelPendingStacking()
         viewModel.endDrag(commit: true)
         return true
     }

@@ -6,10 +6,10 @@ import SwiftUI
     struct DesktopBackdropView: NSViewRepresentable {
         func makeNSView(context: Context) -> NSVisualEffectView {
             let view = NSVisualEffectView()
-            view.material = .underWindowBackground
+            view.material = .fullScreenUI
             view.blendingMode = .behindWindow
             view.state = .active
-            view.isEmphasized = true
+            view.isEmphasized = false
             return view
         }
 
