@@ -6,8 +6,10 @@ import SwiftUI
 
 struct LaunchpadRootView: View {
     @ObservedObject var viewModel: LaunchpadViewModel
+    @EnvironmentObject private var settingsStore: GridSettingsStore
 
     @State private var searchText: String = ""
+    @State private var isShowingSettings: Bool = false
 
     private var pages: [[LaunchpadItem]] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -86,6 +88,11 @@ struct LaunchpadRootView: View {
                 viewModel.selectPage(maxIndex, totalPages: newCount)
             }
         }
+        .sheet(isPresented: $isShowingSettings) {
+            SettingsView(store: settingsStore)
+                .padding(20)
+                .frame(width: 420)
+        }
     }
 
     #if os(macOS)
@@ -125,8 +132,7 @@ struct LaunchpadRootView: View {
     }
 
     private var searchField: some View {
-        TextField("Search", text: $searchText)
-            .textFieldStyle(.roundedBorder)
+        LaunchpadSearchField(text: $searchText)
             .frame(width: 240)
     }
 
@@ -150,7 +156,7 @@ struct LaunchpadRootView: View {
 
     private var settingsButton: some View {
         Button {
-            showSettings()
+            isShowingSettings = true
         } label: {
             Image(systemName: "gearshape.fill")
                 .font(.system(size: 18, weight: .semibold))
@@ -159,12 +165,6 @@ struct LaunchpadRootView: View {
                 .background(Color.white.opacity(0.12), in: Capsule())
         }
         .buttonStyle(.plain)
-    }
-
-    private func showSettings() {
-        #if os(macOS)
-            NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
-        #endif
     }
 }
 

@@ -44,6 +44,13 @@ struct LaunchpadPagedGridView: View {
                 scrollPosition = min(viewModel.currentPage, totalPages - 1)
             }
         }
+        .onChange(of: pages.count) { _, newCount in
+            let clampedIndex = min(viewModel.currentPage, max(newCount - 1, 0))
+            viewModel.selectPage(clampedIndex, totalPages: newCount)
+            if scrollPosition != clampedIndex {
+                scrollPosition = clampedIndex
+            }
+        }
         #if os(macOS)
             .overlay(
                 PageNavigationKeyHandler(

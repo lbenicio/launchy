@@ -1,8 +1,5 @@
+# Ignore build artifacts
+.build/
+
+# Ignore macOS system files and build directory
 .DS_Store
-/.build
-/Packages
-xcuserdata/
-DerivedData/
-.swiftpm/configuration/registries.json
-.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
-.netrc

@@ -17,6 +17,7 @@ final class LaunchpadViewModel: ObservableObject {
     private var cancellables: Set<AnyCancellable> = []
     private var pendingStackWorkItem: DispatchWorkItem?
     private var pendingStackTargetID: UUID?
+    private let stackingDelay: TimeInterval = 0.18
 
     init(dataStore: LaunchpadDataStore, settingsStore: GridSettingsStore) {
         self.dataStore = dataStore
@@ -164,20 +165,20 @@ final class LaunchpadViewModel: ObservableObject {
         persist()
     }
 
-    func stackDraggedItem(onto targetID: UUID) {
-        cancelPendingStacking()
+    @discardableResult
+    func stackDraggedItem(onto targetID: UUID) -> Bool {
         guard let draggedID = dragItemID,
             draggedID != targetID,
             let draggedIndex = items.firstIndex(where: { $0.id == draggedID }),
             let targetIndex = items.firstIndex(where: { $0.id == targetID })
         else {
-            return
+            return false
         }
 
         guard case .app(let draggedApp) = items[draggedIndex],
             case .app(let targetApp) = items[targetIndex]
         else {
-            return
+            return false
         }
 
         var updatedItems = items
@@ -200,6 +201,7 @@ final class LaunchpadViewModel: ObservableObject {
         dragSourceFolderID = nil
         ensureCurrentPageInBounds()
         persist()
+        return true
     }
 
     func addApp(_ appID: UUID, toFolder folderID: UUID) {
@@ -273,18 +275,25 @@ final class LaunchpadViewModel: ObservableObject {
 
         let workItem = DispatchWorkItem { [weak self] in
             guard let self else { return }
-            self.stackDraggedItem(onto: targetID)
+            self.cancelPendingStacking()
+            _ = self.stackDraggedItem(onto: targetID)
         }
 
         pendingStackTargetID = targetID
         pendingStackWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: workItem)
+        DispatchQueue.main.asyncAfter(deadline: .now() + stackingDelay, execute: workItem)
     }
 
     func cancelPendingStacking() {
         pendingStackWorkItem?.cancel()
         pendingStackWorkItem = nil
         pendingStackTargetID = nil
+    }
+
+    func commitPendingStackingIfNeeded(for targetID: UUID) -> Bool {
+        guard pendingStackTargetID == targetID else { return false }
+        cancelPendingStacking()
+        return stackDraggedItem(onto: targetID)
     }
 
     private func persist() {

@@ -27,7 +27,17 @@ struct LaunchpadItemDropDelegate: DropDelegate {
     }
 
     func performDrop(info: DropInfo) -> Bool {
-        viewModel.cancelPendingStacking()
+        var stacked = viewModel.commitPendingStackingIfNeeded(for: item.id)
+
+        if !stacked, shouldStackOnDrop(info: info) {
+            viewModel.cancelPendingStacking()
+            stacked = viewModel.stackDraggedItem(onto: item.id)
+        }
+
+        if !stacked {
+            viewModel.cancelPendingStacking()
+        }
+
         viewModel.endDrag(commit: true)
         return true
     }
@@ -41,15 +51,23 @@ struct LaunchpadItemDropDelegate: DropDelegate {
             return
         }
 
-        let center = CGPoint(x: frame.midX, y: frame.midY)
-        let distance = hypot(info.location.x - center.x, info.location.y - center.y)
-        let activationRadius = min(frame.width, frame.height) * 0.55
-
-        if distance <= activationRadius {
+        if isLocationInStackZone(info.location, frame: frame) {
             viewModel.requestStacking(onto: item.id)
         } else {
             viewModel.cancelPendingStacking()
         }
+    }
+
+    private func shouldStackOnDrop(info: DropInfo) -> Bool {
+        guard case .app = item, let frame = frameProvider() else { return false }
+        return isLocationInStackZone(info.location, frame: frame)
+    }
+
+    private func isLocationInStackZone(_ location: CGPoint, frame: CGRect) -> Bool {
+        let center = CGPoint(x: frame.midX, y: frame.midY)
+        let distance = hypot(location.x - center.x, location.y - center.y)
+        let activationRadius = min(frame.width, frame.height) * 0.45
+        return distance <= activationRadius
     }
 }
 

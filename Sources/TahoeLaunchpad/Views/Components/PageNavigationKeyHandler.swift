@@ -91,7 +91,11 @@ import SwiftUI
 
                 guard let responder = event.window?.firstResponder else { return true }
 
-                if responder is NSTextView {
+                if responder is NSTextView || responder is NSTextField {
+                    return false
+                }
+
+                if responder.responds(to: #selector(NSResponder.insertText(_:))) {
                     return false
                 }
 

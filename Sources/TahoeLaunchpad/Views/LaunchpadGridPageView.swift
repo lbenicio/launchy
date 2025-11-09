@@ -28,13 +28,12 @@ struct LaunchpadGridPageView: View {
         .padding(.horizontal, metrics.padding)
         .padding(.vertical, metrics.padding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .coordinateSpace(name: "launchpadGrid")
     }
 
     private func launchpadTile(for item: LaunchpadItem) -> some View {
         GeometryReader { proxy in
             let dropTypes: [UTType] = [.launchpadItemIdentifier]
-            let frame = proxy.frame(in: .named("launchpadGrid"))
+            let frame = proxy.frame(in: .global)
             let baseView = LaunchpadItemView(
                 item: item,
                 dimension: metrics.itemDimension,
