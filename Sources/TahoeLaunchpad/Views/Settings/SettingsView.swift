@@ -38,6 +38,20 @@ struct SettingsView: View {
         )
     }
 
+    private var scrollSensitivityBinding: Binding<Double> {
+        Binding(
+            get: { store.settings.scrollSensitivity },
+            set: { store.update(scrollSensitivity: $0) }
+        )
+    }
+
+    private var fullScreenBinding: Binding<Bool> {
+        Binding(
+            get: { store.settings.useFullScreenLayout },
+            set: { store.update(useFullScreenLayout: $0) }
+        )
+    }
+
     var body: some View {
         Form {
             Section("Grid Layout") {
@@ -84,6 +98,24 @@ struct SettingsView: View {
                         Spacer()
                         Text("\(store.settings.folderRows)")
                     }
+                }
+            }
+
+            Section("Interaction & Window") {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Scroll Wheel Sensitivity")
+                        Spacer()
+                        Text(String(format: "%.2f×", store.settings.scrollSensitivity))
+                            .font(.system(.body, design: .monospaced))
+                            .foregroundColor(.secondary)
+                    }
+                    Slider(value: scrollSensitivityBinding, in: 0.2...2.0, step: 0.05)
+                        .accessibilityLabel("Scroll Wheel Sensitivity")
+                }
+
+                Toggle(isOn: fullScreenBinding) {
+                    Text("Fill Entire Screen")
                 }
             }
         }

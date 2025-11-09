@@ -24,8 +24,13 @@ final class GridSettingsStore: ObservableObject {
     }
 
     func update(
-        columns: Int? = nil, rows: Int? = nil, folderColumns: Int? = nil, folderRows: Int? = nil,
-        iconScale: Double? = nil
+        columns: Int? = nil,
+        rows: Int? = nil,
+        folderColumns: Int? = nil,
+        folderRows: Int? = nil,
+        iconScale: Double? = nil,
+        scrollSensitivity: Double? = nil,
+        useFullScreenLayout: Bool? = nil
     ) {
         var next = settings
         if let columns { next.columns = max(3, min(columns, 10)) }
@@ -33,6 +38,12 @@ final class GridSettingsStore: ObservableObject {
         if let folderColumns { next.folderColumns = max(2, min(folderColumns, 8)) }
         if let folderRows { next.folderRows = max(2, min(folderRows, 8)) }
         if let iconScale { next.iconScale = min(max(iconScale, 0.7), 1.5) }
+        if let scrollSensitivity {
+            next.scrollSensitivity = min(max(scrollSensitivity, 0.2), 2.0)
+        }
+        if let useFullScreenLayout {
+            next.useFullScreenLayout = useFullScreenLayout
+        }
         settings = next
     }
 

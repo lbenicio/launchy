@@ -4,11 +4,16 @@ import SwiftUI
     import AppKit
 
     struct PageNavigationKeyHandler: NSViewRepresentable {
+        let scrollSensitivity: Double
         let onPrevious: () -> Void
         let onNext: () -> Void
 
         func makeCoordinator() -> Coordinator {
-            Coordinator(onPrevious: onPrevious, onNext: onNext)
+            Coordinator(
+                scrollSensitivity: scrollSensitivity,
+                onPrevious: onPrevious,
+                onNext: onNext
+            )
         }
 
         func makeNSView(context: Context) -> RelayView {
@@ -18,6 +23,7 @@ import SwiftUI
         }
 
         func updateNSView(_ nsView: RelayView, context: Context) {
+            context.coordinator.updateScrollSensitivity(scrollSensitivity)
             context.coordinator.onPrevious = onPrevious
             context.coordinator.onNext = onNext
             nsView.coordinator = context.coordinator
@@ -29,6 +35,7 @@ import SwiftUI
 
         @MainActor
         final class Coordinator {
+            private(set) var scrollSensitivity: Double
             var onPrevious: () -> Void
             var onNext: () -> Void
 
@@ -36,9 +43,17 @@ import SwiftUI
             private weak var observedWindow: NSWindow?
             private var scrollAccumulator: CGFloat = 0
 
-            init(onPrevious: @escaping () -> Void, onNext: @escaping () -> Void) {
+            init(
+                scrollSensitivity: Double, onPrevious: @escaping () -> Void,
+                onNext: @escaping () -> Void
+            ) {
+                self.scrollSensitivity = PageNavigationKeyHandler.clamp(scrollSensitivity)
                 self.onPrevious = onPrevious
                 self.onNext = onNext
+            }
+
+            func updateScrollSensitivity(_ value: Double) {
+                scrollSensitivity = PageNavigationKeyHandler.clamp(value)
             }
 
             func installMonitorIfNeeded(for window: NSWindow?) {
@@ -144,7 +159,9 @@ import SwiftUI
 
                 guard primaryDelta != 0 else { return false }
 
-                let threshold: CGFloat = event.hasPreciseScrollingDeltas ? 40 : 4
+                let multiplier = CGFloat(scrollSensitivity)
+                let baseThreshold: CGFloat = event.hasPreciseScrollingDeltas ? 40 : 4
+                let threshold = max(8, baseThreshold * multiplier)
                 scrollAccumulator += primaryDelta
 
                 if scrollAccumulator <= -threshold {
@@ -166,13 +183,19 @@ import SwiftUI
         }
         final class RelayView: NSView {
             weak var coordinator: PageNavigationKeyHandler.Coordinator? {
-                didSet { coordinator?.installMonitorIfNeeded(for: window) }
+                didSet {
+                    coordinator?.installMonitorIfNeeded(for: window)
+                }
             }
 
             override func viewDidMoveToWindow() {
                 super.viewDidMoveToWindow()
                 coordinator?.installMonitorIfNeeded(for: window)
             }
+        }
+
+        private static func clamp(_ value: Double) -> Double {
+            min(max(value, 0.2), 2.0)
         }
     }
 #else

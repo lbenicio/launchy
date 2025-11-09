@@ -22,8 +22,10 @@ struct LaunchpadRootView: View {
     }
 
     var body: some View {
+        let fillScreen = settingsStore.settings.useFullScreenLayout
+
         ZStack {
-            backgroundLayer
+            backgroundLayer(fillScreen: fillScreen)
 
             VStack(spacing: 24) {
                 header
@@ -32,8 +34,11 @@ struct LaunchpadRootView: View {
                     .zIndex(1)
 
                 ZStack(alignment: .bottom) {
-                    LaunchpadPagedGridView(viewModel: viewModel, pages: pages)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    LaunchpadPagedGridView(
+                        viewModel: viewModel,
+                        pages: pages,
+                        fillsAvailableSpace: fillScreen
+                    )
 
                     if !hasResults {
                         Text("No Matching Apps")
@@ -56,7 +61,11 @@ struct LaunchpadRootView: View {
                 }
                 .padding(.bottom, 60)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .frame(
+                maxWidth: fillScreen ? .infinity : nil,
+                maxHeight: fillScreen ? .infinity : nil,
+                alignment: .top
+            )
 
             if let folderID = viewModel.presentedFolderID,
                 let folder = viewModel.folder(by: folderID)
@@ -79,7 +88,7 @@ struct LaunchpadRootView: View {
         }
         .frame(minWidth: 1024, minHeight: 720)
         #if os(macOS)
-            .background(WindowConfigurator())
+            .background(WindowConfigurator(useFullScreenLayout: fillScreen))
         #endif
         .onChange(of: searchText) { _, _ in
             viewModel.selectPage(0, totalPages: pages.count)
@@ -98,16 +107,23 @@ struct LaunchpadRootView: View {
     }
 
     #if os(macOS)
-        private var backgroundLayer: some View {
-            DesktopBackdropView()
-                .overlay {
+        private func backgroundLayer(fillScreen: Bool) -> some View {
+            Group {
+                if fillScreen {
+                    DesktopBackdropView()
+                        .overlay {
+                            backgroundGradient
+                                .opacity(0.14)
+                        }
+                        .ignoresSafeArea()
+                } else {
                     backgroundGradient
-                        .opacity(0.14)
+                        .ignoresSafeArea()
                 }
-                .ignoresSafeArea()
+            }
         }
     #else
-        private var backgroundLayer: some View {
+        private func backgroundLayer(fillScreen _: Bool) -> some View {
             backgroundGradient
                 .ignoresSafeArea()
         }

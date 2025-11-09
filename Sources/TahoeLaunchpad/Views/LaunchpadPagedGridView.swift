@@ -4,6 +4,7 @@ struct LaunchpadPagedGridView: View {
     @ObservedObject var viewModel: LaunchpadViewModel
     @EnvironmentObject private var settingsStore: GridSettingsStore
     let pages: [[LaunchpadItem]]
+    let fillsAvailableSpace: Bool
     @State private var scrollPosition: Int? = 0
 
     var body: some View {
@@ -44,7 +45,11 @@ struct LaunchpadPagedGridView: View {
                 scrollPosition = min(viewModel.currentPage, totalPages - 1)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .frame(
+            maxWidth: fillsAvailableSpace ? .infinity : nil,
+            maxHeight: fillsAvailableSpace ? .infinity : nil,
+            alignment: .top
+        )
         .onChange(of: pages.count) { _, newCount in
             let clampedIndex = min(viewModel.currentPage, max(newCount - 1, 0))
             viewModel.selectPage(clampedIndex, totalPages: newCount)
@@ -55,6 +60,7 @@ struct LaunchpadPagedGridView: View {
         #if os(macOS)
             .overlay(
                 PageNavigationKeyHandler(
+                    scrollSensitivity: settingsStore.settings.scrollSensitivity,
                     onPrevious: { viewModel.goToPreviousPage(totalPages: max(pages.count, 1)) },
                     onNext: { viewModel.goToNextPage(totalPages: max(pages.count, 1)) }
                 )
