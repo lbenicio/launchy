@@ -28,13 +28,14 @@ struct LaunchpadGridPageView: View {
         .padding(.horizontal, metrics.padding)
         .padding(.vertical, metrics.padding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .coordinateSpace(name: "launchpadGrid")
     }
 
     private func launchpadTile(for item: LaunchpadItem) -> some View {
-        let dropTypes: [UTType] = [.launchpadItemIdentifier]
-
-        var wrappedView: AnyView = AnyView(
-            LaunchpadItemView(
+        GeometryReader { proxy in
+            let dropTypes: [UTType] = [.launchpadItemIdentifier]
+            let frame = proxy.frame(in: .named("launchpadGrid"))
+            let baseView = LaunchpadItemView(
                 item: item,
                 dimension: metrics.itemDimension,
                 isEditing: viewModel.isEditing,
@@ -43,29 +44,45 @@ struct LaunchpadGridPageView: View {
                 onLaunch: handleLaunch
             )
             .frame(width: metrics.itemDimension, height: metrics.itemDimension + 36)
+            .contentShape(Rectangle())
             .onDrop(
-                of: dropTypes, delegate: LaunchpadItemDropDelegate(item: item, viewModel: viewModel)
+                of: dropTypes,
+                delegate: LaunchpadItemDropDelegate(
+                    item: item,
+                    viewModel: viewModel,
+                    frameProvider: { frame }
+                )
             )
-        )
 
-        if case .folder(let folder) = item {
-            wrappedView = AnyView(
-                wrappedView.onDrop(
-                    of: dropTypes,
-                    delegate: FolderDropDelegate(folderID: folder.id, viewModel: viewModel))
-            )
-        }
-
-        if viewModel.isEditing {
-            return AnyView(
-                wrappedView.onDrag {
-                    viewModel.beginDrag(for: item.id)
-                    return makeProvider(for: LaunchpadDragIdentifier(itemID: item.id))
+            let folderAwareView: AnyView = {
+                if case .folder(let folder) = item {
+                    return AnyView(
+                        baseView.onDrop(
+                            of: dropTypes,
+                            delegate: FolderDropDelegate(folderID: folder.id, viewModel: viewModel))
+                    )
+                } else {
+                    return AnyView(baseView)
                 }
-            )
-        } else {
-            return wrappedView
+            }()
+
+            let dragReadyView: AnyView = {
+                if viewModel.isEditing {
+                    return AnyView(
+                        folderAwareView.onDrag {
+                            viewModel.beginDrag(for: item.id)
+                            return makeProvider(for: LaunchpadDragIdentifier(itemID: item.id))
+                        }
+                    )
+                } else {
+                    return folderAwareView
+                }
+            }()
+
+            dragReadyView
+                .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
         }
+        .frame(width: metrics.itemDimension, height: metrics.itemDimension + 36)
     }
 
     private func makeProvider(for payload: LaunchpadDragIdentifier) -> NSItemProvider {

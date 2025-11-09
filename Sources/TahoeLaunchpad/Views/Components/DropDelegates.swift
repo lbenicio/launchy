@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 struct LaunchpadItemDropDelegate: DropDelegate {
     let item: LaunchpadItem
     let viewModel: LaunchpadViewModel
+    let frameProvider: () -> CGRect?
 
     func validateDrop(info: DropInfo) -> Bool {
         viewModel.isEditing && info.hasItemsConforming(to: [.launchpadItemIdentifier])
@@ -13,6 +14,27 @@ struct LaunchpadItemDropDelegate: DropDelegate {
         viewModel.extractDraggedItemIfNeeded()
         guard let dragID = viewModel.dragItemID, dragID != item.id else { return }
         viewModel.moveItem(dragID, before: item.id)
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        guard viewModel.isEditing,
+            case .app = item,
+            let dragID = viewModel.dragItemID,
+            dragID != item.id,
+            let frame = frameProvider()
+        else {
+            return DropProposal(operation: .move)
+        }
+
+        let center = CGPoint(x: frame.midX, y: frame.midY)
+        let distance = hypot(info.location.x - center.x, info.location.y - center.y)
+        let activationRadius = min(frame.width, frame.height) * 0.34
+
+        if distance <= activationRadius {
+            viewModel.stackDraggedItem(onto: item.id)
+        }
+
+        return DropProposal(operation: .move)
     }
 
     func performDrop(info: DropInfo) -> Bool {

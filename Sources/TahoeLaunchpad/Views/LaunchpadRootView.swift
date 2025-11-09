@@ -21,8 +21,7 @@ struct LaunchpadRootView: View {
 
     var body: some View {
         ZStack {
-            backgroundGradient
-                .ignoresSafeArea()
+            backgroundLayer
 
             VStack(spacing: 24) {
                 header
@@ -69,6 +68,9 @@ struct LaunchpadRootView: View {
             }
         }
         .frame(minWidth: 1024, minHeight: 720)
+        #if os(macOS)
+            .background(WindowConfigurator())
+        #endif
         .onChange(of: searchText) { _, _ in
             viewModel.currentPage = 0
         }
@@ -79,6 +81,22 @@ struct LaunchpadRootView: View {
             }
         }
     }
+
+    #if os(macOS)
+        private var backgroundLayer: some View {
+            DesktopBackdropView()
+                .overlay {
+                    backgroundGradient
+                        .opacity(0.25)
+                }
+                .ignoresSafeArea()
+        }
+    #else
+        private var backgroundLayer: some View {
+            backgroundGradient
+                .ignoresSafeArea()
+        }
+    #endif
 
     private var backgroundGradient: some View {
         LinearGradient(

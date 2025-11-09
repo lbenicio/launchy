@@ -160,6 +160,42 @@ final class LaunchpadViewModel: ObservableObject {
         persist()
     }
 
+    func stackDraggedItem(onto targetID: UUID) {
+        guard let draggedID = dragItemID,
+            draggedID != targetID,
+            let draggedIndex = items.firstIndex(where: { $0.id == draggedID }),
+            let targetIndex = items.firstIndex(where: { $0.id == targetID })
+        else {
+            return
+        }
+
+        guard case .app(let draggedApp) = items[draggedIndex],
+            case .app(let targetApp) = items[targetIndex]
+        else {
+            return
+        }
+
+        var updatedItems = items
+        let upperIndex = max(draggedIndex, targetIndex)
+        let lowerIndex = min(draggedIndex, targetIndex)
+        // Remove dragged and target items in order to insert the new folder in their place.
+        updatedItems.remove(at: upperIndex)
+        updatedItems.remove(at: lowerIndex)
+
+        let folderName = defaultFolderName(from: targetApp.name)
+        var folder = LaunchpadFolder(name: folderName, apps: [])
+        folder.apps.append(targetApp)
+        folder.apps.append(draggedApp)
+
+        updatedItems.insert(.folder(folder), at: lowerIndex)
+
+        items = updatedItems
+        presentedFolderID = folder.id
+        dragItemID = nil
+        dragSourceFolderID = nil
+        persist()
+    }
+
     func addApp(_ appID: UUID, toFolder folderID: UUID) {
         guard let folderIndex = items.firstIndex(where: { $0.id == folderID }) else { return }
         guard let appIndex = items.firstIndex(where: { $0.id == appID }) else { return }
@@ -199,6 +235,10 @@ final class LaunchpadViewModel: ObservableObject {
 
     private func persist() {
         dataStore.save(items)
+    }
+
+    private func defaultFolderName(from _: String) -> String {
+        "Folder"
     }
 
     private func ensureCurrentPageInBounds() {
