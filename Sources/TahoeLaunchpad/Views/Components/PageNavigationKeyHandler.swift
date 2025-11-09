@@ -34,6 +34,7 @@ import SwiftUI
 
             private var monitor: Any?
             private weak var observedWindow: NSWindow?
+            private var scrollAccumulator: CGFloat = 0
 
             init(onPrevious: @escaping () -> Void, onNext: @escaping () -> Void) {
                 self.onPrevious = onPrevious
@@ -45,7 +46,7 @@ import SwiftUI
                 guard let window else { return }
 
                 observedWindow = window
-                monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) {
+                monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .scrollWheel]) {
                     [weak self, weak window] event in
                     guard let self, let window, event.window === window else { return event }
                     return self.handle(event: event) ? nil : event
@@ -81,7 +82,18 @@ import SwiftUI
             }
 
             private func handle(event: NSEvent) -> Bool {
-                guard shouldHandle(event: event) else { return false }
+                switch event.type {
+                case .keyDown:
+                    return handleKey(event)
+                case .scrollWheel:
+                    return handleScroll(event)
+                default:
+                    return false
+                }
+            }
+
+            private func handleKey(_ event: NSEvent) -> Bool {
+                guard shouldHandleKey(event) else { return false }
 
                 switch event.keyCode {
                 case 123, 115:
@@ -101,7 +113,7 @@ import SwiftUI
                 }
             }
 
-            private func shouldHandle(event: NSEvent) -> Bool {
+            private func shouldHandleKey(_ event: NSEvent) -> Bool {
                 if event.modifierFlags.contains(.command) || event.modifierFlags.contains(.option) {
                     return false
                 }
@@ -117,6 +129,39 @@ import SwiftUI
                 }
 
                 return true
+            }
+
+            private func handleScroll(_ event: NSEvent) -> Bool {
+                let horizontalMagnitude = abs(event.scrollingDeltaX)
+                let verticalMagnitude = abs(event.scrollingDeltaY)
+
+                let primaryDelta: CGFloat
+                if horizontalMagnitude > verticalMagnitude {
+                    primaryDelta = event.scrollingDeltaX
+                } else {
+                    primaryDelta = event.scrollingDeltaY
+                }
+
+                guard primaryDelta != 0 else { return false }
+
+                let threshold: CGFloat = event.hasPreciseScrollingDeltas ? 40 : 4
+                scrollAccumulator += primaryDelta
+
+                if scrollAccumulator <= -threshold {
+                    onNext()
+                    scrollAccumulator = 0
+                    return true
+                } else if scrollAccumulator >= threshold {
+                    onPrevious()
+                    scrollAccumulator = 0
+                    return true
+                }
+
+                if event.momentumPhase == .ended || event.phase == .ended {
+                    scrollAccumulator = 0
+                }
+
+                return false
             }
         }
         final class RelayView: NSView {

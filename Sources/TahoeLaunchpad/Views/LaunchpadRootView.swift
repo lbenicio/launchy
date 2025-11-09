@@ -93,7 +93,7 @@ struct LaunchpadRootView: View {
         .sheet(isPresented: $isShowingSettings) {
             SettingsView(store: settingsStore)
                 .padding(20)
-                .frame(width: 420)
+                .frame(width: 480, height: 360)
         }
     }
 

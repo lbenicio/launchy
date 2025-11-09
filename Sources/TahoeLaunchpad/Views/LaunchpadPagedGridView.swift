@@ -44,6 +44,7 @@ struct LaunchpadPagedGridView: View {
                 scrollPosition = min(viewModel.currentPage, totalPages - 1)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onChange(of: pages.count) { _, newCount in
             let clampedIndex = min(viewModel.currentPage, max(newCount - 1, 0))
             viewModel.selectPage(clampedIndex, totalPages: newCount)

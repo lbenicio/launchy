@@ -13,12 +13,21 @@ struct LaunchpadItemDropDelegate: DropDelegate {
     func dropEntered(info: DropInfo) {
         viewModel.extractDraggedItemIfNeeded()
         guard let dragID = viewModel.dragItemID, dragID != item.id else { return }
-        viewModel.moveItem(dragID, before: item.id)
-        updateStackingState(with: info)
+
+        if shouldStack(using: info) {
+            viewModel.requestStacking(onto: item.id)
+        } else {
+            viewModel.cancelPendingStacking()
+            viewModel.moveItem(dragID, before: item.id)
+        }
     }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
-        updateStackingState(with: info)
+        if shouldStack(using: info) {
+            viewModel.requestStacking(onto: item.id)
+        } else {
+            viewModel.cancelPendingStacking()
+        }
         return DropProposal(operation: .move)
     }
 
@@ -29,7 +38,7 @@ struct LaunchpadItemDropDelegate: DropDelegate {
     func performDrop(info: DropInfo) -> Bool {
         var stacked = viewModel.commitPendingStackingIfNeeded(for: item.id)
 
-        if !stacked, shouldStackOnDrop(info: info) {
+        if !stacked, shouldStack(using: info) {
             viewModel.cancelPendingStacking()
             stacked = viewModel.stackDraggedItem(onto: item.id)
         }
@@ -42,29 +51,10 @@ struct LaunchpadItemDropDelegate: DropDelegate {
         return true
     }
 
-    private func updateStackingState(with info: DropInfo) {
-        guard viewModel.isEditing,
-            case .app = item,
-            let frame = frameProvider()
-        else {
-            viewModel.cancelPendingStacking()
-            return
-        }
-
-        if isLocationInStackZone(info.location, frame: frame) {
-            viewModel.requestStacking(onto: item.id)
-        } else {
-            viewModel.cancelPendingStacking()
-        }
-    }
-
-    private func shouldStackOnDrop(info: DropInfo) -> Bool {
+    private func shouldStack(using info: DropInfo) -> Bool {
         guard case .app = item, let frame = frameProvider() else { return false }
-        return isLocationInStackZone(info.location, frame: frame)
-    }
-
-    private func isLocationInStackZone(_ location: CGPoint, frame: CGRect) -> Bool {
-        let center = CGPoint(x: frame.midX, y: frame.midY)
+        let location = info.location
+        let center = CGPoint(x: frame.width * 0.5, y: frame.height * 0.5)
         let distance = hypot(location.x - center.x, location.y - center.y)
         let activationRadius = min(frame.width, frame.height) * 0.45
         return distance <= activationRadius

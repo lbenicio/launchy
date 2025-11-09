@@ -33,7 +33,7 @@ struct LaunchpadGridPageView: View {
     private func launchpadTile(for item: LaunchpadItem) -> some View {
         GeometryReader { proxy in
             let dropTypes: [UTType] = [.launchpadItemIdentifier]
-            let frame = proxy.frame(in: .global)
+            let frame = CGRect(origin: .zero, size: proxy.size)
             let baseView = LaunchpadItemView(
                 item: item,
                 dimension: metrics.itemDimension,
