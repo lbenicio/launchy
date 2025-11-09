@@ -45,6 +45,11 @@ import SwiftUI
             if window.frame != screen.frame {
                 window.setFrame(screen.frame, display: true)
             }
+
+            if !window.isKeyWindow {
+                NSApp.activate(ignoringOtherApps: true)
+                window.makeKeyAndOrderFront(nil)
+            }
         }
     }
 #endif

@@ -33,6 +33,7 @@ struct LaunchpadRootView: View {
 
                 ZStack(alignment: .bottom) {
                     LaunchpadPagedGridView(viewModel: viewModel, pages: pages)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                     if !hasResults {
                         Text("No Matching Apps")
@@ -55,6 +56,7 @@ struct LaunchpadRootView: View {
                 }
                 .padding(.bottom, 60)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
             if let folderID = viewModel.presentedFolderID,
                 let folder = viewModel.folder(by: folderID)
