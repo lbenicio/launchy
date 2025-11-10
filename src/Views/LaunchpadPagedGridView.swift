@@ -6,7 +6,16 @@ struct LaunchpadPagedGridView: View {
     let pages: [[LaunchpadItem]]
     let fillsAvailableSpace: Bool
     var onBackgroundTap: () -> Void = {}
+
     @State private var scrollPosition: Int? = 0
+    @State private var lastSettledPage: Int = 0
+    @State private var isProgrammaticScroll: Bool = false
+
+    private let pageAnimation = Animation.interactiveSpring(
+        response: 0.48,
+        dampingFraction: 0.82,
+        blendDuration: 0.25
+    )
 
     var body: some View {
         GeometryReader { proxy in
@@ -14,6 +23,38 @@ struct LaunchpadPagedGridView: View {
             let width = max(proxy.size.width, 1)
             let height = proxy.size.height
             let enumeratedPages = Array(pages.enumerated())
+            let totalPages = max(enumeratedPages.count, 1)
+            let dragThreshold = width * 0.18
+
+            let dragGesture = DragGesture(minimumDistance: 6, coordinateSpace: .local)
+                .onEnded { value in
+                    let translation = value.translation.width
+                    let predicted = value.predictedEndTranslation.width
+                    let effective = abs(predicted) > abs(translation) ? predicted : translation
+
+                    if effective < -dragThreshold {
+                        let target = min(lastSettledPage + 1, totalPages - 1)
+                        guard target != lastSettledPage else { return }
+                        isProgrammaticScroll = true
+                        withAnimation(pageAnimation) {
+                            scrollPosition = target
+                        }
+                    } else if effective > dragThreshold {
+                        let target = max(lastSettledPage - 1, 0)
+                        guard target != lastSettledPage else { return }
+                        isProgrammaticScroll = true
+                        withAnimation(pageAnimation) {
+                            scrollPosition = target
+                        }
+                    } else {
+                        if scrollPosition != lastSettledPage {
+                            isProgrammaticScroll = true
+                            withAnimation(pageAnimation) {
+                                scrollPosition = lastSettledPage
+                            }
+                        }
+                    }
+                }
 
             ScrollView(.horizontal) {
                 LazyHStack(spacing: 0) {
@@ -31,25 +72,54 @@ struct LaunchpadPagedGridView: View {
             .scrollBounceBehavior(.always)
             .scrollPosition(id: $scrollPosition)
             .frame(width: width, height: height)
+            .simultaneousGesture(dragGesture)
             .onChange(of: scrollPosition) { _, newValue in
                 guard let newValue else { return }
-                viewModel.selectPage(newValue, totalPages: max(enumeratedPages.count, 1))
+                let clamped = min(max(newValue, 0), totalPages - 1)
+
+                if clamped != newValue {
+                    isProgrammaticScroll = true
+                    scrollPosition = clamped
+                    return
+                }
+
+                if isProgrammaticScroll {
+                    isProgrammaticScroll = false
+                    lastSettledPage = clamped
+                    if clamped != viewModel.currentPage {
+                        viewModel.selectPage(clamped, totalPages: totalPages)
+                    }
+                    return
+                }
+
+                let delta = clamped - lastSettledPage
+                if abs(delta) > 1 {
+                    let limited = lastSettledPage + (delta > 0 ? 1 : -1)
+                    isProgrammaticScroll = true
+                    withAnimation(pageAnimation) {
+                        scrollPosition = limited
+                    }
+                    return
+                }
+
+                lastSettledPage = clamped
+                if clamped != viewModel.currentPage {
+                    viewModel.selectPage(clamped, totalPages: totalPages)
+                }
             }
             .onChange(of: viewModel.currentPage) { _, newValue in
-                let totalPages = max(enumeratedPages.count, 1)
                 let clamped = min(max(newValue, 0), totalPages - 1)
                 if scrollPosition != clamped {
-                    withAnimation(
-                        .interactiveSpring(
-                            response: 0.48, dampingFraction: 0.82, blendDuration: 0.25)
-                    ) {
+                    isProgrammaticScroll = true
+                    withAnimation(pageAnimation) {
                         scrollPosition = clamped
                     }
                 }
             }
             .onAppear {
-                let totalPages = max(enumeratedPages.count, 1)
-                scrollPosition = min(viewModel.currentPage, totalPages - 1)
+                let initial = min(viewModel.currentPage, totalPages - 1)
+                scrollPosition = initial
+                lastSettledPage = initial
             }
         }
         .frame(
@@ -67,10 +137,10 @@ struct LaunchpadPagedGridView: View {
         .onChange(of: pages.count) { _, newCount in
             let clampedIndex = min(viewModel.currentPage, max(newCount - 1, 0))
             viewModel.selectPage(clampedIndex, totalPages: newCount)
+            lastSettledPage = clampedIndex
             if scrollPosition != clampedIndex {
-                withAnimation(
-                    .interactiveSpring(response: 0.48, dampingFraction: 0.82, blendDuration: 0.25)
-                ) {
+                isProgrammaticScroll = true
+                withAnimation(pageAnimation) {
                     scrollPosition = clampedIndex
                 }
             }
