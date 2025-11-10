@@ -2,6 +2,10 @@ import Combine
 import Foundation
 import SwiftUI
 
+#if os(macOS)
+    import AppKit
+#endif
+
 @MainActor
 final class LaunchpadViewModel: ObservableObject {
     @Published private(set) var items: [LaunchpadItem]
@@ -547,6 +551,38 @@ final class LaunchpadViewModel: ObservableObject {
         launchSuppressionWorkItem?.cancel()
         launchSuppressionWorkItem = nil
         isLaunchingApp = false
+    }
+
+    func launch(_ item: LaunchpadItem) {
+        guard case .app(let app) = item else { return }
+
+        closeFolder()
+
+        #if os(macOS)
+            beginAppLaunchSuppressionWindow()
+
+            let configuration = NSWorkspace.OpenConfiguration()
+            configuration.activates = true
+
+            NSWorkspace.shared.openApplication(at: app.bundleURL, configuration: configuration) {
+                [weak self] _, error in
+                guard let self else { return }
+
+                if let error {
+                    print(
+                        "LaunchpadViewModel: Failed to launch \(app.name) => \(error.localizedDescription)"
+                    )
+                    DispatchQueue.main.async {
+                        self.cancelAppLaunchSuppression()
+                    }
+                    return
+                }
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    NSApplication.shared.terminate(nil)
+                }
+            }
+        #endif
     }
 
     private func withAnimationIfPossible(_ action: () -> Void) {

@@ -131,6 +131,10 @@ struct FolderContentView: View {
                         folderID: folder.id, targetAppID: app.id, viewModel: viewModel))
         } else {
             base
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    viewModel.launch(.app(app))
+                }
         }
     }
 }

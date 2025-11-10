@@ -47,7 +47,7 @@ struct LaunchpadGridPageView: View {
                 hasSelectedApps: viewModel.hasSelectedApps,
                 onOpenFolder: { viewModel.openFolder(with: $0) },
                 onDelete: { viewModel.deleteItem($0) },
-                onLaunch: handleLaunch,
+                onLaunch: { viewModel.launch($0) },
                 onSelect: { viewModel.toggleSelection(for: $0) },
                 onMoveLeft: { viewModel.shiftItem($0, by: -1) },
                 onMoveRight: { viewModel.shiftItem($0, by: 1) },
@@ -109,29 +109,5 @@ struct LaunchpadGridPageView: View {
             return nil
         }
         return provider
-    }
-
-    private func handleLaunch(_ item: LaunchpadItem) {
-        guard case .app(let app) = item else { return }
-        #if os(macOS)
-            viewModel.beginAppLaunchSuppressionWindow()
-            let configuration = NSWorkspace.OpenConfiguration()
-            configuration.activates = true
-            NSWorkspace.shared.openApplication(at: app.bundleURL, configuration: configuration) {
-                _, error in
-                if let error {
-                    print(
-                        "LaunchpadGridPageView: Failed to launch \(app.name) => \(error.localizedDescription)"
-                    )
-                    DispatchQueue.main.async {
-                        viewModel.cancelAppLaunchSuppression()
-                    }
-                    return
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    NSApplication.shared.terminate(nil)
-                }
-            }
-        #endif
     }
 }
