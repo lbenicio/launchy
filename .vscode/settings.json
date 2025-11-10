@@ -1,0 +1,12 @@
+{
+	"swift.path": "swift",
+	"editor.formatOnSave": true,
+	"files.exclude": {
+		"**/.build": true,
+		"**/.DS_Store": true
+	},
+	"terminal.integrated.defaultProfile.osx": "zsh",
+	"search.exclude": {
+		"**/.build": true
+	}
+}

@@ -3,6 +3,9 @@
 
 import PackageDescription
 
+// Single source-of-truth for package version used by build scripts or about dialogs.
+let packageVersion = "0.0.1"
+
 let package = Package(
     name: "TahoeLaunchpad",
     platforms: [
