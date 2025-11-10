@@ -5,6 +5,7 @@ struct LaunchpadPagedGridView: View {
     @EnvironmentObject private var settingsStore: GridSettingsStore
     let pages: [[LaunchpadItem]]
     let fillsAvailableSpace: Bool
+    var onBackgroundTap: () -> Void = {}
     @State private var scrollPosition: Int? = 0
 
     var body: some View {
@@ -49,6 +50,13 @@ struct LaunchpadPagedGridView: View {
             maxWidth: fillsAvailableSpace ? .infinity : nil,
             maxHeight: fillsAvailableSpace ? .infinity : nil,
             alignment: .top
+        )
+        .contentShape(Rectangle())
+        .gesture(
+            TapGesture().onEnded {
+                onBackgroundTap()
+            },
+            including: .gesture
         )
         .onChange(of: pages.count) { _, newCount in
             let clampedIndex = min(viewModel.currentPage, max(newCount - 1, 0))

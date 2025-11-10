@@ -4,9 +4,13 @@ struct LaunchpadItemView: View {
     let item: LaunchpadItem
     let dimension: CGFloat
     let isEditing: Bool
+    let isSelected: Bool
     let onOpenFolder: (UUID) -> Void
     let onDelete: (UUID) -> Void
     let onLaunch: (LaunchpadItem) -> Void
+    let onSelect: (UUID) -> Void
+    let onMoveLeft: (UUID) -> Void
+    let onMoveRight: (UUID) -> Void
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -23,17 +27,35 @@ struct LaunchpadItemView: View {
         }
         .contentShape(Rectangle())
         .onTapGesture {
-            guard !isEditing else { return }
-            switch item {
-            case .folder:
-                onOpenFolder(item.id)
-            case .app:
-                onLaunch(item)
+            if isEditing {
+                switch item {
+                case .app:
+                    onSelect(item.id)
+                case .folder:
+                    onOpenFolder(item.id)
+                }
+            } else {
+                switch item {
+                case .folder:
+                    onOpenFolder(item.id)
+                case .app:
+                    onLaunch(item)
+                }
             }
         }
         .onLongPressGesture(minimumDuration: 0.2) {
             if case .folder = item, !isEditing {
                 onOpenFolder(item.id)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if isEditing, case .app = item {
+                selectionBadge
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if isEditing {
+                reorderControls
             }
         }
     }
@@ -51,5 +73,48 @@ struct LaunchpadItemView: View {
         .buttonStyle(.plain)
         .offset(x: -dimension * 0.2, y: -dimension * 0.35)
         .allowsHitTesting(true)
+    }
+
+    private var selectionBadge: some View {
+        Button {
+            onSelect(item.id)
+        } label: {
+            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(isSelected ? Color.accentColor : Color.white.opacity(0.8))
+                .font(.system(size: dimension * 0.28, weight: .semibold))
+                .overlay(
+                    Circle()
+                        .stroke(Color.white.opacity(isSelected ? 0.6 : 0.4), lineWidth: 1.5)
+                )
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 6)
+        .padding(.trailing, 6)
+    }
+
+    private var reorderControls: some View {
+        HStack(spacing: 12) {
+            Button {
+                onMoveLeft(item.id)
+            } label: {
+                Image(systemName: "chevron.backward.circle.fill")
+                    .font(.system(size: 17, weight: .semibold))
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                onMoveRight(item.id)
+            } label: {
+                Image(systemName: "chevron.forward.circle.fill")
+                    .font(.system(size: 17, weight: .semibold))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(Color.black.opacity(0.35), in: Capsule())
+        .foregroundStyle(Color.white.opacity(0.95))
+        .padding(.bottom, 6)
     }
 }

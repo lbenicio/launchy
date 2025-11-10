@@ -89,6 +89,30 @@ struct FolderContentView: View {
 
         if viewModel.isEditing {
             base
+                .overlay(alignment: .bottom) {
+                    HStack(spacing: 12) {
+                        Button {
+                            viewModel.shiftAppInFolder(folderID: folder.id, appID: app.id, by: -1)
+                        } label: {
+                            Image(systemName: "chevron.backward.circle.fill")
+                                .font(.system(size: 15, weight: .semibold))
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            viewModel.shiftAppInFolder(folderID: folder.id, appID: app.id, by: 1)
+                        } label: {
+                            Image(systemName: "chevron.forward.circle.fill")
+                                .font(.system(size: 15, weight: .semibold))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Color.black.opacity(0.35), in: Capsule())
+                    .foregroundStyle(Color.white.opacity(0.95))
+                    .padding(.bottom, 4)
+                }
                 .onDrag {
                     viewModel.beginDrag(for: app.id, sourceFolder: folder.id)
                     return makeProvider(

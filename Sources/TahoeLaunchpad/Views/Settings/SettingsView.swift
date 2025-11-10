@@ -53,73 +53,178 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        Form {
-            Section("Grid Layout") {
-                Stepper(value: columnsBinding, in: 3...10) {
-                    HStack {
-                        Text("Columns")
-                        Spacer()
-                        Text("\(store.settings.columns)")
-                    }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 28) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Launchpad Settings")
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                    Text("Fine-tune the grid density, folder layout, and interaction behaviour.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
                 }
 
-                Stepper(value: rowsBinding, in: 3...10) {
-                    HStack {
-                        Text("Rows")
-                        Spacer()
-                        Text("\(store.settings.rows)")
-                    }
+                settingsCard(title: "Launchpad Grid", systemImage: "square.grid.3x3.fill") {
+                    gridStepperRow(
+                        title: "Columns",
+                        subtitle: "Number of icons per row",
+                        value: store.settings.columns,
+                        binding: columnsBinding,
+                        range: 3...10
+                    )
+
+                    Divider()
+
+                    gridStepperRow(
+                        title: "Rows",
+                        subtitle: "Number of rows per page",
+                        value: store.settings.rows,
+                        binding: rowsBinding,
+                        range: 3...10
+                    )
+
+                    Divider()
+
+                    sliderRow(
+                        title: "Icon Scale",
+                        subtitle: "Make app tiles larger or smaller",
+                        value: store.settings.iconScale,
+                        formattedValue: String(format: "%.2f×", store.settings.iconScale),
+                        binding: iconScaleBinding,
+                        range: 0.8...1.4,
+                        step: 0.05
+                    )
                 }
 
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Icon Scale")
-                        Spacer()
-                        Text(String(format: "%.2f", store.settings.iconScale))
-                            .font(.system(.body, design: .monospaced))
-                            .foregroundColor(.secondary)
+                settingsCard(title: "Folder Grid", systemImage: "folder.fill") {
+                    gridStepperRow(
+                        title: "Columns",
+                        subtitle: "Apps per row when a folder is open",
+                        value: store.settings.folderColumns,
+                        binding: folderColumnsBinding,
+                        range: 2...8
+                    )
+
+                    Divider()
+
+                    gridStepperRow(
+                        title: "Rows",
+                        subtitle: "Maximum rows shown inside folders",
+                        value: store.settings.folderRows,
+                        binding: folderRowsBinding,
+                        range: 2...8
+                    )
+                }
+
+                settingsCard(title: "Interaction", systemImage: "cursorarrow.click") {
+                    sliderRow(
+                        title: "Scroll Wheel Sensitivity",
+                        subtitle: "Adjust how many scroll steps are needed to change pages",
+                        value: store.settings.scrollSensitivity,
+                        formattedValue: String(format: "%.2f×", store.settings.scrollSensitivity),
+                        binding: scrollSensitivityBinding,
+                        range: 0.2...2.0,
+                        step: 0.05
+                    )
+                }
+
+                settingsCard(title: "Window", systemImage: "rectangle.topthird.inset") {
+                    Toggle(isOn: fullScreenBinding) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Fill Entire Screen")
+                                .font(.system(size: 15, weight: .semibold))
+                            Text("Disable to keep the launchpad centered and sized to the grid.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                        }
                     }
-                    Slider(value: iconScaleBinding, in: 0.8...1.4, step: 0.05)
+                    .toggleStyle(.switch)
                 }
             }
-
-            Section("Folder Layout") {
-                Stepper(value: folderColumnsBinding, in: 2...8) {
-                    HStack {
-                        Text("Columns")
-                        Spacer()
-                        Text("\(store.settings.folderColumns)")
-                    }
-                }
-
-                Stepper(value: folderRowsBinding, in: 2...8) {
-                    HStack {
-                        Text("Rows")
-                        Spacer()
-                        Text("\(store.settings.folderRows)")
-                    }
-                }
-            }
-
-            Section("Interaction & Window") {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Scroll Wheel Sensitivity")
-                        Spacer()
-                        Text(String(format: "%.2f×", store.settings.scrollSensitivity))
-                            .font(.system(.body, design: .monospaced))
-                            .foregroundColor(.secondary)
-                    }
-                    Slider(value: scrollSensitivityBinding, in: 0.2...2.0, step: 0.05)
-                        .accessibilityLabel("Scroll Wheel Sensitivity")
-                }
-
-                Toggle(isOn: fullScreenBinding) {
-                    Text("Fill Entire Screen")
-                }
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.vertical, 12)
-        .frame(minWidth: 420, minHeight: 360)
+        .padding(24)
+        .frame(minWidth: 520, minHeight: 420)
+    }
+}
+
+private extension SettingsView {
+    @ViewBuilder
+    func settingsCard(title: String, systemImage: String, @ViewBuilder content: () -> some View)
+        -> some View
+    {
+        VStack(alignment: .leading, spacing: 16) {
+            Label(title, systemImage: systemImage)
+                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                .labelStyle(.titleAndIcon)
+                .foregroundStyle(Color.primary.opacity(0.9))
+
+            content()
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color.white.opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                )
+        )
+    }
+
+    func gridStepperRow(
+        title: String, subtitle: String, value: Int, binding: Binding<Int>, range: ClosedRange<Int>
+    ) -> some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
+                Text(subtitle)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 24)
+
+            Stepper(value: binding, in: range) {
+                valueBadge("\(value)")
+            }
+            .labelsHidden()
+        }
+    }
+
+    func sliderRow(
+        title: String,
+        subtitle: String,
+        value: Double,
+        formattedValue: String,
+        binding: Binding<Double>,
+        range: ClosedRange<Double>,
+        step: Double
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.system(size: 15, weight: .semibold))
+                    Text(subtitle)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                valueBadge(formattedValue)
+            }
+
+            Slider(value: binding, in: range, step: step)
+        }
+    }
+
+    func valueBadge(_ text: String) -> some View {
+        Text(text)
+            .font(.system(.body, design: .monospaced))
+            .foregroundStyle(Color.white.opacity(0.85))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(Color.white.opacity(0.16), in: Capsule())
     }
 }

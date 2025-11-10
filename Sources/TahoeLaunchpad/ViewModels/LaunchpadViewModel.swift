@@ -10,6 +10,8 @@ final class LaunchpadViewModel: ObservableObject {
     @Published var presentedFolderID: UUID? = nil
     @Published private(set) var dragItemID: UUID? = nil
     @Published private(set) var dragSourceFolderID: UUID? = nil
+    @Published var selectedItemIDs: Set<UUID> = []
+    @Published private(set) var isLaunchingApp: Bool = false
 
     let dataStore: LaunchpadDataStore
     let settingsStore: GridSettingsStore
@@ -18,6 +20,7 @@ final class LaunchpadViewModel: ObservableObject {
     private var pendingStackWorkItem: DispatchWorkItem?
     private var pendingStackTargetID: UUID?
     private let stackingDelay: TimeInterval = 0.18
+    private var launchSuppressionWorkItem: DispatchWorkItem?
 
     init(dataStore: LaunchpadDataStore, settingsStore: GridSettingsStore) {
         self.dataStore = dataStore
@@ -75,6 +78,7 @@ final class LaunchpadViewModel: ObservableObject {
             if !isEditing {
                 cancelPendingStacking()
                 dragItemID = nil
+                clearSelection()
             }
         }
     }
@@ -115,6 +119,37 @@ final class LaunchpadViewModel: ObservableObject {
 
         items = updatedItems
         ensureCurrentPageInBounds()
+        pruneSelection()
+    }
+
+    func shiftItem(_ id: UUID, by offset: Int) {
+        guard let currentIndex = items.firstIndex(where: { $0.id == id }) else { return }
+        let targetIndex = min(max(currentIndex + offset, 0), max(items.count - 1, 0))
+        guard targetIndex != currentIndex else { return }
+
+        var updatedItems = items
+        let element = updatedItems.remove(at: currentIndex)
+        updatedItems.insert(element, at: targetIndex)
+        items = updatedItems
+        ensureCurrentPageInBounds()
+        pruneSelection()
+        persist()
+    }
+
+    func toggleSelection(for id: UUID) {
+        if selectedItemIDs.contains(id) {
+            selectedItemIDs.remove(id)
+        } else {
+            selectedItemIDs.insert(id)
+        }
+    }
+
+    func clearSelection() {
+        selectedItemIDs.removeAll()
+    }
+
+    func isItemSelected(_ id: UUID) -> Bool {
+        selectedItemIDs.contains(id)
     }
 
     func openFolder(with id: UUID) {
@@ -135,6 +170,10 @@ final class LaunchpadViewModel: ObservableObject {
         return folder
     }
 
+    func item(with id: UUID) -> LaunchpadItem? {
+        items.first { $0.id == id }
+    }
+
     func moveAppWithinFolder(folderID: UUID, appID: UUID, before targetAppID: UUID?) {
         guard let folderIndex = items.firstIndex(where: { $0.id == folderID }),
             case .folder(var folder) = items[folderIndex]
@@ -151,6 +190,8 @@ final class LaunchpadViewModel: ObservableObject {
 
         folder.apps = apps
         items[folderIndex] = .folder(folder)
+        pruneSelection()
+        persist()
     }
 
     func removeAppFromFolder(folderID: UUID, appID: UUID) {
@@ -162,6 +203,7 @@ final class LaunchpadViewModel: ObservableObject {
         let removedApp = folder.apps.remove(at: removeIndex)
         items[folderIndex] = .folder(folder)
         items.append(.app(removedApp))
+        pruneSelection()
         persist()
     }
 
@@ -200,6 +242,7 @@ final class LaunchpadViewModel: ObservableObject {
         dragItemID = nil
         dragSourceFolderID = nil
         ensureCurrentPageInBounds()
+        pruneSelection()
         persist()
         return true
     }
@@ -221,6 +264,7 @@ final class LaunchpadViewModel: ObservableObject {
 
         items = updatedItems
         presentedFolderID = folderID
+        pruneSelection()
         persist()
     }
 
@@ -228,6 +272,72 @@ final class LaunchpadViewModel: ObservableObject {
         guard isEditing, let index = items.firstIndex(where: { $0.id == id }) else { return }
         items.remove(at: index)
         ensureCurrentPageInBounds()
+        selectedItemIDs.remove(id)
+        pruneSelection()
+        persist()
+    }
+
+    @discardableResult
+    func createFolder(named name: String, from selection: [UUID]) -> LaunchpadFolder? {
+        let uniqueIDs = Array(Set(selection))
+        guard !uniqueIDs.isEmpty else { return nil }
+
+        var updatedItems = items
+        var extractedApps: [(index: Int, app: AppIcon)] = []
+
+        for id in uniqueIDs {
+            guard let index = updatedItems.firstIndex(where: { $0.id == id }) else { continue }
+            if case .app(let icon) = updatedItems[index] {
+                extractedApps.append((index, icon))
+            }
+        }
+
+        guard !extractedApps.isEmpty else { return nil }
+
+        // Remove in descending order to keep remaining indices valid.
+        for entry in extractedApps.sorted(by: { $0.index > $1.index }) {
+            updatedItems.remove(at: entry.index)
+        }
+
+        let sortedApps = extractedApps.sorted(by: { $0.index < $1.index }).map { $0.app }
+        let folderName: String
+        if !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            folderName = name
+        } else if let firstApp = sortedApps.first {
+            folderName = defaultFolderName(from: firstApp.name)
+        } else {
+            folderName = defaultFolderName(from: "")
+        }
+
+        let folder = LaunchpadFolder(name: folderName, apps: sortedApps)
+        let insertionIndex = min(
+            extractedApps.map { $0.index }.min() ?? updatedItems.count, updatedItems.count)
+        updatedItems.insert(.folder(folder), at: insertionIndex)
+
+        items = updatedItems
+        presentedFolderID = folder.id
+        selectedItemIDs.removeAll()
+        ensureCurrentPageInBounds()
+        pruneSelection()
+        persist()
+        return folder
+    }
+
+    func shiftAppInFolder(folderID: UUID, appID: UUID, by offset: Int) {
+        guard let folderIndex = items.firstIndex(where: { $0.id == folderID }),
+            case .folder(var folder) = items[folderIndex]
+        else { return }
+
+        guard let currentIndex = folder.apps.firstIndex(where: { $0.id == appID }) else { return }
+        let targetIndex = min(max(currentIndex + offset, 0), max(folder.apps.count - 1, 0))
+        guard targetIndex != currentIndex else { return }
+
+        var apps = folder.apps
+        let app = apps.remove(at: currentIndex)
+        apps.insert(app, at: targetIndex)
+        folder.apps = apps
+        items[folderIndex] = .folder(folder)
+        pruneSelection()
         persist()
     }
 
@@ -300,8 +410,12 @@ final class LaunchpadViewModel: ObservableObject {
         dataStore.save(items)
     }
 
-    private func defaultFolderName(from _: String) -> String {
-        "Folder"
+    private func defaultFolderName(from sourceName: String) -> String {
+        let trimmed = sourceName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return "Folder"
+        }
+        return "\(trimmed) Folder"
     }
 
     private func canStack(draggedID: UUID, onto targetID: UUID) -> Bool {
@@ -323,6 +437,34 @@ final class LaunchpadViewModel: ObservableObject {
         if currentPage >= pages {
             currentPage = max(0, pages - 1)
         }
+    }
+
+    private func pruneSelection() {
+        var validIDs = Set(items.map { $0.id })
+        for item in items {
+            if case .folder(let folder) = item {
+                validIDs.formUnion(folder.apps.map { $0.id })
+            }
+        }
+
+        selectedItemIDs = selectedItemIDs.intersection(validIDs)
+    }
+
+    func beginAppLaunchSuppressionWindow() {
+        launchSuppressionWorkItem?.cancel()
+        isLaunchingApp = true
+
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.isLaunchingApp = false
+        }
+        launchSuppressionWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: workItem)
+    }
+
+    func cancelAppLaunchSuppression() {
+        launchSuppressionWorkItem?.cancel()
+        launchSuppressionWorkItem = nil
+        isLaunchingApp = false
     }
 
     private func withAnimationIfPossible(_ action: () -> Void) {

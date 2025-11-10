@@ -10,6 +10,10 @@ struct LaunchpadRootView: View {
 
     @State private var searchText: String = ""
     @State private var isShowingSettings: Bool = false
+    @State private var isCreatingFolder: Bool = false
+    @State private var newFolderName: String = ""
+    @State private var folderCreationError: String?
+    @FocusState private var isFolderNameFieldFocused: Bool
 
     private var pages: [[LaunchpadItem]] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -37,7 +41,8 @@ struct LaunchpadRootView: View {
                     LaunchpadPagedGridView(
                         viewModel: viewModel,
                         pages: pages,
-                        fillsAvailableSpace: fillScreen
+                        fillsAvailableSpace: fillScreen,
+                        onBackgroundTap: handleBackgroundTap
                     )
 
                     if !hasResults {
@@ -104,6 +109,9 @@ struct LaunchpadRootView: View {
                 .padding(20)
                 .frame(width: 480, height: 360)
         }
+        .sheet(isPresented: $isCreatingFolder) {
+            newFolderSheet
+        }
     }
 
     #if os(macOS)
@@ -121,11 +129,19 @@ struct LaunchpadRootView: View {
                         .ignoresSafeArea()
                 }
             }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                handleBackgroundTap()
+            }
         }
     #else
         private func backgroundLayer(fillScreen _: Bool) -> some View {
             backgroundGradient
                 .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    handleBackgroundTap()
+                }
         }
     #endif
 
@@ -140,10 +156,38 @@ struct LaunchpadRootView: View {
         )
     }
 
+    private func handleBackgroundTap() {
+        if viewModel.isLaunchingApp {
+            return
+        }
+        if viewModel.isEditing {
+            viewModel.clearSelection()
+            return
+        }
+        guard viewModel.presentedFolderID == nil else { return }
+        terminateLauncher()
+    }
+
+    #if os(macOS)
+        private func terminateLauncher() {
+            DispatchQueue.main.async {
+                NSApplication.shared.terminate(nil)
+            }
+        }
+    #else
+        private func terminateLauncher() {}
+    #endif
+
     private var header: some View {
         HStack(spacing: 16) {
             searchField
+            if viewModel.isEditing {
+                selectionSummary
+            }
             Spacer()
+            if viewModel.isEditing {
+                newFolderButton
+            }
             wiggleToggle
             settingsButton
         }
@@ -183,6 +227,126 @@ struct LaunchpadRootView: View {
                 .background(Color.white.opacity(0.12), in: Capsule())
         }
         .buttonStyle(.plain)
+    }
+
+    private var selectionSummary: some View {
+        let count = selectedAppCount
+        return Text(count == 0 ? "No Selection" : "\(count) Selected")
+            .font(.system(size: 13, weight: .semibold, design: .rounded))
+            .foregroundStyle(Color.white.opacity(count == 0 ? 0.6 : 0.95))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Color.white.opacity(0.12), in: Capsule())
+            .animation(.easeInOut(duration: 0.2), value: count)
+    }
+
+    private var newFolderButton: some View {
+        Button {
+            startFolderCreation()
+        } label: {
+            Label("New Folder", systemImage: "folder.badge.plus")
+                .font(.system(size: 14, weight: .semibold))
+                .labelStyle(.titleAndIcon)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Color.white.opacity(0.16), in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .disabled(!canCreateFolder)
+        .opacity(canCreateFolder ? 1 : 0.45)
+        .help("Select at least two apps to create a folder")
+    }
+
+    private var selectedAppCount: Int {
+        viewModel.selectedItemIDs.reduce(into: 0) { result, id in
+            if let item = viewModel.item(with: id), case .app = item {
+                result += 1
+            }
+        }
+    }
+
+    private var canCreateFolder: Bool {
+        selectedAppCount >= 2
+    }
+
+    private func startFolderCreation() {
+        guard canCreateFolder else { return }
+        newFolderName = suggestedFolderName()
+        folderCreationError = nil
+        isCreatingFolder = true
+        DispatchQueue.main.async {
+            isFolderNameFieldFocused = true
+        }
+    }
+
+    private func commitFolderCreation() {
+        let ids = Array(viewModel.selectedItemIDs)
+        guard viewModel.createFolder(named: newFolderName, from: ids) != nil else {
+            folderCreationError = "Select at least two apps to create a folder."
+            return
+        }
+
+        folderCreationError = nil
+        newFolderName = ""
+        isFolderNameFieldFocused = false
+        isCreatingFolder = false
+    }
+
+    private func suggestedFolderName() -> String {
+        guard let firstID = viewModel.selectedItemIDs.first,
+            let item = viewModel.item(with: firstID)
+        else {
+            return "New Folder"
+        }
+
+        if case .app(let icon) = item {
+            return "\(icon.name) Folder"
+        }
+        return "New Folder"
+    }
+
+    private var newFolderSheet: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Create Folder")
+                .font(.system(size: 20, weight: .semibold))
+
+            Text("You have selected \(selectedAppCount) apps. They will be moved into this folder.")
+                .font(.system(size: 13))
+                .foregroundStyle(Color.secondary)
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Folder Name")
+                    .font(.system(size: 13, weight: .semibold))
+                TextField("New Folder", text: $newFolderName)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .focused($isFolderNameFieldFocused)
+            }
+
+            if let error = folderCreationError {
+                Text(error)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.red)
+            }
+
+            Spacer(minLength: 12)
+
+            HStack {
+                Spacer()
+                Button("Cancel") {
+                    isFolderNameFieldFocused = false
+                    isCreatingFolder = false
+                }
+                .keyboardShortcut(.cancelAction)
+
+                Button("Create") {
+                    commitFolderCreation()
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(newFolderName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .padding(24)
+        .frame(width: 360)
     }
 }
 
