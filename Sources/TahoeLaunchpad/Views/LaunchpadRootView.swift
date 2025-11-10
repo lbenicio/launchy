@@ -13,44 +13,84 @@ struct LaunchpadRootView: View {
     @State private var isCreatingFolder: Bool = false
     @State private var newFolderName: String = ""
     @State private var folderCreationError: String?
+    @State private var didActivateWindow = false
+    @State private var editingBannerHeight: CGFloat = 0
     @FocusState private var isFolderNameFieldFocused: Bool
 
     private var pages: [[LaunchpadItem]] {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return viewModel.pagedItems }
-        return viewModel.pagedItems(matching: query)
+        buildPages(for: searchText)
     }
 
     private var hasResults: Bool {
-        pages.contains { !$0.isEmpty }
+        let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return !viewModel.items.isEmpty
+        }
+        return pages.contains { !$0.isEmpty }
     }
 
     var body: some View {
         let fillScreen = settingsStore.settings.useFullScreenLayout
 
+        Group {
+            if viewModel.isLayoutLoaded {
+                loadedContent(fillScreen: fillScreen)
+            } else {
+                loadingView(fillScreen: fillScreen)
+            }
+        }
+        .frame(minWidth: 1024, minHeight: 720)
+        #if os(macOS)
+            .background(WindowConfigurator(useFullScreenLayout: fillScreen))
+        #endif
+        .onChange(of: searchText) { _, newValue in
+            let latestPages = buildPages(for: newValue)
+            viewModel.selectPage(0, totalPages: max(latestPages.count, 1))
+        }
+        .onChange(of: pages.count) { _, newCount in
+            let maxIndex = max(newCount - 1, 0)
+            if viewModel.currentPage > maxIndex {
+                viewModel.selectPage(maxIndex, totalPages: newCount)
+            }
+        }
+        .sheet(isPresented: $isCreatingFolder) {
+            newFolderSheet
+        }
+    }
+
+    @ViewBuilder
+    private func loadedContent(fillScreen: Bool) -> some View {
         ZStack {
             backgroundLayer(fillScreen: fillScreen)
 
-            VStack(spacing: 24) {
+            VStack(spacing: 32) {
                 header
                     .padding(.horizontal, 80)
                     .padding(.top, 40)
                     .zIndex(1)
 
-                ZStack(alignment: .bottom) {
-                    LaunchpadPagedGridView(
-                        viewModel: viewModel,
-                        pages: pages,
-                        fillsAvailableSpace: fillScreen,
-                        onBackgroundTap: handleBackgroundTap
-                    )
+                if viewModel.isEditing {
+                    editingGuidance
+                        .padding(.horizontal, 80)
+                        .transition(.opacity)
+                }
 
-                    if !hasResults {
-                        Text("No Matching Apps")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(Color.white.opacity(0.7))
-                            .padding(24)
-                            .background(Color.black.opacity(0.35), in: Capsule())
+                VStack(spacing: 28) {
+                    ZStack {
+                        LaunchpadPagedGridView(
+                            viewModel: viewModel,
+                            pages: pages,
+                            fillsAvailableSpace: fillScreen,
+                            onBackgroundTap: handleBackgroundTap
+                        )
+
+                        if !hasResults {
+                            Text("No Matching Apps")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundStyle(Color.white.opacity(0.7))
+                                .padding(24)
+                                .background(Color.black.opacity(0.35), in: Capsule())
+                        }
                     }
 
                     if pages.count > 1 {
@@ -64,13 +104,18 @@ struct LaunchpadRootView: View {
                         .padding(.bottom, 8)
                     }
                 }
+                .padding(.horizontal, fillScreen ? 0 : 24)
                 .padding(.bottom, 60)
+                .padding(.top, viewModel.isEditing ? editingBannerHeight + 16 : 0)
+                .animation(.easeInOut(duration: 0.24), value: editingBannerHeight)
+                .animation(.easeInOut(duration: 0.24), value: viewModel.isEditing)
             }
             .frame(
                 maxWidth: fillScreen ? .infinity : nil,
                 maxHeight: fillScreen ? .infinity : nil,
                 alignment: .top
             )
+            .onPreferenceChange(EditingBannerHeightPreferenceKey.self) { editingBannerHeight = $0 }
 
             if let folderID = viewModel.presentedFolderID,
                 let folder = viewModel.folder(by: folderID)
@@ -90,27 +135,55 @@ struct LaunchpadRootView: View {
                     .transition(.scale(scale: 0.95).combined(with: .opacity))
                     .zIndex(3)
             }
-        }
-        .frame(minWidth: 1024, minHeight: 720)
-        #if os(macOS)
-            .background(WindowConfigurator(useFullScreenLayout: fillScreen))
-        #endif
-        .onChange(of: searchText) { _, _ in
-            viewModel.selectPage(0, totalPages: pages.count)
-        }
-        .onChange(of: pages.count) { _, newCount in
-            let maxIndex = max(newCount - 1, 0)
-            if viewModel.currentPage > maxIndex {
-                viewModel.selectPage(maxIndex, totalPages: newCount)
+
+            if isShowingSettings {
+                Color.black.opacity(0.5)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .zIndex(4)
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.24)) {
+                            isShowingSettings = false
+                        }
+                    }
+
+                SettingsView(store: settingsStore)
+                    .frame(width: 680, height: 540)
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                    .shadow(color: Color.black.opacity(0.4), radius: 32, x: 0, y: 18)
+                    .padding(60)
+                    .transition(.scale(scale: 0.92).combined(with: .opacity))
+                    .zIndex(5)
+                    .onTapGesture {}
             }
         }
-        .sheet(isPresented: $isShowingSettings) {
-            SettingsView(store: settingsStore)
-                .padding(20)
-                .frame(width: 480, height: 360)
+        .onAppear {
+            activateWindowIfNeeded()
         }
-        .sheet(isPresented: $isCreatingFolder) {
-            newFolderSheet
+        .onChange(of: viewModel.isEditing) { _, isEditing in
+            if !isEditing {
+                editingBannerHeight = 0
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func loadingView(fillScreen: Bool) -> some View {
+        ZStack {
+            backgroundLayer(fillScreen: fillScreen)
+
+            VStack(spacing: 12) {
+                ProgressView()
+                    .scaleEffect(1.2)
+                Text("Loading layout…")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(0.85))
+            }
+            .padding(32)
+            .background(
+                Color.black.opacity(0.35),
+                in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         }
     }
 
@@ -168,6 +241,29 @@ struct LaunchpadRootView: View {
         terminateLauncher()
     }
 
+    private func activateWindowIfNeeded() {
+        #if os(macOS)
+            guard !didActivateWindow else { return }
+            didActivateWindow = true
+            DispatchQueue.main.async {
+                NSApp.activate(ignoringOtherApps: true)
+                if let window = NSApp.windows.first(where: { $0.isVisible }) {
+                    window.makeKeyAndOrderFront(nil)
+                    window.makeFirstResponder(window.contentView)
+                }
+            }
+        #endif
+    }
+
+    private func buildPages(for query: String) -> [[LaunchpadItem]] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return viewModel.pagedItems
+        }
+        let filtered = viewModel.pagedItems(matching: trimmed)
+        return filtered.isEmpty ? [[]] : filtered
+    }
+
     #if os(macOS)
         private func terminateLauncher() {
             DispatchQueue.main.async {
@@ -218,7 +314,9 @@ struct LaunchpadRootView: View {
 
     private var settingsButton: some View {
         Button {
-            isShowingSettings = true
+            withAnimation(.easeInOut(duration: 0.24)) {
+                isShowingSettings = true
+            }
         } label: {
             Image(systemName: "gearshape.fill")
                 .font(.system(size: 18, weight: .semibold))
@@ -240,6 +338,49 @@ struct LaunchpadRootView: View {
             .animation(.easeInOut(duration: 0.2), value: count)
     }
 
+    private var editingGuidance: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "square.on.square")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(0.85))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Wiggle Mode")
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Color.white.opacity(0.92))
+                Text(
+                    "Select apps to make folders, drag or use arrows to reorder. Changes save automatically."
+                )
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Color.white.opacity(0.75))
+            }
+
+            Spacer(minLength: 12)
+
+            if viewModel.isEditing, hasSelection {
+                clearSelectionButton
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.white.opacity(0.1))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+        .background(
+            GeometryReader { proxy in
+                Color.clear.preference(
+                    key: EditingBannerHeightPreferenceKey.self,
+                    value: proxy.size.height
+                )
+            }
+        )
+    }
+
     private var newFolderButton: some View {
         Button {
             startFolderCreation()
@@ -255,6 +396,25 @@ struct LaunchpadRootView: View {
         .disabled(!canCreateFolder)
         .opacity(canCreateFolder ? 1 : 0.45)
         .help("Select at least two apps to create a folder")
+    }
+
+    private var clearSelectionButton: some View {
+        Button {
+            viewModel.clearSelection()
+        } label: {
+            Label("Clear", systemImage: "xmark.circle")
+                .font(.system(size: 13, weight: .semibold))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.white.opacity(0.14), in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .disabled(!hasSelection)
+        .opacity(hasSelection ? 1 : 0.4)
+    }
+
+    private var hasSelection: Bool {
+        !viewModel.selectedItemIDs.isEmpty
     }
 
     private var selectedAppCount: Int {
@@ -347,6 +507,14 @@ struct LaunchpadRootView: View {
         }
         .padding(24)
         .frame(width: 360)
+    }
+}
+
+private struct EditingBannerHeightPreferenceKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 

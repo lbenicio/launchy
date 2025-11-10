@@ -12,6 +12,7 @@ final class LaunchpadViewModel: ObservableObject {
     @Published private(set) var dragSourceFolderID: UUID? = nil
     @Published var selectedItemIDs: Set<UUID> = []
     @Published private(set) var isLaunchingApp: Bool = false
+    @Published private(set) var isLayoutLoaded: Bool = false
 
     let dataStore: LaunchpadDataStore
     let settingsStore: GridSettingsStore
@@ -21,6 +22,7 @@ final class LaunchpadViewModel: ObservableObject {
     private var pendingStackTargetID: UUID?
     private let stackingDelay: TimeInterval = 0.18
     private var launchSuppressionWorkItem: DispatchWorkItem?
+    private var layoutDirty: Bool = false
 
     init(dataStore: LaunchpadDataStore, settingsStore: GridSettingsStore) {
         self.dataStore = dataStore
@@ -35,6 +37,7 @@ final class LaunchpadViewModel: ObservableObject {
             .store(in: &cancellables)
 
         ensureCurrentPageInBounds()
+        isLayoutLoaded = true
     }
 
     var settings: GridSettings { settingsStore.settings }
@@ -79,6 +82,7 @@ final class LaunchpadViewModel: ObservableObject {
                 cancelPendingStacking()
                 dragItemID = nil
                 clearSelection()
+                persistIfNeeded()
             }
         }
     }
@@ -91,7 +95,7 @@ final class LaunchpadViewModel: ObservableObject {
 
     func endDrag(commit: Bool) {
         if commit {
-            persist()
+            persistIfNeeded()
         }
         cancelPendingStacking()
         dragItemID = nil
@@ -118,6 +122,7 @@ final class LaunchpadViewModel: ObservableObject {
         }
 
         items = updatedItems
+        markLayoutDirty()
         ensureCurrentPageInBounds()
         pruneSelection()
     }
@@ -131,9 +136,10 @@ final class LaunchpadViewModel: ObservableObject {
         let element = updatedItems.remove(at: currentIndex)
         updatedItems.insert(element, at: targetIndex)
         items = updatedItems
+        markLayoutDirty()
         ensureCurrentPageInBounds()
         pruneSelection()
-        persist()
+        persistIfNeeded()
     }
 
     func toggleSelection(for id: UUID) {
@@ -150,6 +156,15 @@ final class LaunchpadViewModel: ObservableObject {
 
     func isItemSelected(_ id: UUID) -> Bool {
         selectedItemIDs.contains(id)
+    }
+
+    var hasSelectedApps: Bool {
+        selectedItemIDs.contains { id in
+            if let item = item(with: id), case .app = item {
+                return true
+            }
+            return false
+        }
     }
 
     func openFolder(with id: UUID) {
@@ -174,6 +189,10 @@ final class LaunchpadViewModel: ObservableObject {
         items.first { $0.id == id }
     }
 
+    func indexOfItem(_ id: UUID) -> Int? {
+        items.firstIndex { $0.id == id }
+    }
+
     func moveAppWithinFolder(folderID: UUID, appID: UUID, before targetAppID: UUID?) {
         guard let folderIndex = items.firstIndex(where: { $0.id == folderID }),
             case .folder(var folder) = items[folderIndex]
@@ -190,8 +209,9 @@ final class LaunchpadViewModel: ObservableObject {
 
         folder.apps = apps
         items[folderIndex] = .folder(folder)
+        markLayoutDirty()
         pruneSelection()
-        persist()
+        persistIfNeeded()
     }
 
     func removeAppFromFolder(folderID: UUID, appID: UUID) {
@@ -203,8 +223,9 @@ final class LaunchpadViewModel: ObservableObject {
         let removedApp = folder.apps.remove(at: removeIndex)
         items[folderIndex] = .folder(folder)
         items.append(.app(removedApp))
+        markLayoutDirty()
         pruneSelection()
-        persist()
+        persistIfNeeded()
     }
 
     @discardableResult
@@ -243,7 +264,8 @@ final class LaunchpadViewModel: ObservableObject {
         dragSourceFolderID = nil
         ensureCurrentPageInBounds()
         pruneSelection()
-        persist()
+        markLayoutDirty()
+        persistIfNeeded()
         return true
     }
 
@@ -264,8 +286,55 @@ final class LaunchpadViewModel: ObservableObject {
 
         items = updatedItems
         presentedFolderID = folderID
+        markLayoutDirty()
         pruneSelection()
-        persist()
+        persistIfNeeded()
+    }
+
+    func addSelectedApps(toFolder folderID: UUID) {
+        guard hasSelectedApps else { return }
+        var updatedItems = items
+
+        guard let initialFolderIndex = updatedItems.firstIndex(where: { $0.id == folderID }),
+            case .folder = updatedItems[initialFolderIndex]
+        else {
+            return
+        }
+
+        var extracted: [(index: Int, app: AppIcon)] = []
+        for id in selectedItemIDs {
+            guard let currentIndex = updatedItems.firstIndex(where: { $0.id == id }) else {
+                continue
+            }
+            if case .app(let icon) = updatedItems[currentIndex] {
+                extracted.append((currentIndex, icon))
+            }
+        }
+
+        guard !extracted.isEmpty else { return }
+
+        for entry in extracted.sorted(by: { $0.index > $1.index }) {
+            updatedItems.remove(at: entry.index)
+        }
+
+        guard let folderIndex = updatedItems.firstIndex(where: { $0.id == folderID }),
+            case .folder(var folder) = updatedItems[folderIndex]
+        else {
+            return
+        }
+
+        let orderedApps = extracted.sorted(by: { $0.index < $1.index }).map { $0.app }
+        let idsToRemove = Set(orderedApps.map { $0.id })
+
+        folder.apps.append(contentsOf: orderedApps)
+        updatedItems[folderIndex] = .folder(folder)
+
+        items = updatedItems
+        selectedItemIDs.subtract(idsToRemove)
+        markLayoutDirty()
+        pruneSelection()
+        persistIfNeeded()
+        presentedFolderID = folderID
     }
 
     func deleteItem(_ id: UUID) {
@@ -273,8 +342,9 @@ final class LaunchpadViewModel: ObservableObject {
         items.remove(at: index)
         ensureCurrentPageInBounds()
         selectedItemIDs.remove(id)
+        markLayoutDirty()
         pruneSelection()
-        persist()
+        persistIfNeeded()
     }
 
     @discardableResult
@@ -318,8 +388,9 @@ final class LaunchpadViewModel: ObservableObject {
         presentedFolderID = folder.id
         selectedItemIDs.removeAll()
         ensureCurrentPageInBounds()
+        markLayoutDirty()
         pruneSelection()
-        persist()
+        persistIfNeeded()
         return folder
     }
 
@@ -337,12 +408,13 @@ final class LaunchpadViewModel: ObservableObject {
         apps.insert(app, at: targetIndex)
         folder.apps = apps
         items[folderIndex] = .folder(folder)
+        markLayoutDirty()
         pruneSelection()
-        persist()
+        persistIfNeeded()
     }
 
     func commitChanges() {
-        persist()
+        persistIfNeeded()
     }
 
     func pageForItem(id: UUID) -> Int? {
@@ -406,8 +478,18 @@ final class LaunchpadViewModel: ObservableObject {
         return stackDraggedItem(onto: targetID)
     }
 
+    private func markLayoutDirty() {
+        layoutDirty = true
+    }
+
+    private func persistIfNeeded() {
+        guard layoutDirty else { return }
+        persist()
+    }
+
     private func persist() {
         dataStore.save(items)
+        layoutDirty = false
     }
 
     private func defaultFolderName(from sourceName: String) -> String {

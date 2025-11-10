@@ -1,5 +1,9 @@
 import SwiftUI
 
+#if os(macOS)
+    import AppKit
+#endif
+
 @main
 struct TahoeLaunchpadApp: App {
     @StateObject private var settingsStore: GridSettingsStore
@@ -11,6 +15,13 @@ struct TahoeLaunchpadApp: App {
         _settingsStore = StateObject(wrappedValue: settings)
         _viewModel = StateObject(
             wrappedValue: LaunchpadViewModel(dataStore: dataStore, settingsStore: settings))
+
+        #if os(macOS)
+            DispatchQueue.main.async {
+                NSApp.setActivationPolicy(.regular)
+                NSApp.activate(ignoringOtherApps: true)
+            }
+        #endif
     }
 
     var body: some Scene {
@@ -30,8 +41,7 @@ struct TahoeLaunchpadApp: App {
 
         Settings {
             SettingsView(store: settingsStore)
-                .padding(20)
-                .frame(width: 480, height: 360)
+                .frame(width: 680, height: 540)
         }
     }
 }

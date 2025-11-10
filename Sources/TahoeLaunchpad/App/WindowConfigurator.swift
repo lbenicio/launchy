@@ -86,6 +86,12 @@ import SwiftUI
                 NSApp.activate(ignoringOtherApps: true)
                 window.makeKeyAndOrderFront(nil)
             }
+
+            if let contentView = window.contentView,
+                window.firstResponder == nil || window.firstResponder === window
+            {
+                window.makeFirstResponder(contentView)
+            }
         }
     }
 #endif

@@ -28,6 +28,7 @@ struct LaunchpadPagedGridView: View {
             }
             .scrollIndicators(.hidden)
             .scrollTargetBehavior(.paging)
+            .scrollBounceBehavior(.always)
             .scrollPosition(id: $scrollPosition)
             .frame(width: width, height: height)
             .onChange(of: scrollPosition) { _, newValue in
@@ -38,7 +39,12 @@ struct LaunchpadPagedGridView: View {
                 let totalPages = max(enumeratedPages.count, 1)
                 let clamped = min(max(newValue, 0), totalPages - 1)
                 if scrollPosition != clamped {
-                    scrollPosition = clamped
+                    withAnimation(
+                        .interactiveSpring(
+                            response: 0.48, dampingFraction: 0.82, blendDuration: 0.25)
+                    ) {
+                        scrollPosition = clamped
+                    }
                 }
             }
             .onAppear {
@@ -62,7 +68,11 @@ struct LaunchpadPagedGridView: View {
             let clampedIndex = min(viewModel.currentPage, max(newCount - 1, 0))
             viewModel.selectPage(clampedIndex, totalPages: newCount)
             if scrollPosition != clampedIndex {
-                scrollPosition = clampedIndex
+                withAnimation(
+                    .interactiveSpring(response: 0.48, dampingFraction: 0.82, blendDuration: 0.25)
+                ) {
+                    scrollPosition = clampedIndex
+                }
             }
         }
         #if os(macOS)

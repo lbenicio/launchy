@@ -86,6 +86,9 @@ struct FolderContentView: View {
     private func folderIconTile(app: AppIcon, tileDimension: CGFloat) -> some View {
         let base = AppIconTile(icon: app, isEditing: viewModel.isEditing, dimension: tileDimension)
             .frame(width: tileDimension, height: tileDimension + 32)
+        let appIndex = folder.apps.firstIndex(where: { $0.id == app.id }) ?? 0
+        let canMoveLeft = appIndex > 0
+        let canMoveRight = appIndex < max(folder.apps.count - 1, 0)
 
         if viewModel.isEditing {
             base
@@ -98,6 +101,8 @@ struct FolderContentView: View {
                                 .font(.system(size: 15, weight: .semibold))
                         }
                         .buttonStyle(.plain)
+                        .disabled(!canMoveLeft)
+                        .opacity(canMoveLeft ? 1 : 0.35)
 
                         Button {
                             viewModel.shiftAppInFolder(folderID: folder.id, appID: app.id, by: 1)
@@ -106,6 +111,8 @@ struct FolderContentView: View {
                                 .font(.system(size: 15, weight: .semibold))
                         }
                         .buttonStyle(.plain)
+                        .disabled(!canMoveRight)
+                        .opacity(canMoveRight ? 1 : 0.35)
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)

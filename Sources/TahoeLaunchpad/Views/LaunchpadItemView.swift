@@ -5,12 +5,16 @@ struct LaunchpadItemView: View {
     let dimension: CGFloat
     let isEditing: Bool
     let isSelected: Bool
+    let canMoveLeft: Bool
+    let canMoveRight: Bool
+    let hasSelectedApps: Bool
     let onOpenFolder: (UUID) -> Void
     let onDelete: (UUID) -> Void
     let onLaunch: (LaunchpadItem) -> Void
     let onSelect: (UUID) -> Void
     let onMoveLeft: (UUID) -> Void
     let onMoveRight: (UUID) -> Void
+    let onAddSelectedAppsToFolder: (UUID) -> Void
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -32,7 +36,11 @@ struct LaunchpadItemView: View {
                 case .app:
                     onSelect(item.id)
                 case .folder:
-                    onOpenFolder(item.id)
+                    if hasSelectedApps {
+                        onAddSelectedAppsToFolder(item.id)
+                    } else {
+                        onOpenFolder(item.id)
+                    }
                 }
             } else {
                 switch item {
@@ -58,6 +66,7 @@ struct LaunchpadItemView: View {
                 reorderControls
             }
         }
+        .overlay(selectionHighlight)
     }
 
     private var deleteBadge: some View {
@@ -102,6 +111,8 @@ struct LaunchpadItemView: View {
                     .font(.system(size: 17, weight: .semibold))
             }
             .buttonStyle(.plain)
+            .disabled(!canMoveLeft)
+            .opacity(canMoveLeft ? 1 : 0.35)
 
             Button {
                 onMoveRight(item.id)
@@ -110,11 +121,33 @@ struct LaunchpadItemView: View {
                     .font(.system(size: 17, weight: .semibold))
             }
             .buttonStyle(.plain)
+            .disabled(!canMoveRight)
+            .opacity(canMoveRight ? 1 : 0.35)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(Color.black.opacity(0.35), in: Capsule())
         .foregroundStyle(Color.white.opacity(0.95))
         .padding(.bottom, 6)
+    }
+
+    private var isApp: Bool {
+        if case .app = item { return true }
+        return false
+    }
+
+    @ViewBuilder
+    private var selectionHighlight: some View {
+        if isEditing, isSelected, isApp {
+            RoundedRectangle(cornerRadius: dimension * 0.36, style: .continuous)
+                .fill(Color.accentColor.opacity(0.18))
+                .overlay(
+                    RoundedRectangle(cornerRadius: dimension * 0.36, style: .continuous)
+                        .stroke(Color.accentColor.opacity(0.75), lineWidth: 2)
+                )
+                .padding(.horizontal, 6)
+                .padding(.vertical, 6)
+                .allowsHitTesting(false)
+        }
     }
 }

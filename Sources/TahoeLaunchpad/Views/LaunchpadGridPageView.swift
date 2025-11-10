@@ -34,17 +34,24 @@ struct LaunchpadGridPageView: View {
         GeometryReader { proxy in
             let dropTypes: [UTType] = [.launchpadItemIdentifier]
             let frame = CGRect(origin: .zero, size: proxy.size)
+            let globalIndex = viewModel.indexOfItem(item.id) ?? 0
+            let canMoveLeft = globalIndex > 0
+            let canMoveRight = globalIndex < max(viewModel.items.count - 1, 0)
             let baseView = LaunchpadItemView(
                 item: item,
                 dimension: metrics.itemDimension,
                 isEditing: viewModel.isEditing,
                 isSelected: viewModel.isItemSelected(item.id),
+                canMoveLeft: canMoveLeft,
+                canMoveRight: canMoveRight,
+                hasSelectedApps: viewModel.hasSelectedApps,
                 onOpenFolder: { viewModel.openFolder(with: $0) },
                 onDelete: { viewModel.deleteItem($0) },
                 onLaunch: handleLaunch,
                 onSelect: { viewModel.toggleSelection(for: $0) },
                 onMoveLeft: { viewModel.shiftItem($0, by: -1) },
-                onMoveRight: { viewModel.shiftItem($0, by: 1) }
+                onMoveRight: { viewModel.shiftItem($0, by: 1) },
+                onAddSelectedAppsToFolder: { viewModel.addSelectedApps(toFolder: $0) }
             )
             .frame(width: metrics.itemDimension, height: metrics.itemDimension + 36)
             .contentShape(Rectangle())
