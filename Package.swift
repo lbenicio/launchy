@@ -19,6 +19,11 @@ let package = Package(
         .executableTarget(
             name: "TahoeLaunchpad",
             path: "src"
+        ),
+        .testTarget(
+            name: "TahoeLaunchpadTests",
+            dependencies: ["TahoeLaunchpad"],
+            path: "tests"
         )
     ]
 )

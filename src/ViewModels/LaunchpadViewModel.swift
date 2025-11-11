@@ -28,10 +28,18 @@ final class LaunchpadViewModel: ObservableObject {
     private var launchSuppressionWorkItem: DispatchWorkItem?
     private var layoutDirty: Bool = false
 
-    init(dataStore: LaunchpadDataStore, settingsStore: GridSettingsStore) {
+    init(
+        dataStore: LaunchpadDataStore,
+        settingsStore: GridSettingsStore,
+        initialItems: [LaunchpadItem]? = nil
+    ) {
         self.dataStore = dataStore
         self.settingsStore = settingsStore
-        items = dataStore.load()
+        if let initialItems {
+            items = initialItems
+        } else {
+            items = dataStore.load()
+        }
 
         settingsStore.$settings
             .dropFirst()

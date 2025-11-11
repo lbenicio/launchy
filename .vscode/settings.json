@@ -11,5 +11,7 @@
 	},
 	"swift.swiftEnvironmentVariables": {
 		"DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer"
-	}
+	},
+	"makefile.buildLog": ".build/log",
+	"makefile.makefilePath": "."
 }

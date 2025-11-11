@@ -1,20 +1,38 @@
+# Makefile for building and bundling TahoeLaunchpad macOS application
+#
+#
+
+# Application settings
 APP_NAME := TahoeLaunchpad
 BUILD_DIR := .build
+DIST_DIR := dist
+
+# Path to the built binary
 BIN_PATH := $(BUILD_DIR)/debug/$(APP_NAME)
 VERSION := $(shell sed -n 's/^let packageVersion = "\(.*\)"/\1/p' Package.swift)
-DIST_DIR := dist
+
+# Define paths for the app bundle structure
 APP_BUNDLE := $(DIST_DIR)/$(APP_NAME).app
 CONTENTS_DIR := $(APP_BUNDLE)/Contents
 MACOS_DIR := $(CONTENTS_DIR)/MacOS
 RESOURCES_DIR := $(CONTENTS_DIR)/Resources
+
+# Info.plist paths
 INFO_PLIST := $(CONTENTS_DIR)/Info.plist
 PLIST_TEMPLATE := assets/plists/Info.plist
+
+# Icon paths
 ICON_SOURCE := assets/icon/launchy.icns
 ICON_DEST := $(RESOURCES_DIR)/launchy.icns
 
+
+#
+#
+#
+
 .PHONY: all build clean bundle
 
-all: build
+all: bundle clean
 
 build:
 	swift build --configuration debug
