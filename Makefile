@@ -1,14 +1,11 @@
-# Makefile for building and bundling TahoeLaunchpad macOS application
-#
-#
+# Makefile for building and distributing the TahoeLaunchpad macOS application
 
 # Application settings
 APP_NAME := TahoeLaunchpad
 BUILD_DIR := .build
 DIST_DIR := dist
-
-# Path to the built binary
-BIN_PATH := $(BUILD_DIR)/debug/$(APP_NAME)
+RELEASE_BIN := $(BUILD_DIR)/release/$(APP_NAME)
+DEBUG_BIN := $(BUILD_DIR)/debug/$(APP_NAME)
 VERSION := $(shell sed -n 's/^let packageVersion = "\(.*\)"/\1/p' Package.swift)
 
 # Define paths for the app bundle structure
@@ -25,21 +22,33 @@ PLIST_TEMPLATE := assets/plists/Info.plist
 ICON_SOURCE := assets/icon/launchy.icns
 ICON_DEST := $(RESOURCES_DIR)/launchy.icns
 
+# Distribution artifact paths
+DMG_PATH := $(DIST_DIR)/$(APP_NAME)-$(VERSION).dmg
+PKG_PATH := $(DIST_DIR)/$(APP_NAME)-$(VERSION).pkg
+PKG_IDENTIFIER := com.example.$(APP_NAME)
 
-#
-#
-#
+.DEFAULT_GOAL := bundle
 
-.PHONY: all build clean bundle
+.PHONY: help build debug bundle dmg pkg fmt lint run test clean
 
-all: bundle clean
+help:
+	@echo "Available targets:"
+	@echo "  bundle  - Build the release binary and assemble $(APP_NAME).app"
+	@echo "  dmg     - Create a compressed disk image from the app bundle"
+	@echo "  pkg     - Create an installer package from the app bundle"
+	@echo "  build   - Build the project in release configuration"
+	@echo "  debug   - Build the project in debug configuration"
+	@echo "  run     - Run the application in debug mode"
+	@echo "  test    - Execute the unit test suite"
+	@echo "  fmt     - Format the Swift sources using swift-format"
+	@echo "  lint    - Lint the Swift sources using swift-format"
+	@echo "  clean   - Remove build artifacts and distribution outputs"
 
 build:
-	swift build --configuration debug
+	swift build --configuration release
 
-clean:
-	swift package clean
-	rm -rf $(DIST_DIR)
+debug:
+	swift build --configuration debug
 
 bundle: build
 	@if [ -z "$(VERSION)" ]; then \
@@ -49,7 +58,7 @@ bundle: build
 	@echo "Assembling $(APP_NAME).app (version $(VERSION))"
 	rm -rf $(APP_BUNDLE)
 	mkdir -p $(MACOS_DIR) $(RESOURCES_DIR)
-	cp $(BIN_PATH) $(MACOS_DIR)/$(APP_NAME)
+	cp $(RELEASE_BIN) $(MACOS_DIR)/$(APP_NAME)
 	chmod +x $(MACOS_DIR)/$(APP_NAME)
 	cp $(ICON_SOURCE) $(ICON_DEST)
 	sed \
@@ -57,3 +66,36 @@ bundle: build
 		-e 's/{{VERSION}}/$(VERSION)/g' \
 		$(PLIST_TEMPLATE) > $(INFO_PLIST)
 	@echo "Bundle created at $(APP_BUNDLE)"
+
+dmg: bundle
+	@echo "Creating disk image at $(DMG_PATH)"
+	rm -f $(DMG_PATH)
+	hdiutil create -volname "$(APP_NAME)" -srcfolder "$(APP_BUNDLE)" -ov -format UDZO "$(DMG_PATH)"
+	@echo "DMG created at $(DMG_PATH)"
+
+pkg: bundle
+	@echo "Creating installer package at $(PKG_PATH)"
+	rm -f $(PKG_PATH)
+	pkgbuild \
+		--component "$(APP_BUNDLE)" \
+		--install-location "/Applications" \
+		--identifier "$(PKG_IDENTIFIER)" \
+		--version "$(VERSION)" \
+		"$(PKG_PATH)"
+	@echo "PKG created at $(PKG_PATH)"
+
+fmt:
+	swift format --in-place Package.swift src tests
+
+lint:
+	swift format --lint Package.swift src tests
+
+run:
+	swift run --configuration debug
+
+test:
+	swift test
+
+clean:
+	swift package clean
+	rm -rf $(DIST_DIR)
