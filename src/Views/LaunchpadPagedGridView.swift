@@ -24,7 +24,7 @@ struct LaunchpadPagedGridView: View {
             let height = proxy.size.height
             let enumeratedPages = Array(pages.enumerated())
             let totalPages = max(enumeratedPages.count, 1)
-            let dragThreshold = width * 0.18
+            let dragThreshold = max(width * 0.12, 80)
 
             let dragGesture = DragGesture(minimumDistance: 6, coordinateSpace: .local)
                 .onEnded { value in

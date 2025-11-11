@@ -27,22 +27,32 @@ import SwiftUI
 
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
+            window.title = ""
+            window.toolbar = nil
             window.isOpaque = false
             window.backgroundColor = .clear
             window.hasShadow = useFullScreenLayout ? false : true
             window.level = useFullScreenLayout ? .mainMenu : .floating
+            window.setContentBorderThickness(0, for: .maxY)
             window.collectionBehavior = [
                 .canJoinAllSpaces,
                 .fullScreenAuxiliary,
                 .stationary,
                 .ignoresCycle,
             ]
-            if !window.styleMask.contains(.fullSizeContentView) {
-                window.styleMask.insert(.fullSizeContentView)
+
+            var style: NSWindow.StyleMask = [.borderless, .fullSizeContentView]
+            if !useFullScreenLayout {
+                style.insert(.resizable)
             }
+            if window.styleMask != style {
+                window.styleMask = style
+            }
+
             window.standardWindowButton(.closeButton)?.isHidden = true
             window.standardWindowButton(.miniaturizeButton)?.isHidden = true
             window.standardWindowButton(.zoomButton)?.isHidden = true
+            window.isMovableByWindowBackground = true
 
             if useFullScreenLayout {
                 if window.frame != screen.frame {

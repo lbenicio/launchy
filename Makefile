@@ -9,6 +9,8 @@ MACOS_DIR := $(CONTENTS_DIR)/MacOS
 RESOURCES_DIR := $(CONTENTS_DIR)/Resources
 INFO_PLIST := $(CONTENTS_DIR)/Info.plist
 PLIST_TEMPLATE := assets/plists/Info.plist
+ICON_SOURCE := assets/icon/launchy.icns
+ICON_DEST := $(RESOURCES_DIR)/launchy.icns
 
 .PHONY: all build clean bundle
 
@@ -31,6 +33,7 @@ bundle: build
 	mkdir -p $(MACOS_DIR) $(RESOURCES_DIR)
 	cp $(BIN_PATH) $(MACOS_DIR)/$(APP_NAME)
 	chmod +x $(MACOS_DIR)/$(APP_NAME)
+	cp $(ICON_SOURCE) $(ICON_DEST)
 	sed \
 		-e 's/{{APP_NAME}}/$(APP_NAME)/g' \
 		-e 's/{{VERSION}}/$(VERSION)/g' \
