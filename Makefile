@@ -65,6 +65,7 @@ bundle: build
 		-e 's/{{APP_NAME}}/$(APP_NAME)/g' \
 		-e 's/{{VERSION}}/$(VERSION)/g' \
 		$(PLIST_TEMPLATE) > $(INFO_PLIST)
+	@find $(APP_BUNDLE) -name '.DS_Store' -delete >/dev/null 2>&1 || true
 	@echo "Bundle created at $(APP_BUNDLE)"
 
 dmg: bundle
