@@ -24,6 +24,19 @@ struct FolderContentView: View {
                         .font(.system(size: 20, weight: .semibold))
                         .textCase(.none)
                     Spacer()
+                    if viewModel.isEditing {
+                        Button {
+                            viewModel.disbandFolder(folder.id)
+                        } label: {
+                            Label("Split", systemImage: "square.stack.3d.down.forward.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                                .labelStyle(.iconOnly)
+                                .padding(8)
+                                .background(Color.white.opacity(0.18), in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.trailing, 8)
+                    }
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             viewModel.closeFolder()

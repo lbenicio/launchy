@@ -41,7 +41,18 @@ struct LaunchpadRootView: View {
         }
         .frame(minWidth: 1024, minHeight: 720)
         #if os(macOS)
-            .background(WindowConfigurator(useFullScreenLayout: fillScreen))
+            .background(
+                WindowConfigurator(
+                    useFullScreenLayout: fillScreen,
+                    preferredWindowSize: fillScreen ? nil : settingsStore.settings.windowedSize,
+                    onWindowSizeChange: { newSize in
+                        settingsStore.update(
+                            windowedWidth: Double(newSize.width),
+                            windowedHeight: Double(newSize.height)
+                        )
+                    }
+                )
+            )
         #endif
         .onChange(of: searchText) { _, newValue in
             let latestPages = buildPages(for: newValue)
@@ -63,15 +74,20 @@ struct LaunchpadRootView: View {
         ZStack {
             backgroundLayer(fillScreen: fillScreen)
 
+            let edgePadding = fillScreen ? 80.0 : 24.0
+            let headerTopPadding = fillScreen ? 40.0 : 24.0
+            let gridHorizontalPadding = fillScreen ? 0.0 : 8.0
+            let gridBottomPadding = fillScreen ? 60.0 : 24.0
+
             VStack(spacing: 32) {
                 header
-                    .padding(.horizontal, 80)
-                    .padding(.top, 40)
+                    .padding(.horizontal, edgePadding)
+                    .padding(.top, headerTopPadding)
                     .zIndex(1)
 
                 if viewModel.isEditing {
                     editingGuidance
-                        .padding(.horizontal, 80)
+                        .padding(.horizontal, edgePadding)
                         .transition(.opacity)
                 }
 
@@ -104,8 +120,8 @@ struct LaunchpadRootView: View {
                         .padding(.bottom, 8)
                     }
                 }
-                .padding(.horizontal, fillScreen ? 0 : 24)
-                .padding(.bottom, 60)
+                .padding(.horizontal, gridHorizontalPadding)
+                .padding(.bottom, gridBottomPadding)
                 .padding(.top, viewModel.isEditing ? editingBannerHeight + 16 : 0)
                 .animation(.easeInOut(duration: 0.24), value: editingBannerHeight)
                 .animation(.easeInOut(duration: 0.24), value: viewModel.isEditing)

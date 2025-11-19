@@ -51,7 +51,8 @@ struct LaunchpadGridPageView: View {
                 onSelect: { viewModel.toggleSelection(for: $0) },
                 onMoveLeft: { viewModel.shiftItem($0, by: -1) },
                 onMoveRight: { viewModel.shiftItem($0, by: 1) },
-                onAddSelectedAppsToFolder: { viewModel.addSelectedApps(toFolder: $0) }
+                onAddSelectedAppsToFolder: { viewModel.addSelectedApps(toFolder: $0) },
+                onDisbandFolder: { viewModel.disbandFolder($0) }
             )
             .frame(width: metrics.itemDimension, height: metrics.itemDimension + 36)
             .contentShape(Rectangle())

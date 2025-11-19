@@ -15,6 +15,7 @@ struct LaunchpadItemView: View {
     let onMoveLeft: (UUID) -> Void
     let onMoveRight: (UUID) -> Void
     let onAddSelectedAppsToFolder: (UUID) -> Void
+    let onDisbandFolder: (UUID) -> Void
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -57,8 +58,13 @@ struct LaunchpadItemView: View {
             }
         }
         .overlay(alignment: .topTrailing) {
-            if isEditing, case .app = item {
-                selectionBadge
+            if isEditing {
+                switch item {
+                case .app:
+                    selectionBadge
+                case .folder:
+                    disbandFolderBadge
+                }
             }
         }
         .overlay(alignment: .bottom) {
@@ -129,6 +135,23 @@ struct LaunchpadItemView: View {
         .background(Color.black.opacity(0.35), in: Capsule())
         .foregroundStyle(Color.white.opacity(0.95))
         .padding(.bottom, 6)
+    }
+
+    private var disbandFolderBadge: some View {
+        Button {
+            onDisbandFolder(item.id)
+        } label: {
+            Image(systemName: "square.stack.3d.down.forward.fill")
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(Color.white.opacity(0.95))
+                .font(.system(size: dimension * 0.24, weight: .semibold))
+                .padding(6)
+                .background(Color.blue.opacity(0.85), in: Circle())
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 6)
+        .padding(.trailing, 6)
+        .help("Split Folder")
     }
 
     private var isApp: Bool {

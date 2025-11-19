@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 struct GridSettings: Codable, Equatable {
@@ -8,6 +9,9 @@ struct GridSettings: Codable, Equatable {
     var iconScale: Double
     var scrollSensitivity: Double
     var useFullScreenLayout: Bool
+    var lastWindowedWidth: Double?
+    var lastWindowedHeight: Double?
+    var lastWindowedPage: Int?
 
     static let defaults = GridSettings(
         columns: 7,
@@ -16,7 +20,10 @@ struct GridSettings: Codable, Equatable {
         folderRows: 3,
         iconScale: 1.0,
         scrollSensitivity: 1.0,
-        useFullScreenLayout: true
+        useFullScreenLayout: true,
+        lastWindowedWidth: nil,
+        lastWindowedHeight: nil,
+        lastWindowedPage: nil
     )
 
     init(
@@ -26,7 +33,10 @@ struct GridSettings: Codable, Equatable {
         folderRows: Int,
         iconScale: Double,
         scrollSensitivity: Double,
-        useFullScreenLayout: Bool
+        useFullScreenLayout: Bool,
+        lastWindowedWidth: Double? = nil,
+        lastWindowedHeight: Double? = nil,
+        lastWindowedPage: Int? = nil
     ) {
         self.columns = columns
         self.rows = rows
@@ -35,6 +45,9 @@ struct GridSettings: Codable, Equatable {
         self.iconScale = iconScale
         self.scrollSensitivity = scrollSensitivity
         self.useFullScreenLayout = useFullScreenLayout
+        self.lastWindowedWidth = lastWindowedWidth
+        self.lastWindowedHeight = lastWindowedHeight
+        self.lastWindowedPage = lastWindowedPage
     }
 
     init(from decoder: Decoder) throws {
@@ -56,6 +69,10 @@ struct GridSettings: Codable, Equatable {
         useFullScreenLayout =
             try container.decodeIfPresent(Bool.self, forKey: .useFullScreenLayout)
             ?? defaults.useFullScreenLayout
+        lastWindowedWidth = try container.decodeIfPresent(Double.self, forKey: .lastWindowedWidth)
+        lastWindowedHeight =
+            try container.decodeIfPresent(Double.self, forKey: .lastWindowedHeight)
+        lastWindowedPage = try container.decodeIfPresent(Int.self, forKey: .lastWindowedPage)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -67,6 +84,9 @@ struct GridSettings: Codable, Equatable {
         try container.encode(iconScale, forKey: .iconScale)
         try container.encode(scrollSensitivity, forKey: .scrollSensitivity)
         try container.encode(useFullScreenLayout, forKey: .useFullScreenLayout)
+        try container.encodeIfPresent(lastWindowedWidth, forKey: .lastWindowedWidth)
+        try container.encodeIfPresent(lastWindowedHeight, forKey: .lastWindowedHeight)
+        try container.encodeIfPresent(lastWindowedPage, forKey: .lastWindowedPage)
     }
 
     var pageCapacity: Int {
@@ -77,6 +97,11 @@ struct GridSettings: Codable, Equatable {
         max(1, folderColumns * folderRows)
     }
 
+    var windowedSize: CGSize? {
+        guard let width = lastWindowedWidth, let height = lastWindowedHeight else { return nil }
+        return CGSize(width: width, height: height)
+    }
+
     private enum CodingKeys: String, CodingKey {
         case columns
         case rows
@@ -85,5 +110,8 @@ struct GridSettings: Codable, Equatable {
         case iconScale
         case scrollSensitivity
         case useFullScreenLayout
+        case lastWindowedWidth
+        case lastWindowedHeight
+        case lastWindowedPage
     }
 }

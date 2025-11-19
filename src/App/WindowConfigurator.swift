@@ -5,25 +5,35 @@ import SwiftUI
 
     struct WindowConfigurator: NSViewRepresentable {
         var useFullScreenLayout: Bool = true
+        var preferredWindowSize: CGSize?
+        var onWindowSizeChange: (CGSize) -> Void = { _ in }
+
+        func makeCoordinator() -> Coordinator {
+            Coordinator(onWindowSizeChange: onWindowSizeChange)
+        }
 
         func makeNSView(context: Context) -> NSView {
             let view = NSView()
+            context.coordinator.onWindowSizeChange = onWindowSizeChange
             DispatchQueue.main.async {
-                configureIfNeeded(using: view)
+                configureIfNeeded(using: view, coordinator: context.coordinator)
             }
             return view
         }
 
         func updateNSView(_ nsView: NSView, context: Context) {
+            context.coordinator.onWindowSizeChange = onWindowSizeChange
             DispatchQueue.main.async {
-                configureIfNeeded(using: nsView)
+                configureIfNeeded(using: nsView, coordinator: context.coordinator)
             }
         }
 
-        private func configureIfNeeded(using hostView: NSView) {
+        private func configureIfNeeded(using hostView: NSView, coordinator: Coordinator) {
             guard let window = hostView.window, let screen = window.screen ?? NSScreen.main else {
                 return
             }
+
+            coordinator.attach(to: window, useFullScreenLayout: useFullScreenLayout)
 
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
@@ -63,20 +73,29 @@ import SwiftUI
                 window.contentView?.layoutSubtreeIfNeeded()
 
                 let minimumContentSize = NSSize(width: 1024, height: 720)
-                var contentSize = window.contentView?.fittingSize ?? minimumContentSize
-                if !contentSize.width.isFinite || !contentSize.height.isFinite
-                    || contentSize.width <= 0 || contentSize.height <= 0
-                {
-                    contentSize = minimumContentSize
+                var targetContentSize: NSSize
+                if let preferredWindowSize {
+                    targetContentSize = NSSize(
+                        width: preferredWindowSize.width,
+                        height: preferredWindowSize.height
+                    )
+                } else {
+                    targetContentSize = window.contentView?.fittingSize ?? minimumContentSize
                 }
 
-                let clampedContentSize = NSSize(
-                    width: max(contentSize.width, minimumContentSize.width),
-                    height: max(contentSize.height, minimumContentSize.height)
+                if !targetContentSize.width.isFinite || !targetContentSize.height.isFinite
+                    || targetContentSize.width <= 0 || targetContentSize.height <= 0
+                {
+                    targetContentSize = minimumContentSize
+                }
+
+                targetContentSize = NSSize(
+                    width: max(targetContentSize.width, minimumContentSize.width),
+                    height: max(targetContentSize.height, minimumContentSize.height)
                 )
 
                 let windowFrameSize = window.frameRect(
-                    forContentRect: NSRect(origin: .zero, size: clampedContentSize)
+                    forContentRect: NSRect(origin: .zero, size: targetContentSize)
                 ).size
                 let targetOrigin = NSPoint(
                     x: visibleFrame.midX - windowFrameSize.width / 2,
@@ -101,6 +120,52 @@ import SwiftUI
                 window.firstResponder == nil || window.firstResponder === window
             {
                 window.makeFirstResponder(contentView)
+            }
+        }
+
+        @MainActor
+        final class Coordinator: NSObject, NSWindowDelegate {
+            var onWindowSizeChange: (CGSize) -> Void
+            private weak var observedWindow: NSWindow?
+            private var lastReportedSize: CGSize?
+            private var useFullScreenLayout: Bool = true
+
+            init(onWindowSizeChange: @escaping (CGSize) -> Void) {
+                self.onWindowSizeChange = onWindowSizeChange
+            }
+
+            func attach(to window: NSWindow, useFullScreenLayout: Bool) {
+                if observedWindow !== window {
+                    observedWindow = window
+                    window.delegate = self
+                }
+                self.useFullScreenLayout = useFullScreenLayout
+                reportSizeIfNeeded(from: window)
+            }
+
+            func windowDidResize(_ notification: Notification) {
+                guard let window = notification.object as? NSWindow else { return }
+                reportSizeIfNeeded(from: window)
+            }
+
+            func windowDidEndLiveResize(_ notification: Notification) {
+                guard let window = notification.object as? NSWindow else { return }
+                reportSizeIfNeeded(from: window)
+            }
+
+            private func reportSizeIfNeeded(from window: NSWindow) {
+                guard !useFullScreenLayout else { return }
+                let contentRect = window.contentRect(forFrameRect: window.frame)
+                let size = contentRect.size
+                guard size.width.isFinite, size.height.isFinite else { return }
+                if let last = lastReportedSize,
+                    abs(last.width - size.width) < 1,
+                    abs(last.height - size.height) < 1
+                {
+                    return
+                }
+                lastReportedSize = size
+                onWindowSizeChange(size)
             }
         }
     }

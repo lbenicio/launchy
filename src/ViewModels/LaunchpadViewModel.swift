@@ -41,14 +41,18 @@ final class LaunchpadViewModel: ObservableObject {
             items = dataStore.load()
         }
 
+        let storedPage = settingsStore.settings.lastWindowedPage ?? 0
+        currentPage = min(max(storedPage, 0), max(pageCount - 1, 0))
+
         settingsStore.$settings
             .dropFirst()
             .sink { [weak self] _ in
-                self?.ensureCurrentPageInBounds()
+                self?.ensureCurrentPageInBounds(shouldPersist: false)
             }
             .store(in: &cancellables)
 
         ensureCurrentPageInBounds()
+        persistLastVisitedPageIfNeeded(currentPage)
         isLayoutLoaded = true
     }
 
@@ -242,6 +246,27 @@ final class LaunchpadViewModel: ObservableObject {
         items[folderIndex] = .folder(folder)
         items.append(.app(removedApp))
         markLayoutDirty()
+        pruneSelection()
+        persistIfNeeded()
+    }
+
+    func disbandFolder(_ folderID: UUID) {
+        guard let folderIndex = items.firstIndex(where: { $0.id == folderID }),
+            case .folder(let folder) = items[folderIndex]
+        else { return }
+
+        var updatedItems = items
+        updatedItems.remove(at: folderIndex)
+        let flattenedApps = folder.apps.map { LaunchpadItem.app($0) }
+        updatedItems.insert(contentsOf: flattenedApps, at: folderIndex)
+
+        items = updatedItems
+        if presentedFolderID == folderID {
+            presentedFolderID = nil
+        }
+
+        markLayoutDirty()
+        ensureCurrentPageInBounds()
         pruneSelection()
         persistIfNeeded()
     }
@@ -456,6 +481,7 @@ final class LaunchpadViewModel: ObservableObject {
             cancelPendingStacking()
             currentPage = clamped
         }
+        persistLastVisitedPageIfNeeded(clamped)
     }
 
     func goToPreviousPage(totalPages: Int) {
@@ -540,10 +566,13 @@ final class LaunchpadViewModel: ObservableObject {
         return false
     }
 
-    private func ensureCurrentPageInBounds() {
+    private func ensureCurrentPageInBounds(shouldPersist: Bool = true) {
         let pages = pageCount
         if currentPage >= pages {
             currentPage = max(0, pages - 1)
+        }
+        if shouldPersist {
+            persistLastVisitedPageIfNeeded(currentPage)
         }
     }
 
@@ -556,6 +585,13 @@ final class LaunchpadViewModel: ObservableObject {
         }
 
         selectedItemIDs = selectedItemIDs.intersection(validIDs)
+    }
+
+    private func persistLastVisitedPageIfNeeded(_ index: Int) {
+        guard index >= 0 else { return }
+        if settingsStore.settings.lastWindowedPage != index {
+            settingsStore.update(lastWindowedPage: index)
+        }
     }
 
     func beginAppLaunchSuppressionWindow() {

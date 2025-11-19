@@ -30,7 +30,10 @@ final class GridSettingsStore: ObservableObject {
         folderRows: Int? = nil,
         iconScale: Double? = nil,
         scrollSensitivity: Double? = nil,
-        useFullScreenLayout: Bool? = nil
+        useFullScreenLayout: Bool? = nil,
+        windowedWidth: Double? = nil,
+        windowedHeight: Double? = nil,
+        lastWindowedPage: Int? = nil
     ) {
         var next = settings
         if let columns { next.columns = max(3, min(columns, 10)) }
@@ -43,6 +46,15 @@ final class GridSettingsStore: ObservableObject {
         }
         if let useFullScreenLayout {
             next.useFullScreenLayout = useFullScreenLayout
+        }
+        if let windowedWidth, windowedWidth.isFinite {
+            next.lastWindowedWidth = max(800, min(windowedWidth, 6000))
+        }
+        if let windowedHeight, windowedHeight.isFinite {
+            next.lastWindowedHeight = max(600, min(windowedHeight, 4000))
+        }
+        if let lastWindowedPage {
+            next.lastWindowedPage = max(0, lastWindowedPage)
         }
         settings = next
     }
