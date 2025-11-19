@@ -128,12 +128,13 @@ struct LaunchpadPagedGridView: View {
             alignment: .top
         )
         .contentShape(Rectangle())
-        .gesture(
-            TapGesture().onEnded {
-                onBackgroundTap()
-            },
-            including: .gesture
-        )
+        .background {
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    onBackgroundTap()
+                }
+        }
         .onChange(of: pages.count) { _, newCount in
             let clampedIndex = min(viewModel.currentPage, max(newCount - 1, 0))
             viewModel.selectPage(clampedIndex, totalPages: newCount)

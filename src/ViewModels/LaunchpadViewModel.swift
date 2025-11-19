@@ -155,15 +155,21 @@ final class LaunchpadViewModel: ObservableObject {
     }
 
     func toggleSelection(for id: UUID) {
-        if selectedItemIDs.contains(id) {
-            selectedItemIDs.remove(id)
+        var updated = selectedItemIDs
+        if updated.contains(id) {
+            updated.remove(id)
         } else {
-            selectedItemIDs.insert(id)
+            updated.insert(id)
+        }
+        if updated != selectedItemIDs {
+            selectedItemIDs = updated
         }
     }
 
     func clearSelection() {
-        selectedItemIDs.removeAll()
+        if !selectedItemIDs.isEmpty {
+            selectedItemIDs = []
+        }
     }
 
     func isItemSelected(_ id: UUID) -> Bool {
@@ -342,7 +348,11 @@ final class LaunchpadViewModel: ObservableObject {
         updatedItems[folderIndex] = .folder(folder)
 
         items = updatedItems
-        selectedItemIDs.subtract(idsToRemove)
+        if !idsToRemove.isEmpty {
+            var updated = selectedItemIDs
+            updated.subtract(idsToRemove)
+            selectedItemIDs = updated
+        }
         markLayoutDirty()
         pruneSelection()
         persistIfNeeded()
@@ -353,7 +363,11 @@ final class LaunchpadViewModel: ObservableObject {
         guard isEditing, let index = items.firstIndex(where: { $0.id == id }) else { return }
         items.remove(at: index)
         ensureCurrentPageInBounds()
-        selectedItemIDs.remove(id)
+        if selectedItemIDs.contains(id) {
+            var updated = selectedItemIDs
+            updated.remove(id)
+            selectedItemIDs = updated
+        }
         markLayoutDirty()
         pruneSelection()
         persistIfNeeded()
@@ -398,7 +412,7 @@ final class LaunchpadViewModel: ObservableObject {
 
         items = updatedItems
         presentedFolderID = folder.id
-        selectedItemIDs.removeAll()
+        selectedItemIDs = []
         ensureCurrentPageInBounds()
         markLayoutDirty()
         pruneSelection()
