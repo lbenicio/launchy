@@ -1,7 +1,7 @@
 import SwiftUI
 
-struct LaunchpadItemView: View {
-    let item: LaunchpadItem
+struct LaunchyItemView: View {
+    let item: LaunchyItem
     let dimension: CGFloat
     let isEditing: Bool
     let isSelected: Bool
@@ -10,7 +10,7 @@ struct LaunchpadItemView: View {
     let hasSelectedApps: Bool
     let onOpenFolder: (UUID) -> Void
     let onDelete: (UUID) -> Void
-    let onLaunch: (LaunchpadItem) -> Void
+    let onLaunch: (LaunchyItem) -> Void
     let onSelect: (UUID) -> Void
     let onMoveLeft: (UUID) -> Void
     let onMoveRight: (UUID) -> Void

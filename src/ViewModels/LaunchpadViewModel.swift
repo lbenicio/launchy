@@ -7,8 +7,8 @@ import SwiftUI
 #endif
 
 @MainActor
-final class LaunchpadViewModel: ObservableObject {
-    @Published private(set) var items: [LaunchpadItem]
+final class LaunchyViewModel: ObservableObject {
+    @Published private(set) var items: [LaunchyItem]
     @Published var isEditing: Bool = false
     @Published var currentPage: Int = 0
     @Published var presentedFolderID: UUID? = nil
@@ -18,7 +18,7 @@ final class LaunchpadViewModel: ObservableObject {
     @Published private(set) var isLaunchingApp: Bool = false
     @Published private(set) var isLayoutLoaded: Bool = false
 
-    let dataStore: LaunchpadDataStore
+    let dataStore: LaunchyDataStore
     let settingsStore: GridSettingsStore
 
     private var cancellables: Set<AnyCancellable> = []
@@ -29,9 +29,9 @@ final class LaunchpadViewModel: ObservableObject {
     private var layoutDirty: Bool = false
 
     init(
-        dataStore: LaunchpadDataStore,
+        dataStore: LaunchyDataStore,
         settingsStore: GridSettingsStore,
-        initialItems: [LaunchpadItem]? = nil
+        initialItems: [LaunchyItem]? = nil
     ) {
         self.dataStore = dataStore
         self.settingsStore = settingsStore
@@ -58,14 +58,14 @@ final class LaunchpadViewModel: ObservableObject {
 
     var settings: GridSettings { settingsStore.settings }
 
-    var pagedItems: [[LaunchpadItem]] {
+    var pagedItems: [[LaunchyItem]] {
         let capacity = settings.pageCapacity
         guard capacity > 0 else { return [items] }
         let chunks = items.chunked(into: capacity)
         return chunks.isEmpty ? [[]] : chunks
     }
 
-    func pagedItems(matching query: String) -> [[LaunchpadItem]] {
+    func pagedItems(matching query: String) -> [[LaunchyItem]] {
         let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalized.isEmpty else { return pagedItems }
 
@@ -198,7 +198,7 @@ final class LaunchpadViewModel: ObservableObject {
         presentedFolderID = nil
     }
 
-    func folder(by id: UUID) -> LaunchpadFolder? {
+    func folder(by id: UUID) -> LaunchyFolder? {
         guard let index = items.firstIndex(where: { $0.id == id }),
             case .folder(let folder) = items[index]
         else {
@@ -207,7 +207,7 @@ final class LaunchpadViewModel: ObservableObject {
         return folder
     }
 
-    func item(with id: UUID) -> LaunchpadItem? {
+    func item(with id: UUID) -> LaunchyItem? {
         items.first { $0.id == id }
     }
 
@@ -257,7 +257,7 @@ final class LaunchpadViewModel: ObservableObject {
 
         var updatedItems = items
         updatedItems.remove(at: folderIndex)
-        let flattenedApps = folder.apps.map { LaunchpadItem.app($0) }
+        let flattenedApps = folder.apps.map { LaunchyItem.app($0) }
         updatedItems.insert(contentsOf: flattenedApps, at: folderIndex)
 
         items = updatedItems
@@ -295,7 +295,7 @@ final class LaunchpadViewModel: ObservableObject {
         updatedItems.remove(at: lowerIndex)
 
         let folderName = defaultFolderName(from: targetApp.name)
-        var folder = LaunchpadFolder(name: folderName, apps: [])
+        var folder = LaunchyFolder(name: folderName, apps: [])
         folder.apps.append(targetApp)
         folder.apps.append(draggedApp)
 
@@ -399,7 +399,7 @@ final class LaunchpadViewModel: ObservableObject {
     }
 
     @discardableResult
-    func createFolder(named name: String, from selection: [UUID]) -> LaunchpadFolder? {
+    func createFolder(named name: String, from selection: [UUID]) -> LaunchyFolder? {
         let uniqueIDs = Array(Set(selection))
         guard !uniqueIDs.isEmpty else { return nil }
 
@@ -430,7 +430,7 @@ final class LaunchpadViewModel: ObservableObject {
             folderName = defaultFolderName(from: "")
         }
 
-        let folder = LaunchpadFolder(name: folderName, apps: sortedApps)
+        let folder = LaunchyFolder(name: folderName, apps: sortedApps)
         let insertionIndex = min(
             extractedApps.map { $0.index }.min() ?? updatedItems.count, updatedItems.count)
         updatedItems.insert(.folder(folder), at: insertionIndex)
@@ -611,7 +611,7 @@ final class LaunchpadViewModel: ObservableObject {
         isLaunchingApp = false
     }
 
-    func launch(_ item: LaunchpadItem) {
+    func launch(_ item: LaunchyItem) {
         guard case .app(let app) = item else { return }
 
         closeFolder()

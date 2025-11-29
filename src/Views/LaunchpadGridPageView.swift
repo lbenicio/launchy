@@ -5,15 +5,15 @@ import UniformTypeIdentifiers
     import AppKit
 #endif
 
-struct LaunchpadGridPageView: View {
-    @ObservedObject var viewModel: LaunchpadViewModel
-    let items: [LaunchpadItem]
+struct LaunchyGridPageView: View {
+    @ObservedObject var viewModel: LaunchyViewModel
+    let items: [LaunchyItem]
     let metrics: GridLayoutMetrics
 
     var body: some View {
         LazyVGrid(columns: metrics.columns, alignment: .center, spacing: metrics.verticalSpacing) {
             ForEach(items) { item in
-                launchpadTile(for: item)
+                launchyTile(for: item)
             }
 
             if viewModel.isEditing {
@@ -21,8 +21,8 @@ struct LaunchpadGridPageView: View {
                     .fill(Color.clear)
                     .frame(width: metrics.itemDimension, height: metrics.itemDimension)
                     .onDrop(
-                        of: [.launchpadItemIdentifier],
-                        delegate: LaunchpadTrailingDropDelegate(viewModel: viewModel))
+                        of: [.launchyItemIdentifier],
+                        delegate: LaunchyTrailingDropDelegate(viewModel: viewModel))
             }
         }
         .padding(.horizontal, metrics.padding)
@@ -30,14 +30,14 @@ struct LaunchpadGridPageView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
-    private func launchpadTile(for item: LaunchpadItem) -> some View {
+    private func launchyTile(for item: LaunchyItem) -> some View {
         GeometryReader { proxy in
-            let dropTypes: [UTType] = [.launchpadItemIdentifier]
+            let dropTypes: [UTType] = [.launchyItemIdentifier]
             let frame = CGRect(origin: .zero, size: proxy.size)
             let globalIndex = viewModel.indexOfItem(item.id) ?? 0
             let canMoveLeft = globalIndex > 0
             let canMoveRight = globalIndex < max(viewModel.items.count - 1, 0)
-            let baseView = LaunchpadItemView(
+            let baseView = LaunchyItemView(
                 item: item,
                 dimension: metrics.itemDimension,
                 isEditing: viewModel.isEditing,
@@ -58,7 +58,7 @@ struct LaunchpadGridPageView: View {
             .contentShape(Rectangle())
             .onDrop(
                 of: dropTypes,
-                delegate: LaunchpadItemDropDelegate(
+                delegate: LaunchyItemDropDelegate(
                     item: item,
                     viewModel: viewModel,
                     frameProvider: { frame }
@@ -82,7 +82,7 @@ struct LaunchpadGridPageView: View {
                     return AnyView(
                         folderAwareView.onDrag {
                             viewModel.beginDrag(for: item.id)
-                            return makeProvider(for: LaunchpadDragIdentifier(itemID: item.id))
+                            return makeProvider(for: LaunchyDragIdentifier(itemID: item.id))
                         }
                     )
                 } else {
@@ -96,13 +96,13 @@ struct LaunchpadGridPageView: View {
         .frame(width: metrics.itemDimension, height: metrics.itemDimension + 36)
     }
 
-    private func makeProvider(for payload: LaunchpadDragIdentifier) -> NSItemProvider {
+    private func makeProvider(for payload: LaunchyDragIdentifier) -> NSItemProvider {
         let provider = NSItemProvider()
-        provider.registerDataRepresentation(
-            forTypeIdentifier: UTType.launchpadItemIdentifier.identifier, visibility: .all
+            provider.registerDataRepresentation(
+            forTypeIdentifier: UTType.launchyItemIdentifier.identifier, visibility: .all
         ) { completion -> Progress? in
             do {
-                let data = try JSONEncoder().encode(payload)
+                    let data = try JSONEncoder().encode(payload)
                 completion(data, nil)
             } catch {
                 completion(nil, error)

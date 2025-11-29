@@ -2,10 +2,10 @@ import XCTest
 
 @testable import Launchy
 
-final class LaunchpadViewModelTests: XCTestCase {
+final class LaunchyViewModelTests: XCTestCase {
     private var tempDirectory: URL!
     private var fileManager: StubFileManager!
-    private var dataStore: LaunchpadDataStore!
+    private var dataStore: LaunchyDataStore!
     private var userDefaults: UserDefaults!
     private var userDefaultsSuiteName: String!
 
@@ -19,7 +19,7 @@ final class LaunchpadViewModelTests: XCTestCase {
 
         fileManager = StubFileManager(applicationSupportDirectory: tempDirectory)
         let applicationsProvider = InstalledApplicationsProvider(fileManager: fileManager)
-        dataStore = LaunchpadDataStore(
+        dataStore = LaunchyDataStore(
             fileManager: fileManager,
             applicationsProvider: applicationsProvider
         )
@@ -52,9 +52,9 @@ final class LaunchpadViewModelTests: XCTestCase {
         let appAlpha = makeAppIcon(name: "Alpha", bundleIdentifier: "com.test.alpha")
         let appBeta = makeAppIcon(name: "Beta", bundleIdentifier: "com.test.beta")
         let existingApp = makeAppIcon(name: "Console", bundleIdentifier: "com.test.console")
-        let utilitiesFolder = LaunchpadFolder(name: "Utilities", apps: [existingApp])
+        let utilitiesFolder = LaunchyFolder(name: "Utilities", apps: [existingApp])
 
-        let initialItems: [LaunchpadItem] = [
+        let initialItems: [LaunchyItem] = [
             .app(appAlpha),
             .app(appBeta),
             .folder(utilitiesFolder),
@@ -68,7 +68,7 @@ final class LaunchpadViewModelTests: XCTestCase {
         }
 
         let settingsStore = GridSettingsStore(defaults: userDefaults)
-        let viewModel = LaunchpadViewModel(
+        let viewModel = LaunchyViewModel(
             dataStore: dataStore,
             settingsStore: settingsStore,
             initialItems: initialItems

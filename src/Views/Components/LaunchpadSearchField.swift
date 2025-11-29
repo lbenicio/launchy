@@ -3,7 +3,7 @@ import SwiftUI
 #if os(macOS)
     import AppKit
 
-    struct LaunchpadSearchField: NSViewRepresentable {
+    struct LaunchySearchField: NSViewRepresentable {
         @Binding var text: String
 
         func makeCoordinator() -> Coordinator {
@@ -31,9 +31,9 @@ import SwiftUI
         }
 
         final class Coordinator: NSObject, NSSearchFieldDelegate {
-            var parent: LaunchpadSearchField
+            var parent: LaunchySearchField
 
-            init(parent: LaunchpadSearchField) {
+            init(parent: LaunchySearchField) {
                 self.parent = parent
             }
 
@@ -44,7 +44,7 @@ import SwiftUI
         }
     }
 #else
-    struct LaunchpadSearchField: View {
+    struct LaunchySearchField: View {
         @Binding var text: String
 
         var body: some View {

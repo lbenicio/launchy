@@ -27,7 +27,7 @@ final class LaunchyDataStore {
             do {
                 try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
             } catch {
-                    print("LaunchyDataStore: Failed to create storage directory: \(error)")
+                print("LaunchyDataStore: Failed to create storage directory: \(error)")
             }
         }
     }
@@ -61,7 +61,6 @@ final class LaunchyDataStore {
             print("LaunchyDataStore: Save error => \(error)")
         }
     }
-
 }
 
 extension LaunchyDataStore {

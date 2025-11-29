@@ -1,9 +1,9 @@
 import SwiftUI
 
-struct LaunchpadPagedGridView: View {
-    @ObservedObject var viewModel: LaunchpadViewModel
+struct LaunchyPagedGridView: View {
+    @ObservedObject var viewModel: LaunchyViewModel
     @EnvironmentObject private var settingsStore: GridSettingsStore
-    let pages: [[LaunchpadItem]]
+    let pages: [[LaunchyItem]]
     let fillsAvailableSpace: Bool
     var onBackgroundTap: () -> Void = {}
 
@@ -59,7 +59,7 @@ struct LaunchpadPagedGridView: View {
             ScrollView(.horizontal) {
                 LazyHStack(spacing: 0) {
                     ForEach(enumeratedPages, id: \.offset) { index, page in
-                        LaunchpadGridPageView(viewModel: viewModel, items: page, metrics: metrics)
+                        LaunchyGridPageView(viewModel: viewModel, items: page, metrics: metrics)
                             .frame(width: width, height: height)
                             .containerRelativeFrame(.horizontal)
                             .id(index)

@@ -7,14 +7,14 @@ import SwiftUI
 @main
 struct LaunchyApp: App {
     @StateObject private var settingsStore: GridSettingsStore
-    @StateObject private var viewModel: LaunchpadViewModel
+    @StateObject private var viewModel: LaunchyViewModel
 
     init() {
         let settings = GridSettingsStore()
-        let dataStore = LaunchpadDataStore()
+        let dataStore = LaunchyDataStore()
         _settingsStore = StateObject(wrappedValue: settings)
         _viewModel = StateObject(
-            wrappedValue: LaunchpadViewModel(dataStore: dataStore, settingsStore: settings))
+            wrappedValue: LaunchyViewModel(dataStore: dataStore, settingsStore: settings))
 
         #if os(macOS)
             DispatchQueue.main.async {
@@ -26,7 +26,7 @@ struct LaunchyApp: App {
 
     var body: some Scene {
         WindowGroup {
-            LaunchpadRootView(viewModel: viewModel)
+            LaunchyRootView(viewModel: viewModel)
                 .environmentObject(settingsStore)
         }
         .commands {

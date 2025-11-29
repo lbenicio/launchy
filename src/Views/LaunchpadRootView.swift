@@ -4,8 +4,8 @@ import SwiftUI
     import AppKit
 #endif
 
-struct LaunchpadRootView: View {
-    @ObservedObject var viewModel: LaunchpadViewModel
+struct LaunchyRootView: View {
+    @ObservedObject var viewModel: LaunchyViewModel
     @EnvironmentObject private var settingsStore: GridSettingsStore
 
     @State private var searchText: String = ""
@@ -17,7 +17,7 @@ struct LaunchpadRootView: View {
     @State private var editingBannerHeight: CGFloat = 0
     @FocusState private var isFolderNameFieldFocused: Bool
 
-    private var pages: [[LaunchpadItem]] {
+    private var pages: [[LaunchyItem]] {
         buildPages(for: searchText)
     }
 
@@ -93,7 +93,7 @@ struct LaunchpadRootView: View {
 
                 VStack(spacing: 28) {
                     ZStack {
-                        LaunchpadPagedGridView(
+                        LaunchyPagedGridView(
                             viewModel: viewModel,
                             pages: pages,
                             fillsAvailableSpace: fillScreen,
@@ -271,7 +271,7 @@ struct LaunchpadRootView: View {
         #endif
     }
 
-    private func buildPages(for query: String) -> [[LaunchpadItem]] {
+    private func buildPages(for query: String) -> [[LaunchyItem]] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
             return viewModel.pagedItems
@@ -306,7 +306,7 @@ struct LaunchpadRootView: View {
     }
 
     private var searchField: some View {
-        LaunchpadSearchField(text: $searchText)
+        LaunchySearchField(text: $searchText)
             .frame(width: 240)
     }
 

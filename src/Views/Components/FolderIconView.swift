@@ -5,7 +5,7 @@ import SwiftUI
 #endif
 
 struct FolderIconView: View {
-    let folder: LaunchpadFolder
+    let folder: LaunchyFolder
     let isEditing: Bool
     let dimension: CGFloat
 

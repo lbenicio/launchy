@@ -2,8 +2,8 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct FolderContentView: View {
-    let folder: LaunchpadFolder
-    @ObservedObject var viewModel: LaunchpadViewModel
+    let folder: LaunchyFolder
+    @ObservedObject var viewModel: LaunchyViewModel
     @EnvironmentObject private var settingsStore: GridSettingsStore
 
     var body: some View {
@@ -60,7 +60,7 @@ struct FolderContentView: View {
                             .fill(Color.clear)
                             .frame(width: tileDimension, height: tileDimension)
                             .onDrop(
-                                of: [.launchpadItemIdentifier],
+                                of: [.launchyItemIdentifier],
                                 delegate: FolderTrailingDropDelegate(
                                     folderID: folder.id, viewModel: viewModel))
                     }
@@ -79,10 +79,10 @@ struct FolderContentView: View {
         }
     }
 
-    private func makeProvider(for payload: LaunchpadDragIdentifier) -> NSItemProvider {
+    private func makeProvider(for payload: LaunchyDragIdentifier) -> NSItemProvider {
         let provider = NSItemProvider()
-        provider.registerDataRepresentation(
-            forTypeIdentifier: UTType.launchpadItemIdentifier.identifier, visibility: .all
+            provider.registerDataRepresentation(
+            forTypeIdentifier: UTType.launchyItemIdentifier.identifier, visibility: .all
         ) { completion -> Progress? in
             do {
                 let data = try JSONEncoder().encode(payload)
@@ -136,10 +136,10 @@ struct FolderContentView: View {
                 .onDrag {
                     viewModel.beginDrag(for: app.id, sourceFolder: folder.id)
                     return makeProvider(
-                        for: LaunchpadDragIdentifier(itemID: app.id, sourceFolderID: folder.id))
+                        for: LaunchyDragIdentifier(itemID: app.id, sourceFolderID: folder.id))
                 }
                 .onDrop(
-                    of: [.launchpadItemIdentifier],
+                    of: [.launchyItemIdentifier],
                     delegate: FolderAppDropDelegate(
                         folderID: folder.id, targetAppID: app.id, viewModel: viewModel))
         } else {

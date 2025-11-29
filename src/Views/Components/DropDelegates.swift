@@ -1,13 +1,13 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-struct LaunchpadItemDropDelegate: DropDelegate {
-    let item: LaunchpadItem
-    let viewModel: LaunchpadViewModel
+struct LaunchyItemDropDelegate: DropDelegate {
+    let item: LaunchyItem
+    let viewModel: LaunchyViewModel
     let frameProvider: () -> CGRect?
 
     func validateDrop(info: DropInfo) -> Bool {
-        viewModel.isEditing && info.hasItemsConforming(to: [.launchpadItemIdentifier])
+        viewModel.isEditing && info.hasItemsConforming(to: [.launchyItemIdentifier])
     }
 
     func dropEntered(info: DropInfo) {
@@ -61,11 +61,11 @@ struct LaunchpadItemDropDelegate: DropDelegate {
     }
 }
 
-struct LaunchpadTrailingDropDelegate: DropDelegate {
-    let viewModel: LaunchpadViewModel
+struct LaunchyTrailingDropDelegate: DropDelegate {
+    let viewModel: LaunchyViewModel
 
     func validateDrop(info: DropInfo) -> Bool {
-        viewModel.isEditing && info.hasItemsConforming(to: [.launchpadItemIdentifier])
+        viewModel.isEditing && info.hasItemsConforming(to: [.launchyItemIdentifier])
     }
 
     func dropEntered(info: DropInfo) {
@@ -84,10 +84,10 @@ struct LaunchpadTrailingDropDelegate: DropDelegate {
 
 struct FolderDropDelegate: DropDelegate {
     let folderID: UUID
-    let viewModel: LaunchpadViewModel
+    let viewModel: LaunchyViewModel
 
     func validateDrop(info: DropInfo) -> Bool {
-        viewModel.isEditing && info.hasItemsConforming(to: [.launchpadItemIdentifier])
+        viewModel.isEditing && info.hasItemsConforming(to: [.launchyItemIdentifier])
     }
 
     func dropEntered(info: DropInfo) {
@@ -107,10 +107,10 @@ struct FolderDropDelegate: DropDelegate {
 struct FolderAppDropDelegate: DropDelegate {
     let folderID: UUID
     let targetAppID: UUID
-    let viewModel: LaunchpadViewModel
+    let viewModel: LaunchyViewModel
 
     func validateDrop(info: DropInfo) -> Bool {
-        viewModel.isEditing && info.hasItemsConforming(to: [.launchpadItemIdentifier])
+        viewModel.isEditing && info.hasItemsConforming(to: [.launchyItemIdentifier])
     }
 
     func dropEntered(info: DropInfo) {
@@ -134,10 +134,10 @@ struct FolderAppDropDelegate: DropDelegate {
 
 struct FolderTrailingDropDelegate: DropDelegate {
     let folderID: UUID
-    let viewModel: LaunchpadViewModel
+    let viewModel: LaunchyViewModel
 
     func validateDrop(info: DropInfo) -> Bool {
-        viewModel.isEditing && info.hasItemsConforming(to: [.launchpadItemIdentifier])
+        viewModel.isEditing && info.hasItemsConforming(to: [.launchyItemIdentifier])
     }
 
     func dropEntered(info: DropInfo) {
