@@ -8,8 +8,8 @@ on:
   workflow_run:
     workflows:
       - Release new version App
-      # Add future workflow names here to receive generic notifications
-    # Don't filter by workflow name — react to any workflow completion (on the branch 'main')
+      - pages build and deployment
+      -  Dependabot Updates
     branches:
       - main
     types:
