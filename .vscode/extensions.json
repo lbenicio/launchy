@@ -1,8 +1,0 @@
-{
-	"recommendations": [
-		"sswg.swift-lang",
-		"vadimcn.vscode-lldb",
-		"ms-vscode.makefile-tools"
-	],
-	"unwantedRecommendations": []
-}
