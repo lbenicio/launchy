@@ -78,60 +78,63 @@ jobs:
           set -euo pipefail
           cd .github/workflows
           mapfile -t lines < /tmp/workflow-names.txt || true
-          echo "name: Telegram notification" > notifications.yml.tmp
-          echo "" >> notifications.yml.tmp
-          echo "concurrency:" >> notifications.yml.tmp
-          echo "  group: notification-\${{ github.ref }}" >> notifications.yml.tmp
-          echo "  cancel-in-progress: true" >> notifications.yml.tmp
-          echo "" >> notifications.yml.tmp
-          echo "on:" >> notifications.yml.tmp
-          echo "  workflow_run:" >> notifications.yml.tmp
-          echo "    workflows:" >> notifications.yml.tmp
+          cat > notifications.yml.tmp <<'YAML'
+name: Telegram notification
+
+concurrency:
+  group: notification-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_run:
+    workflows:
+YAML
           for w in "${lines[@]}"; do
-            # Quote the workflow name for safety
             printf '      - "%s"\n' "$w" >> notifications.yml.tmp
           done
-          echo "    branches:" >> notifications.yml.tmp
-          echo "      - main" >> notifications.yml.tmp
-          echo "    types:" >> notifications.yml.tmp
-          echo "      - completed" >> notifications.yml.tmp
-          echo "  workflow_dispatch:" >> notifications.yml.tmp
-          echo "jobs:" >> notifications.yml.tmp
-          echo "  notification:" >> notifications.yml.tmp
-          echo "    runs-on: ubuntu-latest" >> notifications.yml.tmp
-          echo "    permissions:" >> notifications.yml.tmp
-          echo "      contents: read" >> notifications.yml.tmp
-          echo "      packages: write" >> notifications.yml.tmp
-          echo "    if: \${{ github.event.workflow_run.name != 'Telegram notification' }}" >> notifications.yml.tmp
-          echo "    steps:" >> notifications.yml.tmp
-          echo "      - name: Send Telegram message" >> notifications.yml.tmp
-          echo "        uses: appleboy/telegram-action@master" >> notifications.yml.tmp
-          echo "        with:" >> notifications.yml.tmp
-          echo "          to: \${{ secrets.CHATID }}" >> notifications.yml.tmp
-          echo "          token: \${{ secrets.BOTTOKEN }}" >> notifications.yml.tmp
-          echo "          format: markdown" >> notifications.yml.tmp
-          echo "          message: |" >> notifications.yml.tmp
-          echo "            Code Deployed: \${{ github.repository }}" >> notifications.yml.tmp
-          echo "" >> notifications.yml.tmp
-          echo "            \${{ github.actor }} created commit:" >> notifications.yml.tmp
-          echo "            \${{ github.event.workflow_run.head_commit.message }}" >> notifications.yml.tmp
-          echo "" >> notifications.yml.tmp
-          echo "            [View action run](\${{ github.event.workflow_run.html_url }})" >> notifications.yml.tmp
-          echo "            [Cancel action run](\${{ github.event.workflow_run.cancel_url }})" >> notifications.yml.tmp
-          echo "" >> notifications.yml.tmp
-          echo "            Workflow: \${{ github.event.workflow_run.name }}" >> notifications.yml.tmp
-          echo "            Job status: \${{ github.event.workflow_run.conclusion == 'success' && '✅' || '🚫' }} \${{ github.event.workflow_run.conclusion }}" >> notifications.yml.tmp
-          echo "" >> notifications.yml.tmp
-          echo "            See changes: https://github.com/\${{ github.repository }}/commit/\${{github.sha}}" >> notifications.yml.tmp
-          echo "" >> notifications.yml.tmp
-          echo "      - name: Publish workflow summary" >> notifications.yml.tmp
-          echo "        if: always()" >> notifications.yml.tmp
-          echo "        shell: bash" >> notifications.yml.tmp
-          echo "        run: |" >> notifications.yml.tmp
-          echo "          echo \"## Notification – Summary\" >> \"\$GITHUB_STEP_SUMMARY\"" >> notifications.yml.tmp
-          echo "          echo \"Triggered workflow: \${{ github.event.workflow_run.name }}\" >> \"\$GITHUB_STEP_SUMMARY\"" >> notifications.yml.tmp
-          echo "          echo \"Conclusion: \${{ github.event.workflow_run.conclusion }}\" >> \"\$GITHUB_STEP_SUMMARY\"" >> notifications.yml.tmp
-          echo "          echo \"Run URL: \${{ github.event.workflow_run.html_url }}\" >> \"\$GITHUB_STEP_SUMMARY\"" >> notifications.yml.tmp
+          cat >> notifications.yml.tmp <<'YAML'
+    branches:
+      - main
+    types:
+      - completed
+  workflow_dispatch:
+jobs:
+  notification:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    if: ${{ github.event.workflow_run.name != 'Telegram notification' }}
+    steps:
+      - name: Send Telegram message
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.CHATID }}
+          token: ${{ secrets.BOTTOKEN }}
+          format: markdown
+          message: |
+            Code Deployed: ${{ github.repository }}
+
+            ${{ github.actor }} created commit:
+            ${{ github.event.workflow_run.head_commit.message }}
+
+            [View action run](${{ github.event.workflow_run.html_url }})
+            [Cancel action run](${{ github.event.workflow_run.cancel_url }})
+
+            Workflow: ${{ github.event.workflow_run.name }}
+            Job status: ${{ github.event.workflow_run.conclusion == 'success' && '✅' || '🚫' }} ${{ github.event.workflow_run.conclusion }}
+
+            See changes: https://github.com/${{ github.repository }}/commit/${{github.sha}}
+
+      - name: Publish workflow summary
+        if: always()
+        shell: bash
+        run: |
+          echo "## Notification – Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "Triggered workflow: ${{ github.event.workflow_run.name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Conclusion: ${{ github.event.workflow_run.conclusion }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Run URL: ${{ github.event.workflow_run.html_url }}" >> "$GITHUB_STEP_SUMMARY"
+YAML
 
       - name: Commit and push notifications.yml if changed
         run: |
