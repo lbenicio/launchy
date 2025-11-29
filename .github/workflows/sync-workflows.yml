@@ -1,0 +1,122 @@
+name: Sync workflow names for notifications
+
+on:
+  push:
+    paths:
+      - '.github/workflows/**'
+    # ignore changes that only affect the notifications.yml and this file to prevent a loop
+    paths-ignore:
+      - '.github/workflows/notifications.yml'
+      - '.github/workflows/sync-workflows.yml'
+
+jobs:
+  update-notifications:
+    name: Update notifications.yml with workflow names
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gather top-level workflow names
+        id: gather
+        run: |
+          set -euo pipefail
+          # Get top-level "name:" lines from workflow files in the directory
+          shopt -s nullglob
+          cd .github/workflows
+          names=""
+          for f in *.yml *.yaml; do
+            # Grab the top-level 'name:' (non-indented) line from the file, if present
+            n=$(awk '/^name:/{print substr($0, index($0,$2)) ; exit}' "$f" | sed 's/^ *//;s/ *$//') || true
+            if [[ -n "$n" ]]; then
+              # Ignore the special notification and sync workflows
+              if [[ "$n" == "Telegram notification" || "$n" == "Sync workflow names for notifications" ]]; then
+                continue
+              fi
+              names+="$n\n"
+            fi
+          done
+          # Deduplicate and sort
+          echo -e "$names" | sort -u | sed '/^$/d' > /tmp/workflow-names.txt || true
+          echo "names=$(cat /tmp/workflow-names.txt | wc -l)" >> "$GITHUB_OUTPUT"
+
+      - name: Render notifications.yml
+        id: render
+        run: |
+          set -euo pipefail
+          cd .github/workflows
+          mapfile -t lines < /tmp/workflow-names.txt || true
+          echo "name: Telegram notification" > notifications.yml.tmp
+          echo "" >> notifications.yml.tmp
+          echo "concurrency:" >> notifications.yml.tmp
+          echo "  group: notification-\${{ github.ref }}" >> notifications.yml.tmp
+          echo "  cancel-in-progress: true" >> notifications.yml.tmp
+          echo "" >> notifications.yml.tmp
+          echo "on:" >> notifications.yml.tmp
+          echo "  workflow_run:" >> notifications.yml.tmp
+          echo "    workflows:" >> notifications.yml.tmp
+          for w in "${lines[@]}"; do
+            # Quote the workflow name for safety
+            printf '      - "%s"\n' "$w" >> notifications.yml.tmp
+          done
+          echo "    branches:" >> notifications.yml.tmp
+          echo "      - main" >> notifications.yml.tmp
+          echo "    types:" >> notifications.yml.tmp
+          echo "      - completed" >> notifications.yml.tmp
+          echo "  workflow_dispatch:" >> notifications.yml.tmp
+          echo "jobs:" >> notifications.yml.tmp
+          echo "  notification:" >> notifications.yml.tmp
+          echo "    runs-on: ubuntu-latest" >> notifications.yml.tmp
+          echo "    permissions:" >> notifications.yml.tmp
+          echo "      contents: read" >> notifications.yml.tmp
+          echo "      packages: write" >> notifications.yml.tmp
+          echo "    if: \${{ github.event.workflow_run.name != 'Telegram notification' }}" >> notifications.yml.tmp
+          echo "    steps:" >> notifications.yml.tmp
+          echo "      - name: Send Telegram message" >> notifications.yml.tmp
+          echo "        uses: appleboy/telegram-action@master" >> notifications.yml.tmp
+          echo "        with:" >> notifications.yml.tmp
+          echo "          to: \${{ secrets.CHATID }}" >> notifications.yml.tmp
+          echo "          token: \${{ secrets.BOTTOKEN }}" >> notifications.yml.tmp
+          echo "          format: markdown" >> notifications.yml.tmp
+          echo "          message: |" >> notifications.yml.tmp
+          echo "            Code Deployed: \${{ github.repository }}" >> notifications.yml.tmp
+          echo "" >> notifications.yml.tmp
+          echo "            \${{ github.actor }} created commit:" >> notifications.yml.tmp
+          echo "            \${{ github.event.workflow_run.head_commit.message }}" >> notifications.yml.tmp
+          echo "" >> notifications.yml.tmp
+          echo "            [View action run](\${{ github.event.workflow_run.html_url }})" >> notifications.yml.tmp
+          echo "            [Cancel action run](\${{ github.event.workflow_run.cancel_url }})" >> notifications.yml.tmp
+          echo "" >> notifications.yml.tmp
+          echo "            Workflow: \${{ github.event.workflow_run.name }}" >> notifications.yml.tmp
+          echo "            Job status: \${{ github.event.workflow_run.conclusion == 'success' && '✅' || '🚫' }} \${{ github.event.workflow_run.conclusion }}" >> notifications.yml.tmp
+          echo "" >> notifications.yml.tmp
+          echo "            See changes: https://github.com/\${{ github.repository }}/commit/\${{github.sha}}" >> notifications.yml.tmp
+          echo "" >> notifications.yml.tmp
+          echo "      - name: Publish workflow summary" >> notifications.yml.tmp
+          echo "        if: always()" >> notifications.yml.tmp
+          echo "        shell: bash" >> notifications.yml.tmp
+          echo "        run: |" >> notifications.yml.tmp
+          echo "          echo \"## Notification – Summary\" >> \"\$GITHUB_STEP_SUMMARY\"" >> notifications.yml.tmp
+          echo "          echo \"Triggered workflow: \${{ github.event.workflow_run.name }}\" >> \"\$GITHUB_STEP_SUMMARY\"" >> notifications.yml.tmp
+          echo "          echo \"Conclusion: \${{ github.event.workflow_run.conclusion }}\" >> \"\$GITHUB_STEP_SUMMARY\"" >> notifications.yml.tmp
+          echo "          echo \"Run URL: \${{ github.event.workflow_run.html_url }}\" >> \"\$GITHUB_STEP_SUMMARY\"" >> notifications.yml.tmp
+
+      - name: Commit and push notifications.yml if changed
+        run: |
+          set -euo pipefail
+          cd .github/workflows
+          # Only commit if different
+          if ! git diff --quiet -- notifications.yml notifications.yml.tmp; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            mv notifications.yml.tmp notifications.yml
+            git add notifications.yml
+            git commit -m "ci: sync workflow names for notifications" || true
+            git push origin HEAD:main
+          else
+            echo "No notifications.yml change detected"
+          fi
