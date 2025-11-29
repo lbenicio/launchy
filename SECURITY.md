@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-We currently support the latest main branch of Tahoe Launchpad. Security fixes are applied and released on a best-effort basis. If you are using a fork or a custom build, please keep it up-to-date with the upstream main branch.
+We currently support the latest main branch of Launchy. Security fixes are applied and released on a best-effort basis. If you are using a fork or a custom build, please keep it up-to-date with the upstream main branch.
 
 | Version | Supported |
 | ------- | --------- |
@@ -20,7 +20,7 @@ If you discover a security vulnerability:
 ## Security Best Practices
 
 - Always download builds from trusted sources.
-- Keep macOS and Tahoe Launchpad updated to the latest versions.
+- Keep macOS and Launchy updated to the latest versions.
 - Avoid running or modifying the codebase with elevated privileges unless necessary.
 
-Thank you for helping keep Tahoe Launchpad secure.
+Thank you for helping keep Launchy secure.

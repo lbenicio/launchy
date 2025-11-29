@@ -5,20 +5,40 @@
 			"request": "launch",
 			"args": [],
 			"cwd": "${workspaceFolder:macos-launchpad-tahoe-v1}",
-			"name": "Debug TahoeLaunchpad",
-			"target": "TahoeLaunchpad",
+			"name": "Debug Launchy",
+			"target": "Launchy",
 			"configuration": "debug",
-			"preLaunchTask": "swift: Build Debug TahoeLaunchpad"
+			"preLaunchTask": "swift: Build Debug Launchy"
 		},
 		{
 			"type": "swift",
 			"request": "launch",
 			"args": [],
 			"cwd": "${workspaceFolder:macos-launchpad-tahoe-v1}",
-			"name": "Release TahoeLaunchpad",
-			"target": "TahoeLaunchpad",
+			"name": "Release Launchy",
+			"target": "Launchy",
 			"configuration": "release",
-			"preLaunchTask": "swift: Build Release TahoeLaunchpad"
+			"preLaunchTask": "swift: Build Release Launchy"
+		},
+		{
+			"type": "swift",
+			"request": "launch",
+			"args": [],
+			"cwd": "${workspaceFolder:macos-launchpad-tahoe-v1}",
+			"name": "Debug Launchy",
+			"target": "Launchy",
+			"configuration": "debug",
+			"preLaunchTask": "swift: Build Debug Launchy"
+		},
+		{
+			"type": "swift",
+			"request": "launch",
+			"args": [],
+			"cwd": "${workspaceFolder:macos-launchpad-tahoe-v1}",
+			"name": "Release Launchy",
+			"target": "Launchy",
+			"configuration": "release",
+			"preLaunchTask": "swift: Build Release Launchy"
 		}
 	]
 }

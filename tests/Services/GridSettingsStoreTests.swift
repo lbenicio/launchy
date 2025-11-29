@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import TahoeLaunchpad
+@testable import Launchy
 
 final class GridSettingsStoreTests: XCTestCase {
     @MainActor

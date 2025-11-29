@@ -1,6 +1,6 @@
-# Tahoe Launchpad
+# Launchy
 
-Tahoe Launchpad is a macOS SwiftUI application that recreates the familiar Launchpad experience with enhanced customization. It lets you browse, search, and organize installed apps into pages and folders with smooth paging, wiggle mode editing, and persistent layout storage.
+Launchy is a macOS SwiftUI application that recreates the familiar Launchpad experience with enhanced customization. It lets you browse, search, and organize installed apps into pages and folders with smooth paging, wiggle mode editing, and persistent layout storage.
 
 ## Features
 
@@ -29,7 +29,7 @@ swift build
 Run the app from Xcode or the command line:
 
 ```bash
-swift run TahoeLaunchpad
+swift run Launchy
 ```
 
 ## Development Tips

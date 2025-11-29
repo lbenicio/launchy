@@ -20,7 +20,7 @@ final class LaunchpadDataStore {
         let support =
             fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSTemporaryDirectory())
-        let directory = support.appendingPathComponent("TahoeLaunchpad", isDirectory: true)
+        let directory = support.appendingPathComponent("Launchy", isDirectory: true)
         storageURL = directory.appendingPathComponent("launchpad-data.json", conformingTo: .json)
 
         if !fileManager.fileExists(atPath: directory.path) {

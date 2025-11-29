@@ -7,22 +7,22 @@ import PackageDescription
 let packageVersion = "0.0.1"
 
 let package = Package(
-    name: "TahoeLaunchpad",
+    name: "Launchy",
     platforms: [
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "TahoeLaunchpad", targets: ["TahoeLaunchpad"])
+        .executable(name: "Launchy", targets: ["Launchy"])
     ],
     dependencies: [],
     targets: [
         .executableTarget(
-            name: "TahoeLaunchpad",
+            name: "Launchy",
             path: "src"
         ),
         .testTarget(
-            name: "TahoeLaunchpadTests",
-            dependencies: ["TahoeLaunchpad"],
+            name: "LaunchyTests",
+            dependencies: ["Launchy"],
             path: "tests"
         )
     ]

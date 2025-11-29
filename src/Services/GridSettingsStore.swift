@@ -10,7 +10,7 @@ final class GridSettingsStore: ObservableObject {
     }
 
     private let defaults: UserDefaults
-    private let settingsKey = "com.tahoe.launchpad.grid-settings"
+    private let settingsKey = "com.launchy.launchpad.grid-settings"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults

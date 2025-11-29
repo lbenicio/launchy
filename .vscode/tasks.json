@@ -2,7 +2,7 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "swift: Build Debug TahoeLaunchpad",
+			"label": "swift: Build Debug Launchy",
 			"type": "shell",
 			"command": "swift",
 			"args": ["build", "--configuration", "debug"],
@@ -13,7 +13,7 @@
 			"problemMatcher": []
 		},
 		{
-			"label": "swift: Build Release TahoeLaunchpad",
+			"label": "swift: Build Release Launchy",
 			"type": "shell",
 			"command": "swift",
 			"args": ["build", "--configuration", "release"],
@@ -24,7 +24,7 @@
 			"problemMatcher": []
 		},
 		{
-			"label": "swift: Bundle TahoeLaunchpad",
+			"label": "swift: Bundle Launchy",
 			"type": "shell",
 			"command": "make",
 			"args": ["bundle"],

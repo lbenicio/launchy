@@ -1,7 +1,7 @@
-# Makefile for building and distributing the TahoeLaunchpad macOS application
+# Makefile for building and distributing the Launchy macOS application
 
 # Application settings
-APP_NAME := TahoeLaunchpad
+APP_NAME := Launchy
 BUILD_DIR := .build
 DIST_DIR := dist
 RELEASE_BIN := $(BUILD_DIR)/release/$(APP_NAME)

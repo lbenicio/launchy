@@ -56,14 +56,14 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Launchpad Settings")
+                    Text("Launchy Settings")
                         .font(.system(size: 24, weight: .bold, design: .rounded))
                     Text("Fine-tune the grid density, folder layout, and interaction behaviour.")
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                 }
 
-                settingsCard(title: "Launchpad Grid", systemImage: "square.grid.3x3.fill") {
+                settingsCard(title: "Launchy Grid", systemImage: "square.grid.3x3.fill") {
                     gridStepperRow(
                         title: "Columns",
                         subtitle: "Number of icons per row",
@@ -132,7 +132,7 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Fill Entire Screen")
                                 .font(.system(size: 15, weight: .semibold))
-                            Text("Disable to keep the launchpad centered and sized to the grid.")
+                            Text("Disable to keep the launcher centered and sized to the grid.")
                                 .font(.system(size: 12))
                                 .foregroundStyle(.secondary)
                         }
