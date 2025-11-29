@@ -146,7 +146,7 @@ struct LaunchyPagedGridView: View {
                 }
             }
         }
-        #if os(macOS)
+#if os(macOS)
             .overlay(
                 PageNavigationKeyHandler(
                     scrollSensitivity: settingsStore.settings.scrollSensitivity,
@@ -155,6 +155,6 @@ struct LaunchyPagedGridView: View {
                 )
                 .allowsHitTesting(false)
             )
-        #endif
+#endif
     }
 }
