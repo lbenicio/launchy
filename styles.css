@@ -123,7 +123,8 @@ body {
 	border-radius: 8px;
 	border: 1px solid #e6e9ee;
 }
-.subscribe-form button {
+.subscribe-form button,
+.subscribe-form input[type="submit"] {
 	background: var(--accent);
 	border: none;
 	color: #fff;
@@ -134,6 +135,31 @@ body {
 	margin-top: 8px;
 	font-size: 14px;
 	color: var(--muted);
+}
+
+/* tiny confetti animation for subscribe success */
+.confetti {
+	position: fixed;
+	left: 50%;
+	top: 12%;
+	width: 8px;
+	height: 8px;
+	background: var(--accent);
+	border-radius: 50%;
+	opacity: 0.9;
+	transform: translateX(-50%);
+	animation: confetti-fall 900ms linear;
+	pointer-events: none;
+}
+
+@keyframes confetti-fall {
+	0% {
+		transform: translate(-50%, 0) rotate(0deg);
+	}
+	100% {
+		transform: translate(-50%, 120vh) rotate(560deg);
+		opacity: 0;
+	}
 }
 .sr-only {
 	position: absolute;
