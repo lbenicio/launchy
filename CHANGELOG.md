@@ -19,8 +19,8 @@ The format is based on "Keep a Changelog" and this project adheres to [Semantic 
 - Rebranded core product strings to **Launchy** from Tahoe Launchpad (package/product names, README, security, issue templates, VS Code tasks, and build targets).
 - `Package.swift`, build and test targets renamed to `Launchy`/`LaunchyTests`.
 - Application Support path changed to use `Launchy` (previously `TahoeLaunchpad`).
-- Migration of persisted keys and UTType identifiers to `com.launchy` domain where appropriate.
-- `GridSettingsStore` defaults key updated to `com.launchy.launchpad.grid-settings`.
+- Migration of persisted keys and UTType identifiers to `dev.lbenicio.launchy` domain where appropriate.
+- `GridSettingsStore` defaults key updated to `dev.lbenicio.launchy.grid-settings`.
 
 ### Fixed
 

@@ -17,5 +17,5 @@ struct LaunchpadDragIdentifier: Transferable, Codable, Hashable {
 }
 
 extension UTType {
-    static let launchpadItemIdentifier = UTType(exportedAs: "com.launchy.launchpad.item")
+    static let launchpadItemIdentifier = UTType(exportedAs: "dev.lbenicio.launchy.item")
 }

@@ -25,7 +25,7 @@ ICON_DEST := $(RESOURCES_DIR)/launchy.icns
 # Distribution artifact paths
 DMG_PATH := $(DIST_DIR)/$(APP_NAME)-$(VERSION).dmg
 PKG_PATH := $(DIST_DIR)/$(APP_NAME)-$(VERSION).pkg
-PKG_IDENTIFIER := com.example.$(APP_NAME)
+PKG_IDENTIFIER := dev.lbenicio.launchy.$(APP_NAME)
 
 .DEFAULT_GOAL := bundle
 
