@@ -1,0 +1,132 @@
+name: Release new version App
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write # required for creating releases and upload assets
+  packages: write
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+    name: Build, bundle, and release
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up environment
+        run: |
+          set -euo pipefail
+          echo "Using Swift $(swift --version | head -n1)"
+
+      - name: Extract package version
+        id: version
+        run: |
+          set -euo pipefail
+          pkg_ver=$(sed -n 's/^let packageVersion *= *"\([^"]*\)".*/\1/p' Package.swift)
+          if [[ -z "$pkg_ver" ]]; then
+            echo "ERROR: packageVersion not found in Package.swift" >&2
+            exit 1
+          fi
+          echo "package_version=$pkg_ver" >> $GITHUB_OUTPUT
+
+      - name: Extract release notes from CHANGELOG.md
+        id: notes
+        run: |
+          set -euo pipefail
+          v=${{ steps.version.outputs.package_version }}
+          # Find the changelog section corresponding to this version
+          # Header format: ## [X.Y.Z] - date
+          text=$(awk -v ver="$v" 'BEGIN{found=0} $0 ~ "^## \[" ver "\]"{found=1; next} /^## \[/ && found==1{exit} found{printf "%s\n",$0}' CHANGELOG.md)
+          if [[ -z "$text" ]]; then
+            echo "ERROR: no changelog entry found for version $v" >&2
+            exit 1
+          fi
+          printf '%s' "$text" > release_notes.txt
+          echo "release_notes_path=release_notes.txt" >> $GITHUB_OUTPUT
+
+      - name: Check if tag already exists
+        run: |
+          set -euo pipefail
+          v=${{ steps.version.outputs.package_version }}
+          git fetch --tags
+          if git rev-parse "v${v}" >/dev/null 2>&1; then
+            echo "ERROR: tag v${v} already exists" >&2
+            exit 1
+          fi
+
+      - name: Build release binary
+        run: |
+          set -euo pipefail
+          swift build -c release
+          BIN_PATH=$(swift build -c release --show-bin-path)
+          if [[ ! -x "$BIN_PATH/Launchy" ]]; then
+            echo "ERROR: built binary not found at $BIN_PATH/Launchy" >&2
+            ls -al "$BIN_PATH" || true
+            exit 1
+          fi
+          echo "BIN_PATH=$BIN_PATH" >> $GITHUB_OUTPUT
+
+      - name: Create .app bundle and package
+        id: package
+        run: |
+          set -euo pipefail
+          v=${{ steps.version.outputs.package_version }}
+          bin=$(swift build -c release --show-bin-path)/Launchy
+          if [[ ! -f "$bin" ]]; then
+            echo "ERROR: binary not found: $bin" >&2
+            exit 1
+          fi
+          mkdir -p out/Launchy.app/Contents/MacOS
+          cp "$bin" out/Launchy.app/Contents/MacOS/Launchy
+          chmod +x out/Launchy.app/Contents/MacOS/Launchy
+          # Generate Info.plist from template
+          if [[ ! -f assets/plists/Info.plist ]]; then
+            echo "ERROR: assets/plists/Info.plist template not found" >&2
+            exit 1
+          fi
+          APP_NAME=Launchy
+          sed -e "s|{{APP_NAME}}|$APP_NAME|g" -e "s|{{VERSION}}|$v|g" assets/plists/Info.plist > out/Launchy.app/Contents/Info.plist
+          # Ensure CFBundleIdentifier was replaced
+          if ! grep -q "dev.lbenicio.launchy." out/Launchy.app/Contents/Info.plist; then
+            echo "ERROR: CFBundleIdentifier doesn't include dev.lbenicio.launchy in Info.plist" >&2
+            cat out/Launchy.app/Contents/Info.plist
+            exit 1
+          fi
+          cd out
+          zip -r "Launchy-macOS-${v}.zip" "Launchy.app"
+          echo "package_zip=out/Launchy-macOS-${v}.zip" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub release
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.package_version }}
+          release_name: v${{ steps.version.outputs.package_version }}
+          body_path: release_notes.txt
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: out/Launchy-macOS-${{ steps.version.outputs.package_version }}.zip
+          asset_name: Launchy-macOS-${{ steps.version.outputs.package_version }}.zip
+          asset_content_type: application/zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish GitHub summary
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          v=${{ steps.version.outputs.package_version }}
+          echo "## Build & Release – Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "Release: v$v" >> "$GITHUB_STEP_SUMMARY"
+          echo "Release notes: $(sed -n '1,8p' release_notes.txt)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Artifact: Launchy-macOS-$v.zip" >> "$GITHUB_STEP_SUMMARY"
