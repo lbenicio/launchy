@@ -15,6 +15,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install Swift 6.0.2
+        run: |
+          set -euo pipefail
+          SWIFT_VERSION="6.0.2"
+          SWIFT_PLATFORM="xcode"
+          SWIFT_RELEASE="swift-${SWIFT_VERSION}-RELEASE"
+          SWIFT_PKG="${SWIFT_RELEASE}-${SWIFT_PLATFORM}.pkg"
+          SWIFT_URL="https://download.swift.org/swift-${SWIFT_VERSION}-release/${SWIFT_PLATFORM}/${SWIFT_RELEASE}/${SWIFT_PKG}"
+          
+          echo "Downloading Swift ${SWIFT_VERSION} from ${SWIFT_URL}..."
+          curl -fsSL -o "/tmp/${SWIFT_PKG}" "${SWIFT_URL}"
+          
+          echo "Installing Swift ${SWIFT_VERSION}..."
+          sudo installer -pkg "/tmp/${SWIFT_PKG}" -target /
+          
+          # Update PATH to use the new Swift toolchain
+          TOOLCHAIN_PATH="/Library/Developer/Toolchains/${SWIFT_RELEASE}.xctoolchain/usr/bin"
+          echo "${TOOLCHAIN_PATH}" >> $GITHUB_PATH
+          
+          echo "Swift ${SWIFT_VERSION} installed successfully"
+
       - name: Set up environment
         run: |
           set -euo pipefail
