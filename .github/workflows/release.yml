@@ -15,10 +15,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Swift 6.0.2
+      - name: Install Swift 6.2
         run: |
           set -euo pipefail
-          SWIFT_VERSION="6.0.2"
+          SWIFT_VERSION="6.2"
           SWIFT_PLATFORM="xcode"
           SWIFT_RELEASE="swift-${SWIFT_VERSION}-RELEASE"
           SWIFT_PKG="${SWIFT_RELEASE}-${SWIFT_PLATFORM}.pkg"
