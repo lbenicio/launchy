@@ -38,7 +38,7 @@ jobs:
           v=${{ steps.version.outputs.package_version }}
           # Find the changelog section corresponding to this version
           # Header format: ## [X.Y.Z] - date
-          text=$(awk -v ver="$v" 'BEGIN{found=0} $0 ~ "^## \[" ver "\]"{found=1; next} /^## \[/ && found==1{exit} found{printf "%s\n",$0}' CHANGELOG.md)
+          text=$(awk -v ver="$v" 'BEGIN{found=0} $0 ~ "^## \\[" ver "\\]"{found=1; next} /^## \[/ && found==1{exit} found{printf "%s\n",$0}' CHANGELOG.md)
           if [[ -z "$text" ]]; then
             echo "ERROR: no changelog entry found for version $v" >&2
             exit 1
