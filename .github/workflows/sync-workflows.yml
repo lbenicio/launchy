@@ -4,10 +4,6 @@ on:
   push:
     paths:
       - '.github/workflows/**'
-    # ignore changes that only affect the notifications.yml and this file to prevent a loop
-    paths-ignore:
-      - '.github/workflows/notifications.yml'
-      - '.github/workflows/sync-workflows.yml'
 
 jobs:
   update-notifications:
@@ -20,6 +16,38 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Exit early if only generated workflow files changed
+        id: check-files
+        run: |
+          set -euo pipefail
+          before=${{ github.event.before }}
+          after=${{ github.sha }}
+          echo "before=${before}, after=${after}"
+          if [ "$before" = "0000000000000000000000000000000000000000" ]; then
+            echo "Initial commit / branch; continuing"
+            exit 0
+          fi
+          git fetch --no-tags origin ${GITHUB_REF} --depth=2 || true
+          files=$(git diff --name-only "$before" "$after" || true)
+          echo "Changed files:"$files
+          if [ -z "$files" ]; then
+            echo "No files changed? continuing..."
+            exit 0
+          fi
+          # if all changed files are the generated notifications.yml or this sync file, exit
+          only_generated=true
+          for f in $files; do
+            case "$f" in
+              .github/workflows/notifications.yml|.github/workflows/sync-workflows.yml)
+                ;;
+              *) only_generated=false; break ;;
+            esac
+          done
+          if [ "$only_generated" = true ]; then
+            echo "Only generated workflow files changed; nothing to do."
+            exit 0
+          fi
 
       - name: Gather top-level workflow names
         id: gather
