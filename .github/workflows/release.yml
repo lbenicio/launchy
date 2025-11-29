@@ -130,3 +130,4 @@ jobs:
           echo "Release: v$v" >> "$GITHUB_STEP_SUMMARY"
           echo "Release notes: $(sed -n '1,8p' release_notes.txt)" >> "$GITHUB_STEP_SUMMARY"
           echo "Artifact: Launchy-macOS-$v.zip" >> "$GITHUB_STEP_SUMMARY"
+          echo "Release URL: ${{ steps.create_release.outputs.html_url }}" >> "$GITHUB_STEP_SUMMARY"
