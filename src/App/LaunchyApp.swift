@@ -3,7 +3,7 @@ import SwiftUI
 #if os(macOS)
     import AppKit
 
-    final class AppDelegate: NSObject, NSApplicationDelegate {
+    final class AppDelegate: NSObject, NSApplicationDelegate, @unchecked Sendable {
         func applicationDidFinishLaunching(_ notification: Notification) {
             let hotkeyService = GlobalHotkeyService.shared
             hotkeyService.onToggle = { [weak self] in

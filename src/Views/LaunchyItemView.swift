@@ -102,7 +102,7 @@ struct LaunchyItemView: View {
                 } label: {
                     Label("Remove from Launchy", systemImage: "trash")
                 }
-            } else if case .folder(let folder) = item {
+            } else if case .folder(_) = item {
                 Button {
                     onOpenFolder(item.id)
                 } label: {

@@ -404,8 +404,10 @@ struct LaunchyRootView: View {
                         context.duration = 0.18
                         window.animator().alphaValue = 0
                     } completionHandler: {
-                        window.orderOut(nil)
-                        NSApp.hide(nil)
+                        MainActor.assumeIsolated {
+                            window.orderOut(nil)
+                            NSApp.hide(nil)
+                        }
                     }
                 } else {
                     NSApp.hide(nil)
