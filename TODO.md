@@ -96,7 +96,7 @@ The test suite currently has **4 tests** across 3 files. The drag-and-drop, fold
 
 ### P1 — High-value tests to add
 
-- [ ] **`extractDraggedItemIfNeeded`** — drag from folder to grid, folder auto-disband when 1 app left
+- [x] **`extractDraggedItemIfNeeded`** — drag from folder to grid, folder auto-disband when 1 app left
 - [ ] **`stackDraggedItem` (app → folder)** — index adjustment after removal
 - [ ] **`stackDraggedItem` (app → app)** — new folder creation, target index re-lookup
 - [ ] **`moveItem`** — no-op when already adjacent, append when target is nil

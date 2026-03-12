@@ -97,6 +97,206 @@ final class LaunchyViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.selectedItemIDs.isEmpty)
     }
 
+    // MARK: - extractDraggedItemIfNeeded Tests
+
+    func testExtractDraggedItemFromFolderWithMultipleApps() throws {
+        let appA = makeAppIcon(name: "AppA", bundleIdentifier: "com.test.a")
+        let appB = makeAppIcon(name: "AppB", bundleIdentifier: "com.test.b")
+        let appC = makeAppIcon(name: "AppC", bundleIdentifier: "com.test.c")
+        let appD = makeAppIcon(name: "AppD", bundleIdentifier: "com.test.d")
+        let folder = LaunchyFolder(name: "Tools", apps: [appA, appB, appC])
+
+        let initialItems: [LaunchyItem] = [
+            .app(appD),
+            .folder(folder),
+        ]
+
+        let viewModel = makeViewModel(initialItems: initialItems)
+
+        // Simulate dragging appB out of the folder
+        viewModel.beginDrag(for: appB.id, sourceFolder: folder.id)
+        viewModel.extractDraggedItemIfNeeded()
+
+        // The dragged app should now be a top-level item
+        XCTAssertTrue(
+            viewModel.items.contains(where: { $0.id == appB.id && $0.asApp != nil }),
+            "Extracted app should appear as a top-level item"
+        )
+
+        // The folder should still exist with the remaining 2 apps
+        guard let updatedFolder = viewModel.folder(by: folder.id) else {
+            XCTFail("Folder should still exist when it has 2+ apps remaining")
+            return
+        }
+        XCTAssertEqual(updatedFolder.apps.count, 2)
+        XCTAssertTrue(updatedFolder.apps.contains(where: { $0.id == appA.id }))
+        XCTAssertTrue(updatedFolder.apps.contains(where: { $0.id == appC.id }))
+        XCTAssertFalse(updatedFolder.apps.contains(where: { $0.id == appB.id }))
+
+        // dragSourceFolderID should be cleared since the item is now top-level
+        XCTAssertNil(viewModel.dragSourceFolderID)
+    }
+
+    func testExtractDraggedItemDisbandsFolderWhenOneAppLeft() throws {
+        let appA = makeAppIcon(name: "AppA", bundleIdentifier: "com.test.a")
+        let appB = makeAppIcon(name: "AppB", bundleIdentifier: "com.test.b")
+        let appC = makeAppIcon(name: "AppC", bundleIdentifier: "com.test.c")
+        let folder = LaunchyFolder(name: "Duo", apps: [appA, appB])
+
+        let initialItems: [LaunchyItem] = [
+            .app(appC),
+            .folder(folder),
+        ]
+
+        let viewModel = makeViewModel(initialItems: initialItems)
+
+        // Simulate dragging appA out of the folder (leaves only appB)
+        viewModel.beginDrag(for: appA.id, sourceFolder: folder.id)
+        viewModel.extractDraggedItemIfNeeded()
+
+        // The folder should be disbanded since only 1 app would remain
+        XCTAssertNil(
+            viewModel.folder(by: folder.id),
+            "Folder should be disbanded when only 1 app remains"
+        )
+
+        // Both apps from the folder should now be top-level items
+        XCTAssertTrue(
+            viewModel.items.contains(where: { $0.id == appA.id && $0.asApp != nil }),
+            "Dragged app should be a top-level item"
+        )
+        XCTAssertTrue(
+            viewModel.items.contains(where: { $0.id == appB.id && $0.asApp != nil }),
+            "Remaining app should be promoted to top-level after folder disband"
+        )
+
+        // The original non-folder app should still be present
+        XCTAssertTrue(viewModel.items.contains(where: { $0.id == appC.id }))
+
+        // No folders should remain
+        XCTAssertFalse(viewModel.items.contains(where: { $0.isFolder }))
+    }
+
+    func testExtractDraggedItemDisbandsFolderWhenZeroAppsLeft() throws {
+        let appA = makeAppIcon(name: "AppA", bundleIdentifier: "com.test.a")
+        let folder = LaunchyFolder(name: "Solo", apps: [appA])
+
+        let initialItems: [LaunchyItem] = [
+            .folder(folder)
+        ]
+
+        let viewModel = makeViewModel(initialItems: initialItems)
+
+        // Simulate dragging the only app out of the folder
+        viewModel.beginDrag(for: appA.id, sourceFolder: folder.id)
+        viewModel.extractDraggedItemIfNeeded()
+
+        // The folder should be gone
+        XCTAssertNil(viewModel.folder(by: folder.id))
+
+        // The app should be top-level
+        XCTAssertTrue(viewModel.items.contains(where: { $0.id == appA.id && $0.asApp != nil }))
+        XCTAssertEqual(viewModel.items.count, 1)
+    }
+
+    func testExtractDraggedItemNoOpWhenAlreadyTopLevel() throws {
+        let appA = makeAppIcon(name: "AppA", bundleIdentifier: "com.test.a")
+        let appB = makeAppIcon(name: "AppB", bundleIdentifier: "com.test.b")
+
+        let initialItems: [LaunchyItem] = [
+            .app(appA),
+            .app(appB),
+        ]
+
+        let viewModel = makeViewModel(initialItems: initialItems)
+
+        // Begin a drag for a top-level item (no source folder)
+        viewModel.beginDrag(for: appA.id)
+        viewModel.extractDraggedItemIfNeeded()
+
+        // Items should be unchanged
+        XCTAssertEqual(viewModel.items.count, 2)
+        XCTAssertTrue(viewModel.items.contains(where: { $0.id == appA.id }))
+        XCTAssertTrue(viewModel.items.contains(where: { $0.id == appB.id }))
+    }
+
+    func testExtractDraggedItemNoOpWhenNoDragActive() throws {
+        let appA = makeAppIcon(name: "AppA", bundleIdentifier: "com.test.a")
+
+        let initialItems: [LaunchyItem] = [
+            .app(appA)
+        ]
+
+        let viewModel = makeViewModel(initialItems: initialItems)
+
+        // No drag in progress — should be a no-op
+        viewModel.extractDraggedItemIfNeeded()
+
+        XCTAssertEqual(viewModel.items.count, 1)
+    }
+
+    func testExtractDraggedItemIdempotentWhenCalledTwice() throws {
+        let appA = makeAppIcon(name: "AppA", bundleIdentifier: "com.test.a")
+        let appB = makeAppIcon(name: "AppB", bundleIdentifier: "com.test.b")
+        let appC = makeAppIcon(name: "AppC", bundleIdentifier: "com.test.c")
+        let folder = LaunchyFolder(name: "Tools", apps: [appA, appB, appC])
+
+        let initialItems: [LaunchyItem] = [
+            .folder(folder)
+        ]
+
+        let viewModel = makeViewModel(initialItems: initialItems)
+
+        viewModel.beginDrag(for: appA.id, sourceFolder: folder.id)
+        viewModel.extractDraggedItemIfNeeded()
+
+        let itemsAfterFirst = viewModel.items
+
+        // Calling again should be a no-op (app is already top-level)
+        viewModel.extractDraggedItemIfNeeded()
+
+        XCTAssertEqual(viewModel.items, itemsAfterFirst, "Second call should be a no-op")
+    }
+
+    func testExtractDraggedItemPreservesOrderOfOtherItems() throws {
+        let appA = makeAppIcon(name: "AppA", bundleIdentifier: "com.test.a")
+        let appB = makeAppIcon(name: "AppB", bundleIdentifier: "com.test.b")
+        let appC = makeAppIcon(name: "AppC", bundleIdentifier: "com.test.c")
+        let appD = makeAppIcon(name: "AppD", bundleIdentifier: "com.test.d")
+        let folder = LaunchyFolder(name: "Tools", apps: [appA, appB, appC])
+
+        let initialItems: [LaunchyItem] = [
+            .app(appD),
+            .folder(folder),
+        ]
+
+        let viewModel = makeViewModel(initialItems: initialItems)
+
+        viewModel.beginDrag(for: appB.id, sourceFolder: folder.id)
+        viewModel.extractDraggedItemIfNeeded()
+
+        // appD should still be at position 0
+        XCTAssertEqual(viewModel.items[0].id, appD.id)
+
+        // The folder should be at position 1 (with appA, appC)
+        XCTAssertEqual(viewModel.items[1].id, folder.id)
+
+        // The extracted app should be right after the folder
+        XCTAssertEqual(viewModel.items[2].id, appB.id)
+    }
+
+    // MARK: - Helpers
+
+    private func makeViewModel(initialItems: [LaunchyItem]) -> LaunchyViewModel {
+        dataStore.save(initialItems)
+        let settingsStore = GridSettingsStore(defaults: userDefaults)
+        return LaunchyViewModel(
+            dataStore: dataStore,
+            settingsStore: settingsStore,
+            initialItems: initialItems
+        )
+    }
+
     private func makeAppIcon(name: String, bundleIdentifier: String) -> AppIcon {
         AppIcon(
             name: name,
