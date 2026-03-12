@@ -14,7 +14,7 @@
   `launch()` in `LaunchyViewModel` opens the target application but the Launchy window stays on screen. Real Launchpad fades out immediately after you click an app. After calling `NSWorkspace.shared.openApplication` the launcher should hide or terminate itself.
   _File: `LaunchyViewModel.swift` → `launch(_:)`_
 
-- [ ] **No Escape key handling**
+- [x] **No Escape key handling**
   Pressing Escape should close the launcher (or close an open folder / settings overlay first). There is no key handler for `keyCode 53` anywhere. `PageNavigationKeyHandler` handles arrows but not Escape.
   _File: `PageNavigationKeyHandler.swift`, `LaunchyRootView.swift`_
 

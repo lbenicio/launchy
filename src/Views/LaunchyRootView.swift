@@ -98,6 +98,7 @@ struct LaunchyRootView: View {
                             pages: pages,
                             fillsAvailableSpace: fillScreen,
                             onBackgroundTap: handleBackgroundTap,
+                            onEscape: handleEscape,
                             isOverlayPresented: viewModel.presentedFolderID != nil
                                 || isShowingSettings
                         )
@@ -256,6 +257,36 @@ struct LaunchyRootView: View {
             return
         }
         guard viewModel.presentedFolderID == nil else { return }
+        terminateLauncher()
+    }
+
+    /// Handles the Escape key with a layered dismiss priority:
+    /// 1. Close an open folder overlay
+    /// 2. Close the settings overlay
+    /// 3. Clear search text
+    /// 4. Exit editing / wiggle mode
+    /// 5. Dismiss (terminate) the launcher
+    private func handleEscape() {
+        if viewModel.presentedFolderID != nil {
+            withAnimation(.easeInOut(duration: 0.24)) {
+                viewModel.closeFolder()
+            }
+            return
+        }
+        if isShowingSettings {
+            withAnimation(.easeInOut(duration: 0.24)) {
+                isShowingSettings = false
+            }
+            return
+        }
+        if !searchText.isEmpty {
+            searchText = ""
+            return
+        }
+        if viewModel.isEditing {
+            viewModel.toggleEditing()
+            return
+        }
         terminateLauncher()
     }
 

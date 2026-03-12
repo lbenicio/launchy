@@ -8,13 +8,15 @@ import SwiftUI
         let isEnabled: Bool
         let onPrevious: () -> Void
         let onNext: () -> Void
+        let onEscape: () -> Void
 
         func makeCoordinator() -> Coordinator {
             Coordinator(
                 scrollSensitivity: scrollSensitivity,
                 isEnabled: isEnabled,
                 onPrevious: onPrevious,
-                onNext: onNext
+                onNext: onNext,
+                onEscape: onEscape
             )
         }
 
@@ -29,6 +31,7 @@ import SwiftUI
             context.coordinator.isEnabled = isEnabled
             context.coordinator.onPrevious = onPrevious
             context.coordinator.onNext = onNext
+            context.coordinator.onEscape = onEscape
             nsView.coordinator = context.coordinator
         }
 
@@ -42,6 +45,7 @@ import SwiftUI
             var isEnabled: Bool
             var onPrevious: () -> Void
             var onNext: () -> Void
+            var onEscape: () -> Void
 
             private var monitor: Any?
             private weak var observedWindow: NSWindow?
@@ -51,12 +55,14 @@ import SwiftUI
                 scrollSensitivity: Double,
                 isEnabled: Bool,
                 onPrevious: @escaping () -> Void,
-                onNext: @escaping () -> Void
+                onNext: @escaping () -> Void,
+                onEscape: @escaping () -> Void
             ) {
                 self.scrollSensitivity = PageNavigationKeyHandler.clamp(scrollSensitivity)
                 self.isEnabled = isEnabled
                 self.onPrevious = onPrevious
                 self.onNext = onNext
+                self.onEscape = onEscape
             }
 
             func updateScrollSensitivity(_ value: Double) {
@@ -71,7 +77,8 @@ import SwiftUI
                 monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .scrollWheel]) {
                     [weak self, weak window] event in
                     guard let self, let window, event.window === window else { return event }
-                    guard self.isEnabled else { return event }
+                    let isEscape = event.type == .keyDown && event.keyCode == 53
+                    guard isEscape || self.isEnabled else { return event }
                     return self.handle(event: event) ? nil : event
                 }
 
@@ -131,12 +138,20 @@ import SwiftUI
                 case 121:
                     onNext()
                     return true
+                case 53:
+                    onEscape()
+                    return true
                 default:
                     return false
                 }
             }
 
             private func shouldHandleKey(_ event: NSEvent) -> Bool {
+                // Escape should always be handled regardless of responder
+                if event.keyCode == 53 {
+                    return true
+                }
+
                 if event.modifierFlags.contains(.command) || event.modifierFlags.contains(.option) {
                     return false
                 }
@@ -212,6 +227,7 @@ import SwiftUI
         let isEnabled: Bool
         var onPrevious: () -> Void
         var onNext: () -> Void
+        var onEscape: () -> Void = {}
 
         var body: some View {
             Color.clear

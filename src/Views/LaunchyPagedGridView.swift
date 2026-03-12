@@ -6,6 +6,7 @@ struct LaunchyPagedGridView: View {
     let pages: [[LaunchyItem]]
     let fillsAvailableSpace: Bool
     var onBackgroundTap: () -> Void = {}
+    var onEscape: () -> Void = {}
     var isOverlayPresented: Bool = false
 
     @State private var scrollPosition: Int? = 0
@@ -153,7 +154,8 @@ struct LaunchyPagedGridView: View {
                     scrollSensitivity: settingsStore.settings.scrollSensitivity,
                     isEnabled: !isOverlayPresented,
                     onPrevious: { viewModel.goToPreviousPage(totalPages: max(pages.count, 1)) },
-                    onNext: { viewModel.goToNextPage(totalPages: max(pages.count, 1)) }
+                    onNext: { viewModel.goToNextPage(totalPages: max(pages.count, 1)) },
+                    onEscape: onEscape
                 )
                 .allowsHitTesting(false)
             )
