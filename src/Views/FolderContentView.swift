@@ -5,6 +5,7 @@ struct FolderContentView: View {
     let folderID: UUID
     @ObservedObject var viewModel: LaunchyViewModel
     @EnvironmentObject private var settingsStore: GridSettingsStore
+    @State private var editingName: String = ""
 
     var body: some View {
         let folder = viewModel.folder(by: folderID)
@@ -23,9 +24,24 @@ struct FolderContentView: View {
 
                 VStack(spacing: 20) {
                     HStack {
-                        Text(folder.name)
+                        if viewModel.isEditing {
+                            TextField(
+                                "Folder Name", text: $editingName,
+                                onCommit: {
+                                    viewModel.renameFolder(folderID, to: editingName)
+                                }
+                            )
                             .font(.system(size: 20, weight: .semibold))
-                            .textCase(.none)
+                            .textFieldStyle(.plain)
+                            .onAppear { editingName = folder.name }
+                            .onChange(of: folder.name) { _, newName in
+                                editingName = newName
+                            }
+                        } else {
+                            Text(folder.name)
+                                .font(.system(size: 20, weight: .semibold))
+                                .textCase(.none)
+                        }
                         Spacer()
                         if viewModel.isEditing {
                             Button {
@@ -41,7 +57,7 @@ struct FolderContentView: View {
                             .padding(.trailing, 8)
                         }
                         Button {
-                            withAnimation(.easeInOut(duration: 0.2)) {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
                                 viewModel.closeFolder()
                             }
                         } label: {

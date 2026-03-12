@@ -5,6 +5,7 @@ struct LaunchyItemView: View {
     let dimension: CGFloat
     let isEditing: Bool
     let isSelected: Bool
+    let isLaunching: Bool
     let canMoveLeft: Bool
     let canMoveRight: Bool
     let hasSelectedApps: Bool
@@ -16,6 +17,7 @@ struct LaunchyItemView: View {
     let onMoveRight: (UUID) -> Void
     let onAddSelectedAppsToFolder: (UUID) -> Void
     let onDisbandFolder: (UUID) -> Void
+    let onToggleEditing: () -> Void
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -53,8 +55,13 @@ struct LaunchyItemView: View {
             }
         }
         .onLongPressGesture(minimumDuration: 0.2) {
-            if case .folder = item, !isEditing {
-                onOpenFolder(item.id)
+            if !isEditing {
+                switch item {
+                case .app:
+                    onToggleEditing()
+                case .folder:
+                    onOpenFolder(item.id)
+                }
             }
         }
         .overlay(alignment: .topTrailing) {
@@ -73,6 +80,9 @@ struct LaunchyItemView: View {
             }
         }
         .overlay(selectionHighlight)
+        .scaleEffect(isLaunching ? 1.25 : 1.0)
+        .opacity(isLaunching ? 0.0 : 1.0)
+        .animation(.easeOut(duration: 0.3), value: isLaunching)
     }
 
     private var deleteBadge: some View {

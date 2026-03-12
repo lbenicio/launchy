@@ -42,17 +42,23 @@ struct LaunchyGridPageView: View {
             dimension: metrics.itemDimension,
             isEditing: viewModel.isEditing,
             isSelected: viewModel.isItemSelected(item.id),
+            isLaunching: viewModel.launchingItemID == item.id,
             canMoveLeft: canMoveLeft,
             canMoveRight: canMoveRight,
             hasSelectedApps: viewModel.hasSelectedApps,
-            onOpenFolder: { viewModel.openFolder(with: $0) },
+            onOpenFolder: { id in
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                    viewModel.openFolder(with: id)
+                }
+            },
             onDelete: { viewModel.deleteItem($0) },
             onLaunch: { viewModel.launch($0) },
             onSelect: { viewModel.toggleSelection(for: $0) },
             onMoveLeft: { viewModel.shiftItem($0, by: -1) },
             onMoveRight: { viewModel.shiftItem($0, by: 1) },
             onAddSelectedAppsToFolder: { viewModel.addSelectedApps(toFolder: $0) },
-            onDisbandFolder: { viewModel.disbandFolder($0) }
+            onDisbandFolder: { viewModel.disbandFolder($0) },
+            onToggleEditing: { viewModel.toggleEditing() }
         )
         .frame(width: metrics.itemDimension, height: metrics.itemDimension + 36)
         .contentShape(Rectangle())

@@ -1,6 +1,42 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+// MARK: - Cross-Page Edge Drop Delegate
+
+struct CrossPageEdgeDropDelegate: DropDelegate {
+    let viewModel: LaunchyViewModel
+    let direction: Int  // -1 for left (previous page), +1 for right (next page)
+    let totalPages: Int
+    let onEdgeEntered: (Int) -> Void
+    let onEdgeExited: () -> Void
+
+    func validateDrop(info: DropInfo) -> Bool {
+        viewModel.isEditing && info.hasItemsConforming(to: [.launchyItemIdentifier])
+    }
+
+    func dropEntered(info: DropInfo) {
+        let currentPage = viewModel.currentPage
+        let targetPage = currentPage + direction
+        guard targetPage >= 0, targetPage < totalPages else { return }
+        onEdgeEntered(targetPage)
+    }
+
+    func dropExited(info: DropInfo) {
+        onEdgeExited()
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        return DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        onEdgeExited()
+        return false
+    }
+}
+
+// MARK: - Item Drop Delegate
+
 struct LaunchyItemDropDelegate: DropDelegate {
     let item: LaunchyItem
     let viewModel: LaunchyViewModel
@@ -79,6 +115,8 @@ struct LaunchyItemDropDelegate: DropDelegate {
     }
 }
 
+// MARK: - Trailing Drop Delegate
+
 struct LaunchyTrailingDropDelegate: DropDelegate {
     let viewModel: LaunchyViewModel
 
@@ -103,6 +141,8 @@ struct LaunchyTrailingDropDelegate: DropDelegate {
         return true
     }
 }
+
+// MARK: - Folder Drop Delegate
 
 struct FolderDropDelegate: DropDelegate {
     let folderID: UUID
@@ -129,6 +169,8 @@ struct FolderDropDelegate: DropDelegate {
         return true
     }
 }
+
+// MARK: - Folder App Drop Delegate
 
 struct FolderAppDropDelegate: DropDelegate {
     let folderID: UUID
@@ -161,6 +203,8 @@ struct FolderAppDropDelegate: DropDelegate {
         return true
     }
 }
+
+// MARK: - Folder Trailing Drop Delegate
 
 struct FolderTrailingDropDelegate: DropDelegate {
     let folderID: UUID

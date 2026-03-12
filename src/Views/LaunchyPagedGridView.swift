@@ -12,6 +12,7 @@ struct LaunchyPagedGridView: View {
     @State private var scrollPosition: Int? = 0
     @State private var lastSettledPage: Int = 0
     @State private var isProgrammaticScroll: Bool = false
+    @State private var edgeDragTimer: Timer?
 
     private let pageAnimation = Animation.interactiveSpring(
         response: 0.48,
@@ -58,6 +59,15 @@ struct LaunchyPagedGridView: View {
                     }
                 }
 
+            nonisolated(unsafe) let navigateToPage: (Int) -> Void = { target in
+                edgeDragTimer?.invalidate()
+                edgeDragTimer = nil
+                isProgrammaticScroll = true
+                withAnimation(pageAnimation) {
+                    scrollPosition = target
+                }
+            }
+
             ScrollView(.horizontal) {
                 LazyHStack(spacing: 0) {
                     ForEach(enumeratedPages, id: \.offset) { index, page in
@@ -74,6 +84,69 @@ struct LaunchyPagedGridView: View {
             .scrollBounceBehavior(.always)
             .scrollPosition(id: $scrollPosition)
             .frame(width: width, height: height)
+            .overlay {
+                if viewModel.isEditing {
+                    HStack(spacing: 0) {
+                        // Left edge zone – navigate to previous page
+                        Color.clear
+                            .frame(width: 60)
+                            .contentShape(Rectangle())
+                            .onDrop(
+                                of: [.launchyItemIdentifier],
+                                delegate: CrossPageEdgeDropDelegate(
+                                    viewModel: viewModel,
+                                    direction: -1,
+                                    totalPages: totalPages,
+                                    onEdgeEntered: { targetPage in
+                                        edgeDragTimer?.invalidate()
+                                        edgeDragTimer = Timer.scheduledTimer(
+                                            withTimeInterval: 0.4, repeats: false
+                                        ) { _ in
+                                            DispatchQueue.main.async {
+                                                guard viewModel.dragItemID != nil else { return }
+                                                navigateToPage(targetPage)
+                                            }
+                                        }
+                                    },
+                                    onEdgeExited: {
+                                        edgeDragTimer?.invalidate()
+                                        edgeDragTimer = nil
+                                    }
+                                ))
+
+                        Spacer()
+
+                        // Right edge zone – navigate to next page
+                        Color.clear
+                            .frame(width: 60)
+                            .contentShape(Rectangle())
+                            .onDrop(
+                                of: [.launchyItemIdentifier],
+                                delegate: CrossPageEdgeDropDelegate(
+                                    viewModel: viewModel,
+                                    direction: 1,
+                                    totalPages: totalPages,
+                                    onEdgeEntered: { targetPage in
+                                        edgeDragTimer?.invalidate()
+                                        edgeDragTimer = Timer.scheduledTimer(
+                                            withTimeInterval: 0.4, repeats: false
+                                        ) { _ in
+                                            DispatchQueue.main.async {
+                                                guard viewModel.dragItemID != nil else { return }
+                                                navigateToPage(targetPage)
+                                            }
+                                        }
+                                    },
+                                    onEdgeExited: {
+                                        edgeDragTimer?.invalidate()
+                                        edgeDragTimer = nil
+                                    }
+                                ))
+                    }
+                    .frame(width: width, height: height)
+                    .allowsHitTesting(true)
+                }
+            }
             .simultaneousGesture(dragGesture)
             .onChange(of: scrollPosition) { _, newValue in
                 guard let newValue else { return }

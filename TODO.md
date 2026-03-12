@@ -121,32 +121,32 @@ These are behaviors present in the original macOS Launchpad that Launchy doesn't
 
 ### P1
 
-- [ ] **Long-press to enter wiggle mode**
+- [x] **Long-press to enter wiggle mode**
   Real Launchpad enters editing (wiggle) mode when you long-press any icon. Currently Launchy only has a toolbar toggle button and ⌘E shortcut. Add a long-press gesture on `LaunchyItemView` that calls `viewModel.toggleEditing()`.
 
-- [ ] **Hide window instead of terminating on background tap**
+- [x] **Hide window instead of terminating on background tap**
   `handleBackgroundTap` calls `NSApplication.shared.terminate(nil)`. Real Launchpad dismisses the overlay and returns to the desktop without quitting. Consider `NSApp.hide(nil)` or `window.orderOut(nil)` with a global hotkey to bring it back.
 
-- [ ] **Folder name inline editing**
+- [x] **Folder name inline editing**
   Real Launchpad lets you click the folder title to rename it. `FolderContentView` renders the name as a static `Text`. Replace with a `TextField` that activates on tap during editing mode.
 
 ### P2
 
-- [ ] **Cross-page drag-and-drop**
+- [x] **Cross-page drag-and-drop**
   Dragging an icon to the left/right edge of the screen should switch to the adjacent page and allow dropping there. Currently drag-and-drop only works within a single page.
 
-- [ ] **Smooth open/close folder animation**
+- [x] **Smooth open/close folder animation**
   Real Launchpad zooms the folder open from its icon position. The current implementation uses a generic `.scale + .opacity` transition. A matched geometry effect from the folder icon to the expanded content would look closer to the original.
 
-- [ ] **App launching fade-out animation**
+- [x] **App launching fade-out animation**
   Real Launchpad plays a subtle zoom + fade when you tap an app. The current launch is instant with no visual feedback.
 
 ### P3
 
-- [ ] **Notification badges on app icons**
+- [x] **Notification badges on app icons**
   Real Launchpad mirrors dock badge counts. This requires reading `NSApp.dockTile` or `DistributedNotificationCenter` for badge updates from other apps.
 
-- [ ] **Multi-display support**
+- [x] **Multi-display support**
   `WindowConfigurator` uses `window.screen ?? NSScreen.main`. On multi-monitor setups the launcher should appear on the screen where the cursor is, matching real Launchpad behavior.
 
 ---

@@ -7,6 +7,40 @@ import SwiftUI
         func applicationWillTerminate(_ notification: Notification) {
             NSApp.presentationOptions = []
         }
+
+        /// When the user clicks the dock icon while the app is already running
+        /// but the window is hidden, bring it back on screen.
+        func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool)
+            -> Bool
+        {
+            if !flag {
+                showLauncherWindow()
+            }
+            return true
+        }
+
+        /// Re-show the launcher when the app is activated from the background
+        /// (e.g. via Cmd-Tab or dock icon click).
+        func applicationDidBecomeActive(_ notification: Notification) {
+            showLauncherWindow()
+        }
+
+        private func showLauncherWindow() {
+            guard
+                let window = NSApp.windows.first(where: {
+                    $0.identifier?.rawValue != "com_apple_SwiftUI_Settings_window"
+                })
+            else { return }
+            window.alphaValue = 1
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+
+            // Restore presentation options for full-screen layout
+            // The WindowConfigurator will re-apply the correct options on the next
+            // view update cycle, but we set a reasonable default here so the dock
+            // and menubar hide immediately.
+            NotificationCenter.default.post(name: .launcherDidReappear, object: nil)
+        }
     }
 #endif
 
@@ -61,4 +95,5 @@ struct LaunchyApp: App {
 
 extension Notification.Name {
     static let toggleInAppSettings = Notification.Name("toggleInAppSettings")
+    static let launcherDidReappear = Notification.Name("launcherDidReappear")
 }

@@ -17,7 +17,8 @@ final class LaunchyViewModel: ObservableObject {
     @Published private(set) var dragItemID: UUID? = nil
     @Published private(set) var dragSourceFolderID: UUID? = nil
     @Published var selectedItemIDs: Set<UUID> = []
-    @Published private(set) var isLaunchingApp: Bool = false
+    @Published var isLaunchingApp: Bool = false
+    @Published private(set) var launchingItemID: UUID? = nil
     @Published private(set) var isLayoutLoaded: Bool = false
     /// Apps removed during this session that can be restored without restarting.
     @Published private(set) var recentlyRemovedApps: [AppIcon] = []
@@ -453,6 +454,7 @@ final class LaunchyViewModel: ObservableObject {
             switch item {
             case .app(let icon):
                 isLaunchingApp = true
+                launchingItemID = icon.id
                 NSWorkspace.shared.openApplication(
                     at: icon.bundleURL,
                     configuration: NSWorkspace.OpenConfiguration()
@@ -474,23 +476,8 @@ final class LaunchyViewModel: ObservableObject {
 
                         // Dismiss the launcher after launching, matching real Launchpad behavior.
                         // Restore presentation options so dock/menubar reappear immediately,
-                        // then fade out the window and terminate.
-                        NSApp.presentationOptions = []
-
-                        if let window = NSApp.windows.first(where: { $0.isVisible }) {
-                            NSAnimationContext.runAnimationGroup(
-                                { context in
-                                    context.duration = 0.2
-                                    window.animator().alphaValue = 0
-                                },
-                                completionHandler: {
-                                    DispatchQueue.main.async {
-                                        NSApplication.shared.terminate(nil)
-                                    }
-                                })
-                        } else {
-                            NSApplication.shared.terminate(nil)
-                        }
+                        // then fade out the window and hide instead of terminating.
+                        self?.dismissAfterLaunch()
                     }
                 }
             case .folder:
@@ -499,7 +486,49 @@ final class LaunchyViewModel: ObservableObject {
         #endif
     }
 
+    /// Resets transient launch state so the launcher can be re-shown cleanly.
+    func resetLaunchState() {
+        isLaunchingApp = false
+        launchingItemID = nil
+    }
+
+    /// Hides the launcher window after a successful app launch, matching
+    /// real Launchpad's dismiss-on-launch behavior. The app stays alive
+    /// so it can be brought back via the dock icon or a global hotkey.
+    private func dismissAfterLaunch() {
+        #if os(macOS)
+            NSApp.presentationOptions = []
+
+            if let window = NSApp.windows.first(where: { $0.isVisible }) {
+                NSAnimationContext.runAnimationGroup(
+                    { context in
+                        context.duration = 0.2
+                        window.animator().alphaValue = 0
+                    },
+                    completionHandler: {
+                        DispatchQueue.main.async {
+                            window.orderOut(nil)
+                            NSApp.hide(nil)
+                        }
+                    })
+            } else {
+                NSApp.hide(nil)
+            }
+        #endif
+    }
+
     // MARK: - Folder contents manipulation
+
+    func renameFolder(_ folderID: UUID, to newName: String) {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        guard let index = items.firstIndex(where: { $0.id == folderID }),
+            var folder = items[index].asFolder
+        else { return }
+        folder.name = trimmed
+        items[index] = .folder(folder)
+        saveNow()
+    }
 
     func shiftAppInFolder(folderID: UUID, appID: UUID, by offset: Int) {
         guard let idx = items.firstIndex(where: { $0.id == folderID }),

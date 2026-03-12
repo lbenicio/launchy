@@ -72,6 +72,9 @@ struct LaunchyRootView: View {
                 isShowingSettings.toggle()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .launcherDidReappear)) { _ in
+            reappearLauncher()
+        }
     }
 
     @ViewBuilder
@@ -147,14 +150,19 @@ struct LaunchyRootView: View {
                     .transition(.opacity)
                     .zIndex(2)
                     .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.24)) {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
                             viewModel.closeFolder()
                         }
                     }
 
                 FolderContentView(folderID: folderID, viewModel: viewModel)
                     .padding(.horizontal, 120)
-                    .transition(.scale(scale: 0.95).combined(with: .opacity))
+                    .transition(
+                        .asymmetric(
+                            insertion: .scale(scale: 0.45).combined(with: .opacity),
+                            removal: .scale(scale: 0.45).combined(with: .opacity)
+                        )
+                    )
                     .zIndex(3)
             }
 
@@ -260,7 +268,7 @@ struct LaunchyRootView: View {
             return
         }
         guard viewModel.presentedFolderID == nil else { return }
-        terminateLauncher()
+        dismissLauncher()
     }
 
     /// Handles the Escape key with a layered dismiss priority:
@@ -268,7 +276,7 @@ struct LaunchyRootView: View {
     /// 2. Close the settings overlay
     /// 3. Clear search text
     /// 4. Exit editing / wiggle mode
-    /// 5. Dismiss (terminate) the launcher
+    /// 5. Dismiss (hide) the launcher
     private func handleEscape() {
         if viewModel.presentedFolderID != nil {
             withAnimation(.easeInOut(duration: 0.24)) {
@@ -290,7 +298,7 @@ struct LaunchyRootView: View {
             viewModel.toggleEditing()
             return
         }
-        terminateLauncher()
+        dismissLauncher()
     }
 
     private func activateWindowIfNeeded() {
@@ -307,6 +315,23 @@ struct LaunchyRootView: View {
         #endif
     }
 
+    /// Re-show the launcher after it was hidden. Resets transient view state
+    /// so the user gets a clean grid (no leftover search text, open folders, etc.).
+    private func reappearLauncher() {
+        #if os(macOS)
+            searchText = ""
+            if viewModel.presentedFolderID != nil {
+                viewModel.closeFolder()
+            }
+            if isShowingSettings {
+                isShowingSettings = false
+            }
+            viewModel.resetLaunchState()
+            didActivateWindow = false
+            activateWindowIfNeeded()
+        #endif
+    }
+
     private func buildPages(for query: String) -> [[LaunchyItem]] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
@@ -317,13 +342,27 @@ struct LaunchyRootView: View {
     }
 
     #if os(macOS)
-        private func terminateLauncher() {
+        /// Hides the launcher window and returns to the desktop,
+        /// matching real Launchpad behavior. The app stays alive so
+        /// it can be re-shown via the dock icon, Cmd-Tab, or a global hotkey.
+        private func dismissLauncher() {
             DispatchQueue.main.async {
-                NSApplication.shared.terminate(nil)
+                NSApp.presentationOptions = []
+                if let window = NSApp.windows.first(where: { $0.isVisible }) {
+                    NSAnimationContext.runAnimationGroup { context in
+                        context.duration = 0.18
+                        window.animator().alphaValue = 0
+                    } completionHandler: {
+                        window.orderOut(nil)
+                        NSApp.hide(nil)
+                    }
+                } else {
+                    NSApp.hide(nil)
+                }
             }
         }
     #else
-        private func terminateLauncher() {}
+        private func dismissLauncher() {}
     #endif
 
     private var header: some View {

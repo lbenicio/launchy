@@ -28,7 +28,7 @@ import SwiftUI
 
         private func configureWindow(using hostView: NSView, coordinator: Coordinator) {
             guard let window = hostView.window,
-                let screen = window.screen ?? NSScreen.main
+                let screen = Self.screenContainingCursor() ?? window.screen ?? NSScreen.main
             else { return }
 
             coordinator.attach(to: window, useFullScreenLayout: useFullScreenLayout)
@@ -142,6 +142,15 @@ import SwiftUI
                 window.firstResponder == nil || window.firstResponder === window
             {
                 window.makeFirstResponder(contentView)
+            }
+        }
+
+        /// Returns the screen that currently contains the mouse cursor,
+        /// matching real Launchpad's multi-display behavior.
+        private static func screenContainingCursor() -> NSScreen? {
+            let mouseLocation = NSEvent.mouseLocation
+            return NSScreen.screens.first { screen in
+                screen.frame.contains(mouseLocation)
             }
         }
 
