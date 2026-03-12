@@ -97,7 +97,9 @@ struct LaunchyRootView: View {
                             viewModel: viewModel,
                             pages: pages,
                             fillsAvailableSpace: fillScreen,
-                            onBackgroundTap: handleBackgroundTap
+                            onBackgroundTap: handleBackgroundTap,
+                            isOverlayPresented: viewModel.presentedFolderID != nil
+                                || isShowingSettings
                         )
 
                         if !hasResults {

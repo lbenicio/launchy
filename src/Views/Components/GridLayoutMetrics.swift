@@ -128,11 +128,40 @@ struct GridLayoutMetrics {
             min(availableDimension, minIconSize)
         )
 
+        // --- Distribute icons evenly across the available width ---
+        // Real Launchpad spreads icons to fill the full screen width.
+        // Calculate the spacing needed to achieve even distribution.
+        let availableWidth = max(0, size.width - padding * 2)
+        let totalIconWidth = CGFloat(columns) * resolvedDimension
+        let remainingWidth = availableWidth - totalIconWidth
+
+        let distributedHSpacing: CGFloat
+        if columns > 1 && remainingWidth > 0 {
+            distributedHSpacing = remainingWidth / CGFloat(columns - 1)
+        } else {
+            distributedHSpacing = horizontalSpacing
+        }
+        // Clamp so spacing doesn't become absurdly large on ultrawide displays
+        let finalHSpacing = min(distributedHSpacing, resolvedDimension * 1.8)
+
+        // Do the same for vertical spacing to distribute rows
+        let availableHeight = max(0, size.height - padding * 2)
+        let totalRowHeight = CGFloat(rows) * (resolvedDimension + tileAccessoryHeight)
+        let remainingHeight = availableHeight - totalRowHeight
+
+        let distributedVSpacing: CGFloat
+        if rows > 1 && remainingHeight > 0 {
+            distributedVSpacing = remainingHeight / CGFloat(rows - 1)
+        } else {
+            distributedVSpacing = verticalSpacing
+        }
+        let finalVSpacing = min(distributedVSpacing, resolvedDimension * 1.2)
+
         self.itemDimension = resolvedDimension
-        self.horizontalSpacing = horizontalSpacing
-        self.verticalSpacing = verticalSpacing
+        self.horizontalSpacing = finalHSpacing
+        self.verticalSpacing = finalVSpacing
         self.columns = Array(
-            repeating: GridItem(.fixed(resolvedDimension), spacing: horizontalSpacing),
+            repeating: GridItem(.fixed(resolvedDimension), spacing: finalHSpacing),
             count: columns)
         self.padding = padding
     }

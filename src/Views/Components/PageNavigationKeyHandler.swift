@@ -5,12 +5,14 @@ import SwiftUI
 
     struct PageNavigationKeyHandler: NSViewRepresentable {
         let scrollSensitivity: Double
+        let isEnabled: Bool
         let onPrevious: () -> Void
         let onNext: () -> Void
 
         func makeCoordinator() -> Coordinator {
             Coordinator(
                 scrollSensitivity: scrollSensitivity,
+                isEnabled: isEnabled,
                 onPrevious: onPrevious,
                 onNext: onNext
             )
@@ -24,6 +26,7 @@ import SwiftUI
 
         func updateNSView(_ nsView: RelayView, context: Context) {
             context.coordinator.updateScrollSensitivity(scrollSensitivity)
+            context.coordinator.isEnabled = isEnabled
             context.coordinator.onPrevious = onPrevious
             context.coordinator.onNext = onNext
             nsView.coordinator = context.coordinator
@@ -36,6 +39,7 @@ import SwiftUI
         @MainActor
         final class Coordinator {
             private(set) var scrollSensitivity: Double
+            var isEnabled: Bool
             var onPrevious: () -> Void
             var onNext: () -> Void
 
@@ -44,10 +48,13 @@ import SwiftUI
             private var scrollAccumulator: CGFloat = 0
 
             init(
-                scrollSensitivity: Double, onPrevious: @escaping () -> Void,
+                scrollSensitivity: Double,
+                isEnabled: Bool,
+                onPrevious: @escaping () -> Void,
                 onNext: @escaping () -> Void
             ) {
                 self.scrollSensitivity = PageNavigationKeyHandler.clamp(scrollSensitivity)
+                self.isEnabled = isEnabled
                 self.onPrevious = onPrevious
                 self.onNext = onNext
             }
@@ -64,6 +71,7 @@ import SwiftUI
                 monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .scrollWheel]) {
                     [weak self, weak window] event in
                     guard let self, let window, event.window === window else { return event }
+                    guard self.isEnabled else { return event }
                     return self.handle(event: event) ? nil : event
                 }
 
@@ -181,6 +189,7 @@ import SwiftUI
                 return false
             }
         }
+
         final class RelayView: NSView {
             weak var coordinator: PageNavigationKeyHandler.Coordinator? {
                 didSet {
@@ -200,6 +209,7 @@ import SwiftUI
     }
 #else
     struct PageNavigationKeyHandler: View {
+        let isEnabled: Bool
         var onPrevious: () -> Void
         var onNext: () -> Void
 

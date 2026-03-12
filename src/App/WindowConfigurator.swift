@@ -12,45 +12,39 @@ import SwiftUI
             Coordinator(onWindowSizeChange: onWindowSizeChange)
         }
 
-        func makeNSView(context: Context) -> NSView {
-            let view = NSView()
-            context.coordinator.onWindowSizeChange = onWindowSizeChange
-            DispatchQueue.main.async {
-                configureIfNeeded(using: view, coordinator: context.coordinator)
+        func makeNSView(context: Context) -> ConfiguratorView {
+            let view = ConfiguratorView()
+            view.onAttach = { [coordinator = context.coordinator] hostView in
+                configureWindow(using: hostView, coordinator: coordinator)
             }
+            context.coordinator.onWindowSizeChange = onWindowSizeChange
             return view
         }
 
-        func updateNSView(_ nsView: NSView, context: Context) {
+        func updateNSView(_ nsView: ConfiguratorView, context: Context) {
             context.coordinator.onWindowSizeChange = onWindowSizeChange
-            DispatchQueue.main.async {
-                configureIfNeeded(using: nsView, coordinator: context.coordinator)
-            }
+            configureWindow(using: nsView, coordinator: context.coordinator)
         }
 
-        private func configureIfNeeded(using hostView: NSView, coordinator: Coordinator) {
-            guard let window = hostView.window, let screen = window.screen ?? NSScreen.main else {
-                return
-            }
+        private func configureWindow(using hostView: NSView, coordinator: Coordinator) {
+            guard let window = hostView.window,
+                let screen = window.screen ?? NSScreen.main
+            else { return }
 
             coordinator.attach(to: window, useFullScreenLayout: useFullScreenLayout)
 
+            // --- Chrome ---
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
             window.title = ""
             window.toolbar = nil
             window.isOpaque = false
             window.backgroundColor = .clear
-            window.hasShadow = useFullScreenLayout ? false : true
-            window.level = useFullScreenLayout ? .mainMenu : .floating
-            window.setContentBorderThickness(0, for: .maxY)
-            window.collectionBehavior = [
-                .canJoinAllSpaces,
-                .fullScreenAuxiliary,
-                .stationary,
-                .ignoresCycle,
-            ]
+            window.standardWindowButton(.closeButton)?.isHidden = true
+            window.standardWindowButton(.miniaturizeButton)?.isHidden = true
+            window.standardWindowButton(.zoomButton)?.isHidden = true
 
+            // --- Style mask ---
             var style: NSWindow.StyleMask = [.borderless, .fullSizeContentView]
             if !useFullScreenLayout {
                 style.insert(.resizable)
@@ -59,21 +53,48 @@ import SwiftUI
                 window.styleMask = style
             }
 
-            window.standardWindowButton(.closeButton)?.isHidden = true
-            window.standardWindowButton(.miniaturizeButton)?.isHidden = true
-            window.standardWindowButton(.zoomButton)?.isHidden = true
-            window.isMovableByWindowBackground = true
-
             if useFullScreenLayout {
-                if window.frame != screen.frame {
-                    window.setFrame(screen.frame, display: true)
+                // Launchpad-like: cover the entire display including menubar
+                window.hasShadow = false
+                // Level above the menubar so the window covers it completely
+                window.level = NSWindow.Level(rawValue: NSWindow.Level.mainMenu.rawValue + 3)
+                window.collectionBehavior = [
+                    .canJoinAllSpaces,
+                    .fullScreenAuxiliary,
+                    .stationary,
+                    .ignoresCycle,
+                ]
+                window.isMovableByWindowBackground = false
+
+                // Hide the dock and menubar while the app is active, like real Launchpad
+                NSApp.presentationOptions = [
+                    .autoHideDock,
+                    .autoHideMenuBar,
+                ]
+
+                // Use the full screen frame (including menubar area)
+                let targetFrame = screen.frame
+                if !window.frame.equalTo(targetFrame) {
+                    window.setFrame(targetFrame, display: true, animate: false)
                 }
             } else {
-                let visibleFrame = screen.visibleFrame
-                window.contentView?.layoutSubtreeIfNeeded()
+                window.hasShadow = true
+                window.level = .floating
+                window.collectionBehavior = [
+                    .canJoinAllSpaces,
+                    .fullScreenAuxiliary,
+                    .stationary,
+                    .ignoresCycle,
+                ]
+                window.isMovableByWindowBackground = true
 
+                // Restore normal presentation options
+                NSApp.presentationOptions = []
+
+                let visibleFrame = screen.visibleFrame
                 let minimumContentSize = NSSize(width: 1024, height: 720)
                 var targetContentSize: NSSize
+
                 if let preferredWindowSize {
                     targetContentSize = NSSize(
                         width: preferredWindowSize.width,
@@ -105,7 +126,8 @@ import SwiftUI
 
                 if abs(window.frame.width - targetFrame.width) > 1
                     || abs(window.frame.height - targetFrame.height) > 1
-                    || window.frame.origin != targetFrame.origin
+                    || abs(window.frame.origin.x - targetFrame.origin.x) > 1
+                    || abs(window.frame.origin.y - targetFrame.origin.y) > 1
                 {
                     window.setFrame(targetFrame, display: true)
                 }
@@ -120,6 +142,19 @@ import SwiftUI
                 window.firstResponder == nil || window.firstResponder === window
             {
                 window.makeFirstResponder(contentView)
+            }
+        }
+
+        /// A custom NSView that notifies immediately when it is added to a window,
+        /// allowing synchronous configuration without DispatchQueue.main.async delays.
+        final class ConfiguratorView: NSView {
+            var onAttach: ((NSView) -> Void)?
+
+            override func viewDidMoveToWindow() {
+                super.viewDidMoveToWindow()
+                if window != nil {
+                    onAttach?(self)
+                }
             }
         }
 

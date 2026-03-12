@@ -142,15 +142,18 @@ struct SettingsView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .scrollIndicators(.visible)
         .padding(.horizontal, 36)
         .padding(.vertical, 32)
         .frame(minWidth: 640, minHeight: 520)
     }
 }
 
-private extension SettingsView {
+extension SettingsView {
     @ViewBuilder
-    func settingsCard(title: String, systemImage: String, @ViewBuilder content: () -> some View)
+    fileprivate func settingsCard(
+        title: String, systemImage: String, @ViewBuilder content: () -> some View
+    )
         -> some View
     {
         VStack(alignment: .leading, spacing: 16) {
@@ -173,7 +176,7 @@ private extension SettingsView {
         )
     }
 
-    func gridStepperRow(
+    fileprivate func gridStepperRow(
         title: String, subtitle: String, value: Int, binding: Binding<Int>, range: ClosedRange<Int>
     ) -> some View {
         HStack(alignment: .center) {
@@ -187,14 +190,17 @@ private extension SettingsView {
 
             Spacer(minLength: 24)
 
-            Stepper(value: binding, in: range) {
+            HStack(spacing: 10) {
                 valueBadge("\(value)")
+
+                Stepper("", value: binding, in: range)
+                    .labelsHidden()
+                    .fixedSize()
             }
-            .labelsHidden()
         }
     }
 
-    func sliderRow(
+    fileprivate func sliderRow(
         title: String,
         subtitle: String,
         value: Double,
@@ -220,7 +226,7 @@ private extension SettingsView {
         }
     }
 
-    func valueBadge(_ text: String) -> some View {
+    fileprivate func valueBadge(_ text: String) -> some View {
         Text(text)
             .font(.system(.body, design: .monospaced))
             .foregroundStyle(Color.white.opacity(0.85))
