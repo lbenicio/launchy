@@ -4,7 +4,7 @@
 import PackageDescription
 
 // Single source-of-truth for package version used by build scripts or about dialogs.
-let packageVersion = "0.4.1"
+let packageVersion = "0.4.2"
 
 let package = Package(
     name: "Launchy",
@@ -24,6 +24,6 @@ let package = Package(
             name: "LaunchyTests",
             dependencies: ["Launchy"],
             path: "tests"
-        )
+        ),
     ]
 )

@@ -3,7 +3,7 @@
 # Application settings
 APP_NAME := Launchy
 BUILD_DIR := .build
-DIST_DIR := dist
+DIST_DIR := .build/dist
 RELEASE_BIN := $(BUILD_DIR)/release/$(APP_NAME)
 DEBUG_BIN := $(BUILD_DIR)/debug/$(APP_NAME)
 VERSION := $(shell sed -n 's/^let packageVersion = "\(.*\)"/\1/p' Package.swift)
