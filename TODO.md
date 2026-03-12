@@ -80,11 +80,11 @@
 
 ### P2
 
-- [ ] **`pagedItems` is a computed property re-chunked on every access**
+- [x] **`pagedItems` is a computed property re-chunked on every access**
   Used by `pages` (in the view body), `pageCount`, `ensureCurrentPageInBounds`, and `pagedItems(matching:)`. Each access re-runs `chunked(into:)` over the full items array. Cache the result and invalidate when `items` or `settings.pageCapacity` changes.
   _File: `LaunchyViewModel.swift`_
 
-- [ ] **`item(with:)` does a linear scan on every call**
+- [x] **`item(with:)` does a linear scan on every call**
   Called per-tile during rendering and selection checks. For large grids (100+ items) a `[UUID: LaunchyItem]` lookup dictionary would be O(1) instead of O(n).
   _File: `LaunchyViewModel.swift`_
 

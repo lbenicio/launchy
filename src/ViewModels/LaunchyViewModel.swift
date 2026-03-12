@@ -8,7 +8,9 @@ import SwiftUI
 
 @MainActor
 final class LaunchyViewModel: ObservableObject {
-    @Published private(set) var items: [LaunchyItem]
+    @Published private(set) var items: [LaunchyItem] {
+        didSet { invalidateCaches() }
+    }
     @Published var isEditing: Bool = false
     @Published var currentPage: Int = 0
     @Published var presentedFolderID: UUID? = nil
@@ -31,6 +33,31 @@ final class LaunchyViewModel: ObservableObject {
     private var saveDebouncerWorkItem: DispatchWorkItem?
     private let saveDebouncerDelay: TimeInterval = 0.5
 
+    // MARK: - Caches
+
+    private var _cachedPagedItems: [[LaunchyItem]]?
+    private var _cachedPageCapacity: Int?
+    private var _itemLookup: [UUID: LaunchyItem]?
+
+    private func invalidateCaches() {
+        _cachedPagedItems = nil
+        _itemLookup = nil
+    }
+
+    private func buildItemLookup() -> [UUID: LaunchyItem] {
+        var lookup = [UUID: LaunchyItem]()
+        lookup.reserveCapacity(items.count * 2)
+        for item in items {
+            lookup[item.id] = item
+            if case .folder(let folder) = item {
+                for app in folder.apps {
+                    lookup[app.id] = .app(app)
+                }
+            }
+        }
+        return lookup
+    }
+
     init(
         dataStore: LaunchyDataStore,
         settingsStore: GridSettingsStore,
@@ -52,6 +79,7 @@ final class LaunchyViewModel: ObservableObject {
         settingsStore.$settings
             .dropFirst()
             .sink { [weak self] _ in
+                self?._cachedPagedItems = nil
                 self?.ensureCurrentPageInBounds(shouldPersist: false)
             }
             .store(in: &cancellables)
@@ -85,9 +113,19 @@ final class LaunchyViewModel: ObservableObject {
 
     var pagedItems: [[LaunchyItem]] {
         let capacity = settings.pageCapacity
-        guard capacity > 0 else { return [items] }
-        let chunks = items.chunked(into: capacity)
-        return chunks.isEmpty ? [[]] : chunks
+        if let cached = _cachedPagedItems, _cachedPageCapacity == capacity {
+            return cached
+        }
+        let result: [[LaunchyItem]]
+        if capacity <= 0 {
+            result = [items]
+        } else {
+            let chunks = items.chunked(into: capacity)
+            result = chunks.isEmpty ? [[]] : chunks
+        }
+        _cachedPagedItems = result
+        _cachedPageCapacity = capacity
+        return result
     }
 
     func pagedItems(matching query: String) -> [[LaunchyItem]] {
@@ -191,20 +229,19 @@ final class LaunchyViewModel: ObservableObject {
     // MARK: - Item accessors
 
     func item(with id: UUID) -> LaunchyItem? {
-        if let top = items.first(where: { $0.id == id }) { return top }
-        for item in items {
-            if case .folder(let folder) = item {
-                if let appIcon = folder.apps.first(where: { $0.id == id }) {
-                    return .app(appIcon)
-                }
-            }
+        let lookup: [UUID: LaunchyItem]
+        if let cached = _itemLookup {
+            lookup = cached
+        } else {
+            lookup = buildItemLookup()
+            _itemLookup = lookup
         }
-        return nil
+        return lookup[id]
     }
 
     func folder(by id: UUID) -> LaunchyFolder? {
-        for item in items {
-            if case .folder(let folder) = item, folder.id == id { return folder }
+        if let item = item(with: id), case .folder(let folder) = item {
+            return folder
         }
         return nil
     }
