@@ -352,12 +352,26 @@ final class LaunchyViewModel: ObservableObject {
                     at: icon.bundleURL,
                     configuration: NSWorkspace.OpenConfiguration()
                 ) { _, _ in }
-                launchSuppressionWorkItem?.cancel()
-                let work = DispatchWorkItem { [weak self] in
-                    self?.isLaunchingApp = false
+
+                // Dismiss the launcher after launching, matching real Launchpad behavior.
+                // Restore presentation options so dock/menubar reappear immediately,
+                // then fade out the window and terminate.
+                NSApp.presentationOptions = []
+
+                if let window = NSApp.windows.first(where: { $0.isVisible }) {
+                    NSAnimationContext.runAnimationGroup(
+                        { context in
+                            context.duration = 0.2
+                            window.animator().alphaValue = 0
+                        },
+                        completionHandler: {
+                            DispatchQueue.main.async {
+                                NSApplication.shared.terminate(nil)
+                            }
+                        })
+                } else {
+                    NSApplication.shared.terminate(nil)
                 }
-                launchSuppressionWorkItem = work
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
             case .folder:
                 break
             }
