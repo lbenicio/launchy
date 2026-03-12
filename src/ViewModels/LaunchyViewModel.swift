@@ -206,6 +206,7 @@ final class LaunchyViewModel: ObservableObject {
 
     // MARK: - Selection & Editing
 
+    /// Toggles wiggle (edit) mode. Clears any active selection when exiting.
     func toggleEditing() {
         isEditing.toggle()
         if !isEditing {
@@ -220,6 +221,7 @@ final class LaunchyViewModel: ObservableObject {
         return false
     }
 
+    /// Toggles the selection state of the item with the given ID for batch operations.
     func toggleSelection(for id: UUID) {
         if selectedItemIDs.contains(id) {
             selectedItemIDs.remove(id)
@@ -236,6 +238,8 @@ final class LaunchyViewModel: ObservableObject {
 
     // MARK: - Item accessors
 
+    /// Looks up any item (app or folder, including apps nested inside folders) by ID.
+    /// Uses a cached lookup table for O(1) access.
     func item(with id: UUID) -> LaunchyItem? {
         let lookup: [UUID: LaunchyItem]
         if let cached = _itemLookup {
@@ -247,6 +251,7 @@ final class LaunchyViewModel: ObservableObject {
         return lookup[id]
     }
 
+    /// Returns the folder with the given ID, or `nil` if no folder matches.
     func folder(by id: UUID) -> LaunchyFolder? {
         if let item = item(with: id), case .folder(let folder) = item {
             return folder
@@ -254,11 +259,12 @@ final class LaunchyViewModel: ObservableObject {
         return nil
     }
 
+    /// Returns the top-level index of the item in the flat items array.
     func indexOfItem(_ id: UUID) -> Int? { items.firstIndex(where: { $0.id == id }) }
 
     // MARK: - Debounced persistence
 
-    /// Schedule a debounced save. Only the last call within the delay window persists.
+    /// Schedules a debounced save. Only the last call within the delay window persists to disk.
     func scheduleDebouncedSave() {
         saveDebouncerTask?.cancel()
         saveDebouncerTask = Task { [weak self] in
@@ -268,7 +274,7 @@ final class LaunchyViewModel: ObservableObject {
         }
     }
 
-    /// Save immediately (used for user-initiated actions like folder creation, deletion, etc.)
+    /// Persists the current item layout to disk immediately, cancelling any pending debounced save.
     func saveNow() {
         saveDebouncerTask?.cancel()
         saveDebouncerTask = nil
@@ -277,6 +283,8 @@ final class LaunchyViewModel: ObservableObject {
 
     // MARK: - Modifiers (create, delete, move)
 
+    /// Creates a new folder from the given app IDs, inserting it at the position of the first
+    /// selected app. Returns `nil` if fewer than two apps are provided.
     func createFolder(
         named name: String, color: IconColor = .blue, from ids: [UUID]
     ) -> LaunchyFolder? {
@@ -315,6 +323,7 @@ final class LaunchyViewModel: ObservableObject {
         addApps(ids, toFolder: folderID)
     }
 
+    /// Moves the specified top-level apps into the target folder.
     func addApps(_ appIDs: [UUID], toFolder folderID: UUID) {
         guard !appIDs.isEmpty else { return }
 
@@ -353,6 +362,7 @@ final class LaunchyViewModel: ObservableObject {
         addApps([appID], toFolder: folderID)
     }
 
+    /// Dissolves a folder, inserting its apps back into the grid at the folder's former position.
     func disbandFolder(_ folderID: UUID) {
         guard let index = items.firstIndex(where: { $0.id == folderID }),
             let folder = items[index].asFolder
@@ -365,6 +375,8 @@ final class LaunchyViewModel: ObservableObject {
         presentedFolderID = nil
     }
 
+    /// Removes an item from the grid. Folders are auto-disbanded (apps returned to grid);
+    /// apps are moved to the recently-removed list for possible restoration.
     func deleteItem(_ id: UUID) {
         if let idx = items.firstIndex(where: { $0.id == id }) {
             // If it's a folder, auto-disband: move apps back to the grid
@@ -434,6 +446,7 @@ final class LaunchyViewModel: ObservableObject {
         saveNow()
     }
 
+    /// Shifts a top-level item by the given offset (positive = rightward, negative = leftward).
     func shiftItem(_ id: UUID, by offset: Int) {
         guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
         let newIndex = min(max(0, idx + offset), items.count - 1)
@@ -443,6 +456,8 @@ final class LaunchyViewModel: ObservableObject {
         saveNow()
     }
 
+    /// Repositions a top-level item before the target item, or appends it if target is `nil`.
+    /// Used during drag reordering; saves are debounced.
     func moveItem(_ id: UUID, before targetID: UUID?) {
         guard let from = items.firstIndex(where: { $0.id == id }) else { return }
 
@@ -464,10 +479,12 @@ final class LaunchyViewModel: ObservableObject {
         scheduleDebouncedSave()
     }
 
+    /// Presents the folder overlay for the given folder ID.
     func openFolder(with id: UUID) {
         presentedFolderID = id
     }
 
+    /// Dismisses the currently presented folder overlay.
     func closeFolder() {
         presentedFolderID = nil
     }
@@ -483,6 +500,7 @@ final class LaunchyViewModel: ObservableObject {
         #endif
     }
 
+    /// Opens the given app using `NSWorkspace` and dismisses the launcher window.
     func launch(_ item: LaunchyItem) {
         #if os(macOS)
             switch item {
@@ -573,6 +591,7 @@ final class LaunchyViewModel: ObservableObject {
         saveNow()
     }
 
+    /// Shifts an app within a folder by the given offset.
     func shiftAppInFolder(folderID: UUID, appID: UUID, by offset: Int) {
         guard let idx = items.firstIndex(where: { $0.id == folderID }),
             var folder = items[idx].asFolder,
@@ -587,6 +606,7 @@ final class LaunchyViewModel: ObservableObject {
         saveNow()
     }
 
+    /// Repositions an app within a folder before the target app, or appends if target is `nil`.
     func moveAppWithinFolder(folderID: UUID, appID: UUID, before targetAppID: UUID?) {
         guard let idx = items.firstIndex(where: { $0.id == folderID }),
             var folder = items[idx].asFolder,
@@ -607,30 +627,41 @@ final class LaunchyViewModel: ObservableObject {
 
     // MARK: - Drag & drop (forwarded to DragCoordinator)
 
+    /// Starts a drag session for the given item. Forwarded to `DragCoordinator`.
     func beginDrag(for id: UUID, sourceFolder: UUID? = nil) {
         dragCoordinator.beginDrag(for: id, sourceFolder: sourceFolder)
     }
 
+    /// Ends the current drag session. If `commit` is true, persists changes immediately.
     func endDrag(commit: Bool) {
         dragCoordinator.endDrag(commit: commit)
     }
 
+    /// Extracts a dragged item from its source folder into the top-level grid.
+    /// No-op if the item is already top-level or no drag is active.
     func extractDraggedItemIfNeeded() {
         dragCoordinator.extractDraggedItemIfNeeded()
     }
 
+    /// Requests folder-creation stacking onto the target item after a short delay.
+    /// Cancels any previous pending stacking request.
     func requestStacking(onto id: UUID) {
         dragCoordinator.requestStacking(onto: id)
     }
 
+    /// Cancels any pending stacking timer.
     func cancelPendingStacking() {
         dragCoordinator.cancelPendingStacking()
     }
 
+    /// Commits the pending stacking if it matches the given target ID.
+    /// Returns whether stacking occurred.
     func commitPendingStackingIfNeeded(for id: UUID) -> Bool {
         dragCoordinator.commitPendingStackingIfNeeded(for: id)
     }
 
+    /// Immediately stacks the currently dragged item onto the target
+    /// (creating a folder or adding to an existing one).
     @discardableResult
     func stackDraggedItem(onto targetID: UUID) -> Bool {
         dragCoordinator.stackDraggedItem(onto: targetID)

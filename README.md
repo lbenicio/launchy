@@ -11,6 +11,42 @@ Launchy is a macOS SwiftUI application that recreates the familiar Launchpad exp
 - **Settings** – tweak grid dimensions, icon scaling, and other layout preferences.
 - **Persistence** – local storage keeps your custom layout intact between sessions.
 
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `⌘E` | Toggle wiggle (edit) mode |
+| `⌘,` | Open settings |
+| `←` / `→` | Navigate between pages |
+| `Home` / `End` | Jump to first / last page |
+| `Page Up` / `Page Down` | Navigate between pages |
+| `Escape` | Layered dismiss: close folder → close settings → clear search → exit edit mode → hide launcher |
+| Trackpad swipe / scroll | Navigate between pages (sensitivity configurable in settings) |
+| `F4` | Global hotkey to toggle launcher visibility |
+
+## Architecture
+
+```mermaid
+graph LR
+    A[InstalledApplicationsProvider] --> B[LaunchyDataStore]
+    B --> C[LaunchyViewModel]
+    C --> D[DragCoordinator]
+    C --> E[LaunchyRootView]
+    E --> F[LaunchyPagedGridView]
+    E --> G[FolderContentView]
+    F --> H[LaunchyGridPageView]
+    H --> I[LaunchyItemView]
+    J[GridSettingsStore] --> C
+    J --> E
+```
+
+| Layer | Responsibility |
+|-------|---------------|
+| **Models** | `AppIcon`, `LaunchyItem`, `LaunchyFolder`, `GridSettings` — pure value types (`Codable`, `Sendable`) |
+| **Services** | `InstalledApplicationsProvider` discovers apps on disk; `LaunchyDataStore` persists layout as JSON; `GridSettingsStore` persists user preferences; `GlobalHotkeyService` listens for F4 |
+| **ViewModels** | `LaunchyViewModel` owns the item list, paging, editing, and folder logic; `DragCoordinator` encapsulates drag-and-drop state and stacking |
+| **Views** | SwiftUI views for the grid, folder overlay, settings panel, and search field |
+
 ## Requirements
 
 - macOS 14.0 or newer

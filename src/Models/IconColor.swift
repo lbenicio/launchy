@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum IconColor: String, CaseIterable, Codable, Hashable {
+enum IconColor: String, CaseIterable, Codable, Hashable, Sendable {
     case blue
     case indigo
     case purple

@@ -1,67 +1,75 @@
-# Contributing to Graduation Project
+# Contributing to Launchy
 
-Thank you for considering contributing to the Graduation Project! Contributions are welcome and greatly appreciated. By contributing, you help make this project better for everyone.
+Welcome to Launchy! We appreciate your interest in contributing to this macOS Launchpad replacement. Whether you're fixing a bug, improving documentation, or building a new feature, this guide will help you get started.
 
-## How to Contribute
+## Prerequisites
 
-### 1. Fork the Repository
+- **macOS 14+** (Sonoma or later)
+- **Swift 6.2 toolchain** (ships with Xcode 26 or can be installed via [swiftly](https://github.com/swiftlang/swiftly))
 
-Start by forking the repository to your GitHub account. This creates a copy of the project where you can make changes.
-
-### 2. Clone the Repository
-
-Clone your forked repository to your local machine using the following command:
+## Getting Started
 
 ```bash
-git clone https://github.com/your-username/graduation.git
+# Clone the repository
+git clone https://github.com/your-username/launchy.git
+cd launchy
+
+# Build the project
+make build
+
+# Run in debug mode
+make run
+
+# Run the test suite
+make test
 ```
 
-### 3. Create a Branch
+## Development Workflow
 
-Create a new branch for your changes. Use a descriptive name for your branch:
+The `Makefile` exposes the most common tasks:
 
-```bash
-git checkout -b feature/your-feature-name
+| Command      | Description                                              |
+| ------------ | -------------------------------------------------------- |
+| `make fmt`   | Format code with **swift-format** (config in `.swift-format`) |
+| `make lint`  | Check formatting without modifying files                 |
+| `make test`  | Run the test suite                                       |
+| `make build` | Release build                                            |
+| `make run`   | Run in debug mode                                        |
+
+Please run `make fmt` and `make lint` before submitting a pull request.
+
+## Testing
+
+Tests live in the `tests/` directory and mirror the structure of `src/`. A few conventions to be aware of:
+
+- **`StubFileManager` pattern** — Tests that touch persistence or the filesystem use a stub file manager so they never read from or write to the real disk. If you add new service-level tests, follow this pattern to keep the suite fast and deterministic.
+- **`@MainActor`** — View-model tests run on the main actor to match production threading.
+- **`XCTestCase`** — All test classes inherit from `XCTestCase`.
+
+## Project Structure
+
+```
+src/
+├── App/          # App entry point, AppDelegate, global hotkey
+├── Extensions/   # Array helpers
+├── Models/       # AppIcon, LaunchyItem, LaunchyFolder, GridSettings, etc.
+├── Services/     # Data persistence, app discovery, icon caching, settings
+├── ViewModels/   # LaunchyViewModel, DragCoordinator
+└── Views/        # SwiftUI views and components
+tests/            # Unit tests mirroring src/ structure
 ```
 
-### 4. Make Changes
+## Pull Requests
 
-Make your changes in the codebase. Ensure your changes are well-documented and follow the project's coding standards.
+1. Fill out the **PR template** when you open a pull request.
+2. **Link relevant issues** (e.g., `Closes #42`).
+3. **Include screenshots or screen recordings** for any UI changes.
+4. Keep PRs focused — one logical change per PR makes reviews faster.
 
-### 5. Test Your Changes
+## Roadmap
 
-Run tests to ensure your changes do not break existing functionality. Add new tests if necessary.
-
-### 6. Commit Your Changes
-
-Commit your changes with a clear and concise commit message:
-
-```bash
-git commit -m "Add feature: your-feature-name"
-```
-
-### 7. Push Your Changes
-
-Push your changes to your forked repository:
-
-```bash
-git push origin feature/your-feature-name
-```
-
-### 8. Submit a Pull Request
-
-Go to the original repository and submit a pull request. Provide a detailed description of your changes and why they are necessary.
+See [`TODO.md`](TODO.md) for current priorities and planned features. If you want to pick something up, leave a comment on the corresponding issue (or open one) so we can avoid duplicate work.
 
 ## Code of Conduct
 
-Please adhere to the [Code of Conduct](CODE_OF_CONDUCT.md) when contributing to this project.
-
-## Reporting Issues
-
-If you encounter any issues, please report them by opening an issue in the repository. Provide as much detail as possible to help us address the problem.
-
-## Contact
-
-If you have any questions about contributing, feel free to reach out to the project maintainers.
-
-Thank you for contributing!
+This project follows the guidelines described in [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md). Please read it before participating.

@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct LaunchyFolder: Identifiable, Codable, Equatable {
+struct LaunchyFolder: Identifiable, Codable, Equatable, Sendable {
     var id: UUID = UUID()
     var name: String
     var color: IconColor = .gray

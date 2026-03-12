@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 
-struct GridSettings: Codable, Equatable {
+struct GridSettings: Codable, Equatable, Sendable {
     var columns: Int
     var rows: Int
     var folderColumns: Int

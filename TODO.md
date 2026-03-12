@@ -206,7 +206,7 @@ These are behaviors present in the original macOS Launchpad that Launchy doesn't
 - [x] **Rename test file `LaunchpadViewModelTests.swift` → `LaunchyViewModelTests.swift`**
   Leftover from the pre-rebrand naming. The class inside is already `LaunchyViewModelTests` but the filename still says `Launchpad`.
 
-- [ ] **Add `Sendable` conformance to model types**
+- [x] **Add `Sendable` conformance to model types**
   `AppIcon`, `LaunchyFolder`, `LaunchyItem`, `GridSettings` are all value types and should be explicitly `Sendable` for Swift 6.
 
 - [x] **Consolidate `makeProvider(for:)` helper**
@@ -218,21 +218,21 @@ These are behaviors present in the original macOS Launchpad that Launchy doesn't
 
 ### P2
 
-- [ ] **Add app icon to release workflow**
+- [x] **Add app icon to release workflow**
   The `.github/workflows/release.yml` `Create .app bundle` step doesn't copy `assets/icon/launchy.icns` into `Contents/Resources/`. The Makefile does — sync them.
 
-- [ ] **Add a CI workflow for pull requests**
+- [x] **Add a CI workflow for pull requests**
   Currently there's only a manual release workflow and a notification workflow. A PR workflow that runs `swift build && swift test` on every push would catch regressions early.
 
-- [ ] **Pin `actions/create-release` and `actions/upload-release-asset`**
+- [x] **Pin `actions/create-release` and `actions/upload-release-asset`**
   Both use `@v1` which is deprecated. Migrate to `softprops/action-gh-release` or pin to SHA digests.
 
 ### P3
 
-- [ ] **Add `swift-format` config file**
+- [x] **Add `swift-format` config file**
   The Makefile has `fmt` and `lint` targets using `swift format`, but there's no `.swift-format` configuration file to enforce consistent style across contributors.
 
-- [ ] **Code signing and notarization in CI**
+- [x] **Code signing and notarization in CI**
   The release artifact is unsigned. macOS Gatekeeper will block it on first launch. Add `codesign` and `notarytool` steps (requires Apple Developer credentials as secrets).
 
 ---
@@ -241,18 +241,18 @@ These are behaviors present in the original macOS Launchpad that Launchy doesn't
 
 ### P2
 
-- [ ] **Add keyboard shortcuts reference to README**
+- [x] **Add keyboard shortcuts reference to README**
   Document ⌘E (toggle wiggle mode), arrow keys for page navigation, and the planned Escape behavior.
 
-- [ ] **Architecture overview diagram**
+- [x] **Architecture overview diagram**
   A simple Mermaid diagram showing the data flow: `InstalledApplicationsProvider → LaunchyDataStore → LaunchyViewModel → Views` would help new contributors.
 
 ### P3
 
-- [ ] **Add inline doc comments to public ViewModel methods**
+- [x] **Add inline doc comments to public ViewModel methods**
   Methods like `extractDraggedItemIfNeeded`, `stackDraggedItem`, `requestStacking` have non-obvious semantics that would benefit from `///` documentation.
 
-- [ ] **CONTRIBUTING.md needs updating**
+- [x] **CONTRIBUTING.md needs updating**
   Still references generic steps. Should mention `make fmt`, `make test`, the StubFileManager pattern for testing, and the `TODO.md` file.
 
 ---

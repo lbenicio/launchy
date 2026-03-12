@@ -34,11 +34,13 @@ final class DragCoordinator: ObservableObject {
 
     // MARK: - Drag lifecycle
 
+    /// Starts a drag session for the given item. Forwarded from `LaunchyViewModel`.
     func beginDrag(for id: UUID, sourceFolder: UUID? = nil) {
         dragItemID = id
         dragSourceFolderID = sourceFolder
     }
 
+    /// Ends the current drag session. If `commit` is true, persists changes immediately.
     func endDrag(commit: Bool) {
         if commit {
             viewModel.saveNow()
@@ -84,6 +86,7 @@ final class DragCoordinator: ObservableObject {
 
     // MARK: - Stacking (folder creation / insertion on hover)
 
+    /// Requests folder-creation stacking onto the target item after a short delay. Cancels any previous pending stacking request.
     func requestStacking(onto id: UUID) {
         guard id != pendingStackTargetID else { return }
         cancelPendingStacking()
@@ -95,12 +98,14 @@ final class DragCoordinator: ObservableObject {
         }
     }
 
+    /// Cancels any pending stacking timer.
     func cancelPendingStacking() {
         pendingStackTask?.cancel()
         pendingStackTask = nil
         pendingStackTargetID = nil
     }
 
+    /// Commits the pending stacking if it matches the given target ID. Returns whether stacking occurred.
     func commitPendingStackingIfNeeded(for id: UUID) -> Bool {
         guard let pending = pendingStackTargetID, pending == id, dragItemID != nil else {
             return false
@@ -109,6 +114,7 @@ final class DragCoordinator: ObservableObject {
         return stackDraggedItem(onto: id)
     }
 
+    /// Immediately stacks the currently dragged item onto the target (creating a folder or adding to an existing one).
     @discardableResult
     func stackDraggedItem(onto targetID: UUID) -> Bool {
         guard let draggedID = dragItemID else { return false }

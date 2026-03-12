@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
 
-struct LaunchyDragIdentifier: Transferable, Codable, Hashable {
+struct LaunchyDragIdentifier: Transferable, Codable, Hashable, Sendable {
     let itemID: UUID
     let sourceFolderID: UUID?
 

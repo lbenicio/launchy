@@ -112,25 +112,49 @@ jobs:
                   zip -r "Launchy-macOS-${v}.zip" "Launchy.app"
                   echo "package_zip=out/Launchy-macOS-${v}.zip" >> $GITHUB_OUTPUT
 
+            # --- Code Signing & Notarization (optional) ---
+            # To sign and notarize the app bundle, add the following secrets to the repository:
+            #   APPLE_DEVELOPER_CERTIFICATE_P12_BASE64 — Base64-encoded .p12 signing certificate
+            #   APPLE_DEVELOPER_CERTIFICATE_PASSWORD    — Password for the .p12
+            #   APPLE_TEAM_ID                           — Apple Developer Team ID
+            #   APPLE_ID                                — Apple ID email for notarytool
+            #   APPLE_ID_PASSWORD                       — App-specific password for notarytool
+            # Then uncomment the steps below:
+            #
+            # - name: Import signing certificate
+            #   run: |
+            #       echo "${{ secrets.APPLE_DEVELOPER_CERTIFICATE_P12_BASE64 }}" | base64 --decode > cert.p12
+            #       security create-keychain -p "" build.keychain
+            #       security import cert.p12 -k build.keychain -P "${{ secrets.APPLE_DEVELOPER_CERTIFICATE_PASSWORD }}" -T /usr/bin/codesign
+            #       security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+            #       security default-keychain -s build.keychain
+            #
+            # - name: Sign app bundle
+            #   run: |
+            #       codesign --deep --force --options runtime \
+            #         --sign "Developer ID Application: YOUR NAME (${{ secrets.APPLE_TEAM_ID }})" \
+            #         out/Launchy.app
+            #
+            # - name: Notarize app bundle
+            #   run: |
+            #       cd out && zip -r Launchy-notarize.zip Launchy.app
+            #       xcrun notarytool submit Launchy-notarize.zip \
+            #         --apple-id "${{ secrets.APPLE_ID }}" \
+            #         --password "${{ secrets.APPLE_ID_PASSWORD }}" \
+            #         --team-id "${{ secrets.APPLE_TEAM_ID }}" \
+            #         --wait
+            #       xcrun stapler staple Launchy.app
+
             - name: Create GitHub release
               id: create_release
-              uses: actions/create-release@v1
+              uses: softprops/action-gh-release@v2
               with:
                   tag_name: v${{ steps.version.outputs.package_version }}
-                  release_name: v${{ steps.version.outputs.package_version }}
+                  name: v${{ steps.version.outputs.package_version }}
                   body_path: release_notes.txt
                   draft: false
                   prerelease: false
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-            - name: Upload release asset
-              uses: actions/upload-release-asset@v1
-              with:
-                  upload_url: ${{ steps.create_release.outputs.upload_url }}
-                  asset_path: out/Launchy-macOS-${{ steps.version.outputs.package_version }}.zip
-                  asset_name: Launchy-macOS-${{ steps.version.outputs.package_version }}.zip
-                  asset_content_type: application/zip
+                  files: out/Launchy-macOS-${{ steps.version.outputs.package_version }}.zip
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -144,4 +168,4 @@ jobs:
                   echo "Release: v$v" >> "$GITHUB_STEP_SUMMARY"
                   echo "Release notes: $(sed -n '1,8p' release_notes.txt)" >> "$GITHUB_STEP_SUMMARY"
                   echo "Artifact: Launchy-macOS-$v.zip" >> "$GITHUB_STEP_SUMMARY"
-                  echo "Release URL: ${{ steps.create_release.outputs.html_url }}" >> "$GITHUB_STEP_SUMMARY"
+                  echo "Release URL: ${{ steps.create_release.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"

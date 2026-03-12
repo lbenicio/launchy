@@ -1,6 +1,6 @@
 import Foundation
 
-struct AppIcon: Identifiable, Codable, Equatable, Hashable {
+struct AppIcon: Identifiable, Codable, Equatable, Hashable, Sendable {
     var id: UUID
     var name: String
     var bundleIdentifier: String
