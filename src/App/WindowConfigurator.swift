@@ -134,7 +134,7 @@ import SwiftUI
             }
 
             if !window.isKeyWindow {
-                NSApp.activate(ignoringOtherApps: true)
+                NSApp.activate()
                 window.makeKeyAndOrderFront(nil)
             }
 

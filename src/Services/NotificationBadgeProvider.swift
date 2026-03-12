@@ -42,51 +42,50 @@ final class NotificationBadgeProvider: ObservableObject {
             }
         }
 
-        /// Fetches badge counts for running applications by querying `lsappinfo`.
-        ///
-        /// `lsappinfo info -only StatusLabel -app <bundleID>` returns output like:
-        /// ```
-        /// "StatusLabel" = { "label"="3" }
-        /// ```
-        /// when an app has a badge set on its dock icon. We parse the label value
-        /// out of that response for every regular (dock-visible) running application.
+        /// Fetches badge counts for all running applications using a single
+        /// `lsappinfo list` invocation instead of one process per app.
         nonisolated private static func fetchBadgeCounts() -> [String: String] {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/lsappinfo")
+            task.arguments = ["list", "-only", "StatusLabel"]
+
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            task.standardError = FileHandle.nullDevice
+
+            do {
+                try task.run()
+                task.waitUntilExit()
+            } catch {
+                return [:]
+            }
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            guard let output = String(data: data, encoding: .utf8) else { return [:] }
+
             var result: [String: String] = [:]
+            var currentBundleID: String?
 
-            let apps = NSWorkspace.shared.runningApplications
-            for app in apps {
-                guard let bundleID = app.bundleIdentifier else { continue }
-                // Only check regular apps (those that appear in the Dock)
-                guard app.activationPolicy == .regular else { continue }
+            for line in output.components(separatedBy: "\n") {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
 
-                let task = Process()
-                task.executableURL = URL(fileURLWithPath: "/usr/bin/lsappinfo")
-                task.arguments = ["info", "-only", "StatusLabel", "-app", bundleID]
+                // Match bundleID="com.example.app"
+                if let range = trimmed.range(of: "bundleID=\""),
+                    let endRange = trimmed[range.upperBound...].range(of: "\"")
+                {
+                    currentBundleID = String(trimmed[range.upperBound..<endRange.lowerBound])
+                }
 
-                let pipe = Pipe()
-                task.standardOutput = pipe
-                task.standardError = FileHandle.nullDevice
-
-                do {
-                    try task.run()
-                    task.waitUntilExit()
-
-                    let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                    guard let output = String(data: data, encoding: .utf8) else { continue }
-
-                    // Expected format: "StatusLabel"={ "label"="3" }
-                    // Also handles:    "StatusLabel"={ "label"="New" }
-                    if let labelRange = output.range(of: "\"label\"=\""),
-                        let endRange = output[labelRange.upperBound...].range(of: "\"")
-                    {
-                        let badge = String(output[labelRange.upperBound..<endRange.lowerBound])
-                        if !badge.isEmpty {
-                            result[bundleID] = badge
-                        }
+                // Match "StatusLabel"={ "label"="3" }
+                if let bundleID = currentBundleID,
+                    let labelRange = trimmed.range(of: "\"label\"=\""),
+                    let endRange = trimmed[labelRange.upperBound...].range(of: "\"")
+                {
+                    let badge = String(trimmed[labelRange.upperBound..<endRange.lowerBound])
+                    if !badge.isEmpty {
+                        result[bundleID] = badge
                     }
-                } catch {
-                    // Silently skip apps we can't query
-                    continue
+                    currentBundleID = nil
                 }
             }
 

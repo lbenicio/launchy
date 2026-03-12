@@ -1117,12 +1117,11 @@ final class LaunchyViewModelTests: XCTestCase {
         XCTAssertEqual(result[1], [4, 5])
     }
 
-    func testChunkedWithSizeZeroReturnsSelf() throws {
+    func testChunkedWithSizeZeroReturnsEmpty() throws {
         let array = [1, 2, 3]
         let result = array.chunked(into: 0)
-        // Per implementation: size <= 0 returns [self]
-        XCTAssertEqual(result.count, 1)
-        XCTAssertEqual(result[0], [1, 2, 3])
+        // Invalid chunk size returns an empty array
+        XCTAssertEqual(result.count, 0)
     }
 
     // MARK: - GridLayoutMetrics Tests

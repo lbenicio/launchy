@@ -491,7 +491,6 @@ final class LaunchyViewModel: ObservableObject {
     /// Repositions a top-level item before the target item, or appends it if target is `nil`.
     /// Used during drag reordering; saves are debounced.
     func moveItem(_ id: UUID, before targetID: UUID?) {
-        recordForUndo()
         guard let from = items.firstIndex(where: { $0.id == id }) else { return }
 
         if let targetID {
@@ -611,7 +610,9 @@ final class LaunchyViewModel: ObservableObject {
         #if os(macOS)
             NSApp.presentationOptions = []
 
-            if let window = NSApp.windows.first(where: { $0.isVisible }) {
+            if let window = NSApp.windows.first(where: {
+                $0.isVisible && $0.identifier?.rawValue != "com_apple_SwiftUI_Settings_window"
+            }) {
                 NSAnimationContext.runAnimationGroup(
                     { context in
                         context.duration = 0.2
@@ -749,7 +750,10 @@ final class LaunchyViewModel: ObservableObject {
     // MARK: - Drag & drop (forwarded to DragCoordinator)
 
     /// Starts a drag session for the given item. Forwarded to `DragCoordinator`.
+    /// Records an undo snapshot once at drag start so that the entire reorder
+    /// operation can be undone in a single Cmd+Z.
     func beginDrag(for id: UUID, sourceFolder: UUID? = nil) {
+        recordForUndo()
         dragCoordinator.beginDrag(for: id, sourceFolder: sourceFolder)
     }
 

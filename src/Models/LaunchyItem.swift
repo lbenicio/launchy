@@ -1,6 +1,6 @@
 import Foundation
 
-enum LaunchyItem: Identifiable, Codable, Equatable, Sendable {
+enum LaunchyItem: Identifiable, Codable, Equatable, Hashable, Sendable {
     case app(AppIcon)
     case folder(LaunchyFolder)
 

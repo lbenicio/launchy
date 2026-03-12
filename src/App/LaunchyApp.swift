@@ -74,7 +74,7 @@ import SwiftUI
             else { return }
             window.alphaValue = 1
             window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            NSApp.activate()
 
             // Restore presentation options for full-screen layout
             // The WindowConfigurator will re-apply the correct options on the next
@@ -105,7 +105,7 @@ struct LaunchyApp: App {
         #if os(macOS)
             DispatchQueue.main.async {
                 NSApp.setActivationPolicy(.regular)
-                NSApp.activate(ignoringOtherApps: true)
+                NSApp.activate()
             }
         #endif
     }

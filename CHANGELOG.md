@@ -10,6 +10,30 @@ The format is based on "Keep a Changelog" and this project adheres to [Semantic 
 
 - **`resetToDefaultLayout` notification not subscribed to:** Added `.onReceive` handler in `LaunchyRootView` for `Notification.Name.resetToDefaultLayout`, so the Settings → Reset Layout button now correctly calls `viewModel.resetToDefaultLayout()`.
 - **`TrackpadGestureService` not wired up:** Started `TrackpadGestureService.shared` in `AppDelegate.applicationDidFinishLaunching` with `onPinchIn` calling `toggleLauncher()`, and added `.stop()` in `applicationWillTerminate`. Four-finger pinch-in gestures now toggle the launcher as expected.
+- **`NSApp.activate(ignoringOtherApps:)` deprecated:** Replaced all four call sites (`LaunchyApp.init`, `AppDelegate.showLauncherWindow`, `WindowConfigurator.configureWindow`, `LaunchyRootView.activateWindowIfNeeded`) with the parameterless `NSApp.activate()` available on macOS 14+.
+- **Excessive undo snapshots from drag operations:** Moved `recordForUndo()` from `moveItem(_:before:)` (called on every drag pixel) to `beginDrag(for:sourceFolder:)` (called once per drag session), so a single Cmd+Z undoes the entire reorder operation.
+- **Undo/save timing inconsistency:** By recording the undo snapshot at drag start instead of on every `moveItem` call, the snapshot now always captures the pre-drag state before any debounced saves occur.
+- **`dismissAfterLaunch()` could match the Settings window:** Added `$0.identifier?.rawValue != "com_apple_SwiftUI_Settings_window"` filter to the window lookup in `dismissAfterLaunch()`.
+- **`dismissLauncher()` could match the Settings window:** Added the same Settings window filter and converted `DispatchQueue.main.async` to `Task { @MainActor in }`.
+- **`activateWindowIfNeeded()` could match the Settings window:** Added the Settings window filter and converted `DispatchQueue.main.async` to `Task { @MainActor in }`.
+- **`NotificationBadgeProvider` spawned one `Process` per running app:** Replaced per-app `lsappinfo info` calls with a single `lsappinfo list -only StatusLabel` invocation, reducing subprocess spawns from 20+ to 1 per poll cycle.
+- **`Color+Hex` only handled 6-character hex:** Added support for `#RGB` (3-char), `#RGBA` (4-char), `#RRGGBB` (6-char), and `#RRGGBBAA` (8-char) formats. The `default` case now logs a warning via `os_log` instead of silently returning black.
+- **`chunked(into: 0)` returned `[self]` instead of empty array:** Changed the guard to return `[]` for invalid chunk sizes.
+- **Info.plist `CFBundleIconFiles` is iOS-only:** Removed the `CFBundleIconFiles` array entry from the plist template; macOS uses `CFBundleIconFile` (singular) which was already present.
+
+### Added
+
+- **`LaunchyFolder` conforms to `Hashable`:** Added `Hashable` conformance for consistency with `AppIcon` and to enable `Set`/`Dictionary` usage.
+- **`LaunchyItem` conforms to `Hashable`:** Added `Hashable` conformance to the enum now that both associated types (`AppIcon`, `LaunchyFolder`) are `Hashable`.
+- **Search field auto-focus on appear:** `LaunchySearchField` now calls `makeFirstResponder` on the `NSSearchField` when it appears, matching real Launchpad's immediate-typing behavior.
+
+### Changed
+
+- Converted remaining `DispatchQueue.main.async` calls in `LaunchyRootView` to `Task { @MainActor in }` for consistent structured concurrency.
+
+### Tests
+
+- Updated `testChunkedWithSizeZeroReturnsSelf` → `testChunkedWithSizeZeroReturnsEmpty` to match the corrected `chunked(into: 0)` behavior (returns `[]`).
 
 ## [0.4.2] - 2026-03-12
 

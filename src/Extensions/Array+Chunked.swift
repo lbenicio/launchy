@@ -1,6 +1,6 @@
 extension Array {
     func chunked(into size: Int) -> [[Element]] {
-        guard size > 0 else { return [self] }
+        guard size > 0 else { return [] }
         var chunks: [[Element]] = []
         chunks.reserveCapacity((count / size) + 1)
         var index = startIndex

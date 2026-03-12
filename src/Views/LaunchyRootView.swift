@@ -359,9 +359,12 @@ struct LaunchyRootView: View {
         #if os(macOS)
             guard !didActivateWindow else { return }
             didActivateWindow = true
-            DispatchQueue.main.async {
-                NSApp.activate(ignoringOtherApps: true)
-                if let window = NSApp.windows.first(where: { $0.isVisible }) {
+            Task { @MainActor in
+                NSApp.activate()
+                if let window = NSApp.windows.first(where: {
+                    $0.isVisible
+                        && $0.identifier?.rawValue != "com_apple_SwiftUI_Settings_window"
+                }) {
                     window.makeKeyAndOrderFront(nil)
                     window.makeFirstResponder(window.contentView)
                 }
@@ -400,9 +403,12 @@ struct LaunchyRootView: View {
         /// matching real Launchpad behavior. The app stays alive so
         /// it can be re-shown via the dock icon, Cmd-Tab, or a global hotkey.
         private func dismissLauncher() {
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 NSApp.presentationOptions = []
-                if let window = NSApp.windows.first(where: { $0.isVisible }) {
+                if let window = NSApp.windows.first(where: {
+                    $0.isVisible
+                        && $0.identifier?.rawValue != "com_apple_SwiftUI_Settings_window"
+                }) {
                     NSAnimationContext.runAnimationGroup { context in
                         context.duration = 0.18
                         window.animator().alphaValue = 0

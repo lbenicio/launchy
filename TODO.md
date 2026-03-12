@@ -27,24 +27,30 @@
 
 ---
 
-### 🟠 `NSApp.activate(ignoringOtherApps:)` is deprecated in macOS 14+
-Called in four places (`LaunchyApp.init`, `AppDelegate.showLauncherWindow`, `WindowConfigurator.configureWindow`, `LaunchyRootView.activateWindowIfNeeded`). Since the minimum deployment target is macOS 14, this should use the modern replacement `NSApp.activate()` (no parameter).
+### ~~🟠 `NSApp.activate(ignoringOtherApps:)` is deprecated in macOS 14+~~
+~~Called in four places (`LaunchyApp.init`, `AppDelegate.showLauncherWindow`, `WindowConfigurator.configureWindow`, `LaunchyRootView.activateWindowIfNeeded`). Since the minimum deployment target is macOS 14, this should use the modern replacement `NSApp.activate()` (no parameter).~~
 
-**Fix:** Replace all four call sites with `NSApp.activate()`.
+~~**Fix:** Replace all four call sites with `NSApp.activate()`.~~
 
----
-
-### 🟠 Excessive undo snapshots from drag operations
-`moveItem(_:before:)` calls `recordForUndo()` on **every** drag-movement event (every pixel), flooding the undo stack with dozens of near-identical snapshots for a single reorder. This makes Cmd+Z useless for meaningful undo.
-
-**Fix:** Only call `recordForUndo()` once at the start of a drag session (in `beginDrag`) rather than on every positional update. Alternatively, coalesce snapshots by only recording if the last snapshot is older than ~0.5 s.
+✅ **Done** — Replaced all four call sites with parameterless `NSApp.activate()`.
 
 ---
 
-### 🟠 `recordForUndo()` called inside `moveItem` but save is debounced
-When `moveItem` records an undo snapshot and then debounces the save, if the user immediately undoes, the undo restores stale state that was never persisted. The undo/save timing is inconsistent.
+### ~~🟠 Excessive undo snapshots from drag operations~~
+~~`moveItem(_:before:)` calls `recordForUndo()` on **every** drag-movement event (every pixel), flooding the undo stack with dozens of near-identical snapshots for a single reorder. This makes Cmd+Z useless for meaningful undo.~~
 
-**Fix:** Either debounce undo recording to match the save debounce, or only record undo snapshots for explicit user actions (create, delete, disband, folder drop), not for continuous drag movements.
+~~**Fix:** Only call `recordForUndo()` once at the start of a drag session (in `beginDrag`) rather than on every positional update. Alternatively, coalesce snapshots by only recording if the last snapshot is older than ~0.5 s.~~
+
+✅ **Done** — Moved `recordForUndo()` from `moveItem` to `beginDrag`, so one undo snapshot is recorded per drag session.
+
+---
+
+### ~~🟠 `recordForUndo()` called inside `moveItem` but save is debounced~~
+~~When `moveItem` records an undo snapshot and then debounces the save, if the user immediately undoes, the undo restores stale state that was never persisted. The undo/save timing is inconsistent.~~
+
+~~**Fix:** Either debounce undo recording to match the save debounce, or only record undo snapshots for explicit user actions (create, delete, disband, folder drop), not for continuous drag movements.~~
+
+✅ **Done** — Fixed as part of the excessive undo snapshots fix above. Undo snapshot is now recorded at drag start (pre-mutation state), before any debounced saves occur.
 
 ---
 
@@ -55,38 +61,48 @@ The `FolderContentView` has no key handler. Escape is handled in `LaunchyRootVie
 
 ---
 
-### 🟡 `LaunchyFolder` does not conform to `Hashable`
-`AppIcon` conforms to `Hashable`, and `LaunchyItem` uses both in an enum, but `LaunchyFolder` only conforms to `Equatable`. This prevents using folders in `Set` or as `Dictionary` keys if needed in the future, and is an inconsistency.
+### ~~🟡 `LaunchyFolder` does not conform to `Hashable`~~
+~~`AppIcon` conforms to `Hashable`, and `LaunchyItem` uses both in an enum, but `LaunchyFolder` only conforms to `Equatable`. This prevents using folders in `Set` or as `Dictionary` keys if needed in the future, and is an inconsistency.~~
 
-**Fix:** Add `Hashable` conformance to `LaunchyFolder`.
+~~**Fix:** Add `Hashable` conformance to `LaunchyFolder`.~~
 
----
-
-### 🟡 `dismissAfterLaunch()` finds the window with `NSApp.windows.first(where: { $0.isVisible })` which could match the Settings window
-If a standalone SwiftUI Settings window were ever visible, the dismiss logic might target the wrong window.
-
-**Fix:** Use the same window filter used elsewhere: `$0.identifier?.rawValue != "com_apple_SwiftUI_Settings_window"`.
+✅ **Done** — Added `Hashable` conformance to `LaunchyFolder` and `LaunchyItem`.
 
 ---
 
-### 🟡 `NotificationBadgeProvider` spawns a `Process` per running app every 8 seconds
-This polls by running `/usr/bin/lsappinfo` once per running `.regular` app, which can be 20+ subprocesses every 8 seconds. This is CPU- and resource-wasteful.
+### ~~🟡 `dismissAfterLaunch()` finds the window with `NSApp.windows.first(where: { $0.isVisible })` which could match the Settings window~~
+~~If a standalone SwiftUI Settings window were ever visible, the dismiss logic might target the wrong window.~~
 
-**Fix:** Use a single invocation of `lsappinfo list -only StatusLabel` to query all apps at once, or parse dock badge info from the distributed notification center. Alternatively, increase the poll interval to 30+ seconds.
+~~**Fix:** Use the same window filter used elsewhere: `$0.identifier?.rawValue != "com_apple_SwiftUI_Settings_window"`.~~
 
----
-
-### 🟢 `Color+Hex` doesn't handle 8-character hex (with alpha) or 3-character shorthand
-Only 6-character hex strings are parsed; anything else silently returns black.
-
-**Fix:** Add support for `#RGB`, `#RGBA`, `#RRGGBB`, `#RRGGBBAA` formats with a `default` case that logs a warning instead of silently returning black.
+✅ **Done** — Added Settings window exclusion filter to `dismissAfterLaunch()`, `dismissLauncher()`, and `activateWindowIfNeeded()`.
 
 ---
 
-### 🟢 Info.plist `CFBundleIconFiles` is an iOS-only key
-The `assets/plists/Info.plist` template includes `CFBundleIconFiles` (an array), which is only used on iOS. macOS uses `CFBundleIconFile` (a string), which is already present.
+### ~~🟡 `NotificationBadgeProvider` spawns a `Process` per running app every 8 seconds~~
+~~This polls by running `/usr/bin/lsappinfo` once per running `.regular` app, which can be 20+ subprocesses every 8 seconds. This is CPU- and resource-wasteful.~~
 
-**Fix:** Remove the `CFBundleIconFiles` array entry from the plist template.
+~~**Fix:** Use a single invocation of `lsappinfo list -only StatusLabel` to query all apps at once, or parse dock badge info from the distributed notification center. Alternatively, increase the poll interval to 30+ seconds.~~
+
+✅ **Done** — Replaced per-app `lsappinfo info` calls with a single `lsappinfo list -only StatusLabel` invocation.
+
+---
+
+### ~~🟢 `Color+Hex` doesn't handle 8-character hex (with alpha) or 3-character shorthand~~
+~~Only 6-character hex strings are parsed; anything else silently returns black.~~
+
+~~**Fix:** Add support for `#RGB`, `#RGBA`, `#RRGGBB`, `#RRGGBBAA` formats with a `default` case that logs a warning instead of silently returning black.~~
+
+✅ **Done** — Added support for 3-char (`#RGB`), 4-char (`#RGBA`), 6-char (`#RRGGBB`), and 8-char (`#RRGGBBAA`) hex formats. Default case now logs a warning via `os.log`.
+
+---
+
+### ~~🟢 Info.plist `CFBundleIconFiles` is an iOS-only key~~
+~~The `assets/plists/Info.plist` template includes `CFBundleIconFiles` (an array), which is only used on iOS. macOS uses `CFBundleIconFile` (a string), which is already present.~~
+
+~~**Fix:** Remove the `CFBundleIconFiles` array entry from the plist template.~~
+
+✅ **Done** — Removed the `CFBundleIconFiles` array entry from `assets/plists/Info.plist`.
 
 ---
 
@@ -106,10 +122,12 @@ Real Launchpad adapts to the system appearance. The current hardcoded dark color
 
 ---
 
-### 🟠 Search field does not auto-focus on launch or re-appear
-Real Launchpad immediately focuses the search field when it appears, so the user can start typing without clicking. Currently, the `LaunchySearchField` is created but not auto-focused.
+### ~~🟠 Search field does not auto-focus on launch or re-appear~~
+~~Real Launchpad immediately focuses the search field when it appears, so the user can start typing without clicking. Currently, the `LaunchySearchField` is created but not auto-focused.~~
 
-**Fix:** Add `NSSearchField.becomeFirstResponder()` logic in the `makeNSView` or on a `.onAppear` trigger in `LaunchyRootView.reappearLauncher()`.
+~~**Fix:** Add `NSSearchField.becomeFirstResponder()` logic in the `makeNSView` or on a `.onAppear` trigger in `LaunchyRootView.reappearLauncher()`.~~
+
+✅ **Done** — Added `makeFirstResponder` call in `LaunchySearchField.makeNSView` using `Task { @MainActor in }`.
 
 ---
 
@@ -174,17 +192,21 @@ Keep `DragCoordinator` (already extracted) as a pattern to follow.
 
 ---
 
-### 🟢 `chunked(into: 0)` returns `[self]` instead of an empty array
-The guard checks `size > 0` and returns `[self]` for zero, which is surprising. A chunk size of zero or negative is a programming error.
+### ~~🟢 `chunked(into: 0)` returns `[self]` instead of an empty array~~
+~~The guard checks `size > 0` and returns `[self]` for zero, which is surprising. A chunk size of zero or negative is a programming error.~~
 
-**Fix:** Return `[]` for invalid sizes, or use `precondition(size > 0)` in debug builds.
+~~**Fix:** Return `[]` for invalid sizes, or use `precondition(size > 0)` in debug builds.~~
+
+✅ **Done** — Changed guard to return `[]` for invalid chunk sizes. Updated corresponding test.
 
 ---
 
-### 🟢 Missing `Hashable` conformance on `LaunchyItem`
-`LaunchyItem` conforms to `Equatable` but not `Hashable`. Since `AppIcon` is `Hashable`, and `LaunchyFolder` could be, the enum should be too for `Set`/`Dictionary` usage.
+### ~~🟢 Missing `Hashable` conformance on `LaunchyItem`~~
+~~`LaunchyItem` conforms to `Equatable` but not `Hashable`. Since `AppIcon` is `Hashable`, and `LaunchyFolder` could be, the enum should be too for `Set`/`Dictionary` usage.~~
 
-**Fix:** Add `Hashable` conformance to `LaunchyFolder` and `LaunchyItem`.
+~~**Fix:** Add `Hashable` conformance to `LaunchyFolder` and `LaunchyItem`.~~
+
+✅ **Done** — Added `Hashable` to both `LaunchyFolder` and `LaunchyItem`.
 
 ---
 

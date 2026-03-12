@@ -10,10 +10,6 @@
 <string>dev.lbenicio.launchy.{{APP_NAME}}</string>
 <key>CFBundleIconFile</key>
 <string>launchy</string>
-<key>CFBundleIconFiles</key>
-<array>
-    <string>launchy</string>
-</array>
     <key>CFBundleVersion</key>
     <string>{{VERSION}}</string>
     <key>CFBundleShortVersionString</key>

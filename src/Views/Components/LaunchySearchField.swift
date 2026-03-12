@@ -21,6 +21,11 @@ import SwiftUI
             field.bezelStyle = .roundedBezel
             field.translatesAutoresizingMaskIntoConstraints = false
             field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+            // Auto-focus the search field when it first appears,
+            // matching real Launchpad's immediate-typing behavior.
+            Task { @MainActor in
+                field.window?.makeFirstResponder(field)
+            }
             return field
         }
 
