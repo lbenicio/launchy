@@ -14,7 +14,11 @@ struct LaunchyItemDropDelegate: DropDelegate {
         viewModel.extractDraggedItemIfNeeded()
         guard let dragID = viewModel.dragItemID, dragID != item.id else { return }
 
-        if shouldStack(using: info) {
+        if case .folder = item {
+            // For folders, always treat as "add to folder" when hovering
+            viewModel.cancelPendingStacking()
+            viewModel.addApp(dragID, toFolder: item.id)
+        } else if shouldStack(using: info) {
             viewModel.requestStacking(onto: item.id)
         } else {
             viewModel.cancelPendingStacking()
@@ -23,7 +27,13 @@ struct LaunchyItemDropDelegate: DropDelegate {
     }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
-        if shouldStack(using: info) {
+        guard let dragID = viewModel.dragItemID, dragID != item.id else {
+            return DropProposal(operation: .move)
+        }
+
+        if case .folder = item {
+            // Always accept into folder
+        } else if shouldStack(using: info) {
             viewModel.requestStacking(onto: item.id)
         } else {
             viewModel.cancelPendingStacking()
@@ -36,6 +46,13 @@ struct LaunchyItemDropDelegate: DropDelegate {
     }
 
     func performDrop(info: DropInfo) -> Bool {
+        // For folder targets, the item was already added in dropEntered
+        if case .folder = item {
+            viewModel.cancelPendingStacking()
+            viewModel.endDrag(commit: true)
+            return true
+        }
+
         var stacked = viewModel.commitPendingStackingIfNeeded(for: item.id)
 
         if !stacked, shouldStack(using: info) {
@@ -52,11 +69,12 @@ struct LaunchyItemDropDelegate: DropDelegate {
     }
 
     private func shouldStack(using info: DropInfo) -> Bool {
+        // Only stack onto apps (folder stacking is handled separately above)
         guard case .app = item, let frame = frameProvider() else { return false }
         let location = info.location
         let center = CGPoint(x: frame.width * 0.5, y: frame.height * 0.5)
         let distance = hypot(location.x - center.x, location.y - center.y)
-        let activationRadius = min(frame.width, frame.height) * 0.45
+        let activationRadius = min(frame.width, frame.height) * 0.35
         return distance <= activationRadius
     }
 }
@@ -73,6 +91,10 @@ struct LaunchyTrailingDropDelegate: DropDelegate {
         viewModel.extractDraggedItemIfNeeded()
         guard let dragID = viewModel.dragItemID else { return }
         viewModel.moveItem(dragID, before: nil)
+    }
+
+    func dropExited(info: DropInfo) {
+        viewModel.cancelPendingStacking()
     }
 
     func performDrop(info: DropInfo) -> Bool {
@@ -95,6 +117,10 @@ struct FolderDropDelegate: DropDelegate {
         viewModel.extractDraggedItemIfNeeded()
         guard let dragID = viewModel.dragItemID else { return }
         viewModel.addApp(dragID, toFolder: folderID)
+    }
+
+    func dropExited(info: DropInfo) {
+        viewModel.cancelPendingStacking()
     }
 
     func performDrop(info: DropInfo) -> Bool {
@@ -125,6 +151,10 @@ struct FolderAppDropDelegate: DropDelegate {
         }
     }
 
+    func dropExited(info: DropInfo) {
+        viewModel.cancelPendingStacking()
+    }
+
     func performDrop(info: DropInfo) -> Bool {
         viewModel.cancelPendingStacking()
         viewModel.endDrag(commit: true)
@@ -150,6 +180,10 @@ struct FolderTrailingDropDelegate: DropDelegate {
             viewModel.extractDraggedItemIfNeeded()
             viewModel.addApp(dragID, toFolder: folderID)
         }
+    }
+
+    func dropExited(info: DropInfo) {
+        viewModel.cancelPendingStacking()
     }
 
     func performDrop(info: DropInfo) -> Bool {

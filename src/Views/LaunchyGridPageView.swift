@@ -30,79 +30,72 @@ struct LaunchyGridPageView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
+    @ViewBuilder
     private func launchyTile(for item: LaunchyItem) -> some View {
-        GeometryReader { proxy in
-            let dropTypes: [UTType] = [.launchyItemIdentifier]
-            let frame = CGRect(origin: .zero, size: proxy.size)
-            let globalIndex = viewModel.indexOfItem(item.id) ?? 0
-            let canMoveLeft = globalIndex > 0
-            let canMoveRight = globalIndex < max(viewModel.items.count - 1, 0)
-            let baseView = LaunchyItemView(
-                item: item,
-                dimension: metrics.itemDimension,
-                isEditing: viewModel.isEditing,
-                isSelected: viewModel.isItemSelected(item.id),
-                canMoveLeft: canMoveLeft,
-                canMoveRight: canMoveRight,
-                hasSelectedApps: viewModel.hasSelectedApps,
-                onOpenFolder: { viewModel.openFolder(with: $0) },
-                onDelete: { viewModel.deleteItem($0) },
-                onLaunch: { viewModel.launch($0) },
-                onSelect: { viewModel.toggleSelection(for: $0) },
-                onMoveLeft: { viewModel.shiftItem($0, by: -1) },
-                onMoveRight: { viewModel.shiftItem($0, by: 1) },
-                onAddSelectedAppsToFolder: { viewModel.addSelectedApps(toFolder: $0) },
-                onDisbandFolder: { viewModel.disbandFolder($0) }
-            )
-            .frame(width: metrics.itemDimension, height: metrics.itemDimension + 36)
-            .contentShape(Rectangle())
+        let dropTypes: [UTType] = [.launchyItemIdentifier]
+        let globalIndex = viewModel.indexOfItem(item.id) ?? 0
+        let canMoveLeft = globalIndex > 0
+        let canMoveRight = globalIndex < max(viewModel.items.count - 1, 0)
+
+        let baseContent = LaunchyItemView(
+            item: item,
+            dimension: metrics.itemDimension,
+            isEditing: viewModel.isEditing,
+            isSelected: viewModel.isItemSelected(item.id),
+            canMoveLeft: canMoveLeft,
+            canMoveRight: canMoveRight,
+            hasSelectedApps: viewModel.hasSelectedApps,
+            onOpenFolder: { viewModel.openFolder(with: $0) },
+            onDelete: { viewModel.deleteItem($0) },
+            onLaunch: { viewModel.launch($0) },
+            onSelect: { viewModel.toggleSelection(for: $0) },
+            onMoveLeft: { viewModel.shiftItem($0, by: -1) },
+            onMoveRight: { viewModel.shiftItem($0, by: 1) },
+            onAddSelectedAppsToFolder: { viewModel.addSelectedApps(toFolder: $0) },
+            onDisbandFolder: { viewModel.disbandFolder($0) }
+        )
+        .frame(width: metrics.itemDimension, height: metrics.itemDimension + 36)
+        .contentShape(Rectangle())
+
+        // Use a single, unified drop delegate that handles both reordering
+        // and folder-specific drops (like adding into a folder).
+        // This avoids the problem of stacking multiple .onDrop modifiers.
+        let tileWithDrop =
+            baseContent
             .onDrop(
                 of: dropTypes,
                 delegate: LaunchyItemDropDelegate(
                     item: item,
                     viewModel: viewModel,
-                    frameProvider: { frame }
+                    frameProvider: {
+                        CGRect(
+                            origin: .zero,
+                            size: CGSize(
+                                width: metrics.itemDimension,
+                                height: metrics.itemDimension + 36
+                            )
+                        )
+                    }
                 )
             )
 
-            let folderAwareView: AnyView = {
-                if case .folder(let folder) = item {
-                    return AnyView(
-                        baseView.onDrop(
-                            of: dropTypes,
-                            delegate: FolderDropDelegate(folderID: folder.id, viewModel: viewModel))
-                    )
-                } else {
-                    return AnyView(baseView)
-                }
-            }()
-
-            let dragReadyView: AnyView = {
-                if viewModel.isEditing {
-                    return AnyView(
-                        folderAwareView.onDrag {
-                            viewModel.beginDrag(for: item.id)
-                            return makeProvider(for: LaunchyDragIdentifier(itemID: item.id))
-                        }
-                    )
-                } else {
-                    return folderAwareView
-                }
-            }()
-
-            dragReadyView
-                .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+        if viewModel.isEditing {
+            tileWithDrop.onDrag {
+                viewModel.beginDrag(for: item.id)
+                return makeProvider(for: LaunchyDragIdentifier(itemID: item.id))
+            }
+        } else {
+            tileWithDrop
         }
-        .frame(width: metrics.itemDimension, height: metrics.itemDimension + 36)
     }
 
     private func makeProvider(for payload: LaunchyDragIdentifier) -> NSItemProvider {
         let provider = NSItemProvider()
-            provider.registerDataRepresentation(
+        provider.registerDataRepresentation(
             forTypeIdentifier: UTType.launchyItemIdentifier.identifier, visibility: .all
         ) { completion -> Progress? in
             do {
-                    let data = try JSONEncoder().encode(payload)
+                let data = try JSONEncoder().encode(payload)
                 completion(data, nil)
             } catch {
                 completion(nil, error)
