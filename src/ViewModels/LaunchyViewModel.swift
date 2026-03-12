@@ -285,7 +285,18 @@ final class LaunchyViewModel: ObservableObject {
 
     func deleteItem(_ id: UUID) {
         if let idx = items.firstIndex(where: { $0.id == id }) {
-            items.remove(at: idx)
+            // If it's a folder, auto-disband: move apps back to the grid
+            // instead of silently destroying them.
+            if let folder = items[idx].asFolder {
+                let apps = folder.apps.map { LaunchyItem.app($0) }
+                items.remove(at: idx)
+                items.insert(contentsOf: apps, at: min(idx, items.count))
+                if presentedFolderID == folder.id {
+                    presentedFolderID = nil
+                }
+            } else {
+                items.remove(at: idx)
+            }
             saveNow()
             return
         }

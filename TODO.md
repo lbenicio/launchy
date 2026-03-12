@@ -20,7 +20,7 @@
 
 ### P1 — Important
 
-- [ ] **Deleting a folder silently destroys all apps inside it**
+- [x] **Deleting a folder silently destroys all apps inside it**
   `deleteItem` on a folder removes it and every app it contains — no confirmation, no undo. Expected behavior: either show a confirmation alert or auto-disband (move apps back to the grid) before removing the folder shell.
   _File: `LaunchyViewModel.swift` → `deleteItem(_:)`_
 
