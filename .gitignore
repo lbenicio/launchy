@@ -1,7 +1,6 @@
 # Ignore build artifacts
 .build/
-dist/
-!dist/.gitkeep
+.swiftpm/
 
 # Ignore macOS system files and build directory
 .DS_Store
