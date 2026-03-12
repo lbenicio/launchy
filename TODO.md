@@ -28,11 +28,11 @@
   The ✕ badge in editing mode removes an `AppIcon` from the persisted `items` array. The app will reappear on next launch (reconciliation re-adds installed apps), but during the session it's gone with no undo. Consider hiding instead of removing, or adding a "recently removed" staging area.
   _File: `LaunchyViewModel.swift` → `deleteItem(_:)`_
 
-- [ ] **`FolderContentView` holds a stale snapshot of the folder**
+- [x] **`FolderContentView` holds a stale snapshot of the folder**
   The view receives `let folder: LaunchyFolder` (a value type). Drag operations that mutate the folder's apps (reorder, add, remove) update `viewModel.items` but the view still holds the old copy. It re-renders only when SwiftUI detects changes through `@ObservedObject var viewModel`, but the `folder` local passed to sub-views is stale. Should derive the folder reactively via `viewModel.folder(by: folderID)` inside the body.
   _File: `FolderContentView.swift`_
 
-- [ ] **`presentationOptions` not restored on unexpected termination**
+- [x] **`presentationOptions` not restored on unexpected termination**
   If the app is force-quit or crashes while fullscreen, `NSApp.presentationOptions` stays at `[.autoHideDock, .autoHideMenuBar]`. The dock and menubar remain auto-hidden until another app resets them. Add cleanup in `applicationWillTerminate` or use `NSApp.delegate`.
   _File: `WindowConfigurator.swift`, `LaunchyApp.swift`_
 

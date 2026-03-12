@@ -2,86 +2,90 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct FolderContentView: View {
-    let folder: LaunchyFolder
+    let folderID: UUID
     @ObservedObject var viewModel: LaunchyViewModel
     @EnvironmentObject private var settingsStore: GridSettingsStore
 
     var body: some View {
+        let folder = viewModel.folder(by: folderID)
         GeometryReader { proxy in
-            let settings = settingsStore.settings
-            let maxWidth = min(proxy.size.width * 0.55, 520)
-            let spacing: CGFloat = 22
-            let totalSpacing = CGFloat(max(settings.folderColumns - 1, 0)) * spacing
-            let tileWidth = (maxWidth - 56 - totalSpacing) / CGFloat(max(settings.folderColumns, 1))
-            let tileDimension = max(72, tileWidth)
-            let columns = Array(
-                repeating: GridItem(.fixed(tileDimension), spacing: spacing),
-                count: max(settings.folderColumns, 1))
+            if let folder {
+                let settings = settingsStore.settings
+                let maxWidth = min(proxy.size.width * 0.55, 520)
+                let spacing: CGFloat = 22
+                let totalSpacing = CGFloat(max(settings.folderColumns - 1, 0)) * spacing
+                let tileWidth =
+                    (maxWidth - 56 - totalSpacing) / CGFloat(max(settings.folderColumns, 1))
+                let tileDimension = max(72, tileWidth)
+                let columns = Array(
+                    repeating: GridItem(.fixed(tileDimension), spacing: spacing),
+                    count: max(settings.folderColumns, 1))
 
-            VStack(spacing: 20) {
-                HStack {
-                    Text(folder.name)
-                        .font(.system(size: 20, weight: .semibold))
-                        .textCase(.none)
-                    Spacer()
-                    if viewModel.isEditing {
+                VStack(spacing: 20) {
+                    HStack {
+                        Text(folder.name)
+                            .font(.system(size: 20, weight: .semibold))
+                            .textCase(.none)
+                        Spacer()
+                        if viewModel.isEditing {
+                            Button {
+                                viewModel.disbandFolder(folder.id)
+                            } label: {
+                                Label("Split", systemImage: "square.stack.3d.down.forward.fill")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .labelStyle(.iconOnly)
+                                    .padding(8)
+                                    .background(Color.white.opacity(0.18), in: Capsule())
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.trailing, 8)
+                        }
                         Button {
-                            viewModel.disbandFolder(folder.id)
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                viewModel.closeFolder()
+                            }
                         } label: {
-                            Label("Split", systemImage: "square.stack.3d.down.forward.fill")
-                                .font(.system(size: 14, weight: .semibold))
-                                .labelStyle(.iconOnly)
-                                .padding(8)
-                                .background(Color.white.opacity(0.18), in: Capsule())
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 24, weight: .bold))
+                                .symbolRenderingMode(.palette)
+                                .foregroundStyle(.white, Color.black.opacity(0.35))
                         }
                         .buttonStyle(.plain)
-                        .padding(.trailing, 8)
                     }
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            viewModel.closeFolder()
+
+                    LazyVGrid(columns: columns, alignment: .center, spacing: spacing) {
+                        ForEach(folder.apps) { app in
+                            folderIconTile(app: app, folder: folder, tileDimension: tileDimension)
                         }
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 24, weight: .bold))
-                            .symbolRenderingMode(.palette)
-                            .foregroundStyle(.white, Color.black.opacity(0.35))
-                    }
-                    .buttonStyle(.plain)
-                }
 
-                LazyVGrid(columns: columns, alignment: .center, spacing: spacing) {
-                    ForEach(folder.apps) { app in
-                        folderIconTile(app: app, tileDimension: tileDimension)
+                        if viewModel.isEditing {
+                            Rectangle()
+                                .fill(Color.clear)
+                                .frame(width: tileDimension, height: tileDimension)
+                                .onDrop(
+                                    of: [.launchyItemIdentifier],
+                                    delegate: FolderTrailingDropDelegate(
+                                        folderID: folder.id, viewModel: viewModel))
+                        }
                     }
-
-                    if viewModel.isEditing {
-                        Rectangle()
-                            .fill(Color.clear)
-                            .frame(width: tileDimension, height: tileDimension)
-                            .onDrop(
-                                of: [.launchyItemIdentifier],
-                                delegate: FolderTrailingDropDelegate(
-                                    folderID: folder.id, viewModel: viewModel))
-                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
+                .padding(32)
+                .background(
+                    .ultraThinMaterial, in: RoundedRectangle(cornerRadius: 36, style: .continuous)
+                )
+                .frame(maxWidth: maxWidth)
+                .contentShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
+                .shadow(color: Color.black.opacity(0.25), radius: 25, x: 0, y: 12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
-            .padding(32)
-            .background(
-                .ultraThinMaterial, in: RoundedRectangle(cornerRadius: 36, style: .continuous)
-            )
-            .frame(maxWidth: maxWidth)
-            .contentShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
-            .shadow(color: Color.black.opacity(0.25), radius: 25, x: 0, y: 12)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
     }
 
     private func makeProvider(for payload: LaunchyDragIdentifier) -> NSItemProvider {
         let provider = NSItemProvider()
-            provider.registerDataRepresentation(
+        provider.registerDataRepresentation(
             forTypeIdentifier: UTType.launchyItemIdentifier.identifier, visibility: .all
         ) { completion -> Progress? in
             do {
@@ -96,7 +100,9 @@ struct FolderContentView: View {
     }
 
     @ViewBuilder
-    private func folderIconTile(app: AppIcon, tileDimension: CGFloat) -> some View {
+    private func folderIconTile(app: AppIcon, folder: LaunchyFolder, tileDimension: CGFloat)
+        -> some View
+    {
         let base = AppIconTile(icon: app, isEditing: viewModel.isEditing, dimension: tileDimension)
             .frame(width: tileDimension, height: tileDimension + 32)
         let appIndex = folder.apps.firstIndex(where: { $0.id == app.id }) ?? 0

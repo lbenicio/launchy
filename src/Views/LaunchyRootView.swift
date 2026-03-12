@@ -136,9 +136,7 @@ struct LaunchyRootView: View {
             )
             .onPreferenceChange(EditingBannerHeightPreferenceKey.self) { editingBannerHeight = $0 }
 
-            if let folderID = viewModel.presentedFolderID,
-                let folder = viewModel.folder(by: folderID)
-            {
+            if let folderID = viewModel.presentedFolderID {
                 Color.black.opacity(0.45)
                     .ignoresSafeArea()
                     .transition(.opacity)
@@ -149,7 +147,7 @@ struct LaunchyRootView: View {
                         }
                     }
 
-                FolderContentView(folder: folder, viewModel: viewModel)
+                FolderContentView(folderID: folderID, viewModel: viewModel)
                     .padding(.horizontal, 120)
                     .transition(.scale(scale: 0.95).combined(with: .opacity))
                     .zIndex(3)

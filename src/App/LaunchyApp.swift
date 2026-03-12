@@ -2,12 +2,22 @@ import SwiftUI
 
 #if os(macOS)
     import AppKit
+
+    final class AppDelegate: NSObject, NSApplicationDelegate {
+        func applicationWillTerminate(_ notification: Notification) {
+            NSApp.presentationOptions = []
+        }
+    }
 #endif
 
 @main
 struct LaunchyApp: App {
     @StateObject private var settingsStore: GridSettingsStore
     @StateObject private var viewModel: LaunchyViewModel
+
+    #if os(macOS)
+        @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    #endif
 
     init() {
         let settings = GridSettingsStore()
