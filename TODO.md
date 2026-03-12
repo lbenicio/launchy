@@ -97,21 +97,21 @@ The test suite currently has **4 tests** across 3 files. The drag-and-drop, fold
 ### P1 — High-value tests to add
 
 - [x] **`extractDraggedItemIfNeeded`** — drag from folder to grid, folder auto-disband when 1 app left
-- [ ] **`stackDraggedItem` (app → folder)** — index adjustment after removal
-- [ ] **`stackDraggedItem` (app → app)** — new folder creation, target index re-lookup
-- [ ] **`moveItem`** — no-op when already adjacent, append when target is nil
-- [ ] **`deleteItem`** — deleting last app in folder removes the folder
-- [ ] **`disbandFolder`** — apps inserted at correct index
-- [ ] **`createFolder`** — insertion at first selected index, minimum 2 apps guard
-- [ ] **`pagedItems(matching:)`** — query normalization, folder name match, child app match
+- [x] **`stackDraggedItem` (app → folder)** — index adjustment after removal
+- [x] **`stackDraggedItem` (app → app)** — new folder creation, target index re-lookup
+- [x] **`moveItem`** — no-op when already adjacent, append when target is nil
+- [x] **`deleteItem`** — deleting last app in folder removes the folder
+- [x] **`disbandFolder`** — apps inserted at correct index
+- [x] **`createFolder`** — insertion at first selected index, minimum 2 apps guard
+- [x] **`pagedItems(matching:)`** — query normalization, folder name match, child app match
 
 ### P2 — Additional coverage
 
-- [ ] **`GridLayoutMetrics`** — distributed spacing math, ultrawide clamp, tighten loop convergence
-- [ ] **`GridSettingsStore`** — round-trip encode/decode, clamping boundary values
-- [ ] **`Array.chunked(into:)`** — empty array, size larger than count, size of 1
-- [ ] **Page navigation** — `selectPage`, `goToPreviousPage`, `goToNextPage` boundary clamping
-- [ ] **Reconciliation** — `LaunchyDataStore.reconcile` with missing apps, new apps, stale folders
+- [x] **`GridLayoutMetrics`** — distributed spacing math, ultrawide clamp, tighten loop convergence
+- [x] **`GridSettingsStore`** — round-trip encode/decode, clamping boundary values
+- [x] **`Array.chunked(into:)`** — empty array, size larger than count, size of 1
+- [x] **Page navigation** — `selectPage`, `goToPreviousPage`, `goToNextPage` boundary clamping
+- [x] **Reconciliation** — `LaunchyDataStore.reconcile` with missing apps, new apps, stale folders
 
 ---
 
