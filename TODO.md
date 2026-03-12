@@ -46,11 +46,11 @@
   `pagedItems(matching:)` returns the entire folder when any child matches. The folder preview grid doesn't highlight which app matched. Real Launchpad breaks folders open during search and shows each matching app as a standalone tile.
   _File: `LaunchyViewModel.swift` → `pagedItems(matching:)`_
 
-- [ ] **`NSWorkspace.openApplication` errors are silently ignored**
+- [x] **`NSWorkspace.openApplication` errors are silently ignored**
   The completion handler `{ _, _ in }` discards both the running application reference and any error. On failure the user sees nothing. Should surface a brief alert or console log.
   _File: `LaunchyViewModel.swift` → `launch(_:)`_
 
-- [ ] **`LaunchyDataStore` is not concurrency-safe**
+- [x] **`LaunchyDataStore` is not concurrency-safe**
   The class is not annotated `@MainActor` or `Sendable`. `save()` is called from `DispatchWorkItem`s that may execute on arbitrary queues. Under Swift 6 strict concurrency this is a latent data race.
   _File: `LaunchyDataStore.swift`_
 

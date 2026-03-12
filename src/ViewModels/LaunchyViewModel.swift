@@ -397,26 +397,42 @@ final class LaunchyViewModel: ObservableObject {
                 NSWorkspace.shared.openApplication(
                     at: icon.bundleURL,
                     configuration: NSWorkspace.OpenConfiguration()
-                ) { _, _ in }
+                ) { [weak self] runningApp, error in
+                    DispatchQueue.main.async {
+                        if let error {
+                            print(
+                                "Launchy: Failed to launch \(icon.name): \(error.localizedDescription)"
+                            )
+                            self?.isLaunchingApp = false
+                            let alert = NSAlert()
+                            alert.messageText = "Unable to Launch \"\(icon.name)\""
+                            alert.informativeText = error.localizedDescription
+                            alert.alertStyle = .warning
+                            alert.addButton(withTitle: "OK")
+                            alert.runModal()
+                            return
+                        }
 
-                // Dismiss the launcher after launching, matching real Launchpad behavior.
-                // Restore presentation options so dock/menubar reappear immediately,
-                // then fade out the window and terminate.
-                NSApp.presentationOptions = []
+                        // Dismiss the launcher after launching, matching real Launchpad behavior.
+                        // Restore presentation options so dock/menubar reappear immediately,
+                        // then fade out the window and terminate.
+                        NSApp.presentationOptions = []
 
-                if let window = NSApp.windows.first(where: { $0.isVisible }) {
-                    NSAnimationContext.runAnimationGroup(
-                        { context in
-                            context.duration = 0.2
-                            window.animator().alphaValue = 0
-                        },
-                        completionHandler: {
-                            DispatchQueue.main.async {
-                                NSApplication.shared.terminate(nil)
-                            }
-                        })
-                } else {
-                    NSApplication.shared.terminate(nil)
+                        if let window = NSApp.windows.first(where: { $0.isVisible }) {
+                            NSAnimationContext.runAnimationGroup(
+                                { context in
+                                    context.duration = 0.2
+                                    window.animator().alphaValue = 0
+                                },
+                                completionHandler: {
+                                    DispatchQueue.main.async {
+                                        NSApplication.shared.terminate(nil)
+                                    }
+                                })
+                        } else {
+                            NSApplication.shared.terminate(nil)
+                        }
+                    }
                 }
             case .folder:
                 break

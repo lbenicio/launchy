@@ -2,6 +2,7 @@ import XCTest
 
 @testable import Launchy
 
+@MainActor
 final class LaunchyViewModelTests: XCTestCase {
     private var tempDirectory: URL!
     private var fileManager: StubFileManager!
@@ -9,7 +10,7 @@ final class LaunchyViewModelTests: XCTestCase {
     private var userDefaults: UserDefaults!
     private var userDefaultsSuiteName: String!
 
-    override func setUpWithError() throws {
+    override func setUp() async throws {
         tempDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(
             "LaunchpadViewModelTests-\(UUID().uuidString)",
             isDirectory: true
@@ -33,7 +34,7 @@ final class LaunchyViewModelTests: XCTestCase {
         userDefaultsSuiteName = suiteName
     }
 
-    override func tearDownWithError() throws {
+    override func tearDown() async throws {
         if let suiteName = userDefaultsSuiteName, let userDefaults {
             userDefaults.removePersistentDomain(forName: suiteName)
         }
@@ -47,7 +48,6 @@ final class LaunchyViewModelTests: XCTestCase {
         tempDirectory = nil
     }
 
-    @MainActor
     func testAddSelectedAppsMovesAppsIntoFolder() throws {
         let appAlpha = makeAppIcon(name: "Alpha", bundleIdentifier: "com.test.alpha")
         let appBeta = makeAppIcon(name: "Beta", bundleIdentifier: "com.test.beta")

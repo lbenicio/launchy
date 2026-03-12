@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 final class LaunchyDataStore {
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
