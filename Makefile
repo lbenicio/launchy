@@ -27,22 +27,70 @@ DMG_PATH := $(DIST_DIR)/$(APP_NAME)-$(VERSION).dmg
 PKG_PATH := $(DIST_DIR)/$(APP_NAME)-$(VERSION).pkg
 PKG_IDENTIFIER := dev.lbenicio.launchy.$(APP_NAME)
 
+# Code signing & notarization settings.
+# Set these via environment variables or a local .env file.
+#   DEVELOPER_ID_APPLICATION  — "Developer ID Application: Your Name (TEAMID)"
+#   DEVELOPER_ID_INSTALLER    — "Developer ID Installer: Your Name (TEAMID)"  (for signed .pkg)
+#   APPLE_TEAM_ID             — 10-character Apple Developer Team ID
+#   APPLE_ID                  — Apple ID email used with notarytool
+#   APPLE_ID_PASSWORD         — App-specific password for notarytool
+#   KEYCHAIN_PROFILE          — (alternative) notarytool stored keychain profile name
+DEVELOPER_ID_APPLICATION ?=
+DEVELOPER_ID_INSTALLER   ?=
+APPLE_TEAM_ID            ?=
+APPLE_ID                 ?=
+APPLE_ID_PASSWORD        ?=
+KEYCHAIN_PROFILE         ?=
+
+# Temporary zip used during notarization upload
+NOTARIZE_ZIP := $(DIST_DIR)/$(APP_NAME)-notarize.zip
+
 .DEFAULT_GOAL := bundle
 
-.PHONY: help build debug bundle dmg pkg fmt lint run test clean
+.PHONY: help build debug bundle sign notarize staple release dmg dmg-signed pkg pkg-signed fmt lint run test clean
 
 help:
 	@echo "Available targets:"
-	@echo "  bundle  - Build the release binary and assemble $(APP_NAME).app"
-	@echo "  dmg     - Create a compressed disk image from the app bundle"
-	@echo "  pkg     - Create an installer package from the app bundle"
-	@echo "  build   - Build the project in release configuration"
-	@echo "  debug   - Build the project in debug configuration"
-	@echo "  run     - Run the application in debug mode"
-	@echo "  test    - Execute the unit test suite"
-	@echo "  fmt     - Format the Swift sources using swift-format"
-	@echo "  lint    - Lint the Swift sources using swift-format"
-	@echo "  clean   - Remove build artifacts and distribution outputs"
+	@echo ""
+	@echo "  Build"
+	@echo "  ─────────────────────────────────────────────────────────"
+	@echo "  build       - Build the project in release configuration"
+	@echo "  debug       - Build the project in debug configuration"
+	@echo "  bundle      - Build release binary and assemble $(APP_NAME).app"
+	@echo ""
+	@echo "  Code Signing & Notarization"
+	@echo "  ─────────────────────────────────────────────────────────"
+	@echo "  sign        - Code-sign the app bundle with hardened runtime"
+	@echo "  notarize    - Submit the signed bundle to Apple for notarization"
+	@echo "  staple      - Staple the notarization ticket to the app bundle"
+	@echo "  release     - bundle → sign → notarize → staple → zip"
+	@echo ""
+	@echo "  Distribution"
+	@echo "  ─────────────────────────────────────────────────────────"
+	@echo "  dmg         - Create a compressed disk image (unsigned)"
+	@echo "  dmg-signed  - Create a signed & notarized disk image"
+	@echo "  pkg         - Create an installer package (unsigned)"
+	@echo "  pkg-signed  - Create a signed & notarized installer package"
+	@echo ""
+	@echo "  Development"
+	@echo "  ─────────────────────────────────────────────────────────"
+	@echo "  run         - Run the application in debug mode"
+	@echo "  test        - Execute the unit test suite"
+	@echo "  fmt         - Format Swift sources using swift-format"
+	@echo "  lint        - Lint Swift sources using swift-format"
+	@echo "  clean       - Remove build artifacts and distribution outputs"
+	@echo ""
+	@echo "  Environment variables for signing/notarization:"
+	@echo "    DEVELOPER_ID_APPLICATION  Signing identity for .app bundles"
+	@echo "    DEVELOPER_ID_INSTALLER    Signing identity for .pkg installers"
+	@echo "    APPLE_TEAM_ID             Apple Developer Team ID"
+	@echo "    APPLE_ID                  Apple ID email for notarytool"
+	@echo "    APPLE_ID_PASSWORD         App-specific password for notarytool"
+	@echo "    KEYCHAIN_PROFILE          Alternative: notarytool keychain profile name"
+
+# ───────────────────────────────────────────────────────────────────
+# Build
+# ───────────────────────────────────────────────────────────────────
 
 build:
 	swift build --configuration release
@@ -52,7 +100,7 @@ debug:
 
 bundle: build
 	@if [ -z "$(VERSION)" ]; then \
-		echo "Unable to determine packageVersion from Package.swift"; \
+		echo "ERROR: Unable to determine packageVersion from Package.swift"; \
 		exit 1; \
 	fi
 	@echo "Assembling $(APP_NAME).app (version $(VERSION))"
@@ -67,6 +115,75 @@ bundle: build
 		$(PLIST_TEMPLATE) > $(INFO_PLIST)
 	@find $(APP_BUNDLE) -name '.DS_Store' -delete >/dev/null 2>&1 || true
 	@echo "Bundle created at $(APP_BUNDLE)"
+
+# ───────────────────────────────────────────────────────────────────
+# Code Signing & Notarization
+# ───────────────────────────────────────────────────────────────────
+
+sign: bundle
+	@if [ -z "$(DEVELOPER_ID_APPLICATION)" ]; then \
+		echo "ERROR: DEVELOPER_ID_APPLICATION is not set."; \
+		echo "  Export it before running, e.g.:"; \
+		echo '  export DEVELOPER_ID_APPLICATION="Developer ID Application: Your Name (TEAMID)"'; \
+		exit 1; \
+	fi
+	@echo "Signing $(APP_BUNDLE) …"
+	codesign --deep --force --options runtime \
+		--timestamp \
+		--sign "$(DEVELOPER_ID_APPLICATION)" \
+		$(APP_BUNDLE)
+	@echo "Verifying signature …"
+	codesign --verify --deep --strict --verbose=2 $(APP_BUNDLE)
+	@echo "Signature OK"
+
+notarize:
+	@if [ ! -d "$(APP_BUNDLE)" ]; then \
+		echo "ERROR: $(APP_BUNDLE) does not exist. Run 'make sign' first."; \
+		exit 1; \
+	fi
+	@echo "Preparing notarization archive …"
+	rm -f $(NOTARIZE_ZIP)
+	cd $(DIST_DIR) && zip -r -q $(notdir $(NOTARIZE_ZIP)) $(notdir $(APP_BUNDLE))
+	@echo "Submitting to Apple notary service …"
+	@if [ -n "$(KEYCHAIN_PROFILE)" ]; then \
+		xcrun notarytool submit $(NOTARIZE_ZIP) \
+			--keychain-profile "$(KEYCHAIN_PROFILE)" \
+			--wait; \
+	elif [ -n "$(APPLE_ID)" ] && [ -n "$(APPLE_ID_PASSWORD)" ] && [ -n "$(APPLE_TEAM_ID)" ]; then \
+		xcrun notarytool submit $(NOTARIZE_ZIP) \
+			--apple-id "$(APPLE_ID)" \
+			--password "$(APPLE_ID_PASSWORD)" \
+			--team-id "$(APPLE_TEAM_ID)" \
+			--wait; \
+	else \
+		echo "ERROR: Notarization credentials not set."; \
+		echo "  Either set KEYCHAIN_PROFILE (recommended), or all of:"; \
+		echo "    APPLE_ID, APPLE_ID_PASSWORD, APPLE_TEAM_ID"; \
+		rm -f $(NOTARIZE_ZIP); \
+		exit 1; \
+	fi
+	rm -f $(NOTARIZE_ZIP)
+	@echo "Notarization complete"
+
+staple:
+	@if [ ! -d "$(APP_BUNDLE)" ]; then \
+		echo "ERROR: $(APP_BUNDLE) does not exist."; \
+		exit 1; \
+	fi
+	@echo "Stapling notarization ticket …"
+	xcrun stapler staple $(APP_BUNDLE)
+	@echo "Staple OK"
+
+## release: full pipeline — build, sign, notarize, staple, and zip
+release: sign notarize staple
+	@echo "Creating release archive …"
+	cd $(DIST_DIR) && rm -f $(APP_NAME)-$(VERSION).zip && \
+		zip -r -q "$(APP_NAME)-$(VERSION).zip" "$(notdir $(APP_BUNDLE))"
+	@echo "Release artifact: $(DIST_DIR)/$(APP_NAME)-$(VERSION).zip"
+
+# ───────────────────────────────────────────────────────────────────
+# Distribution (unsigned)
+# ───────────────────────────────────────────────────────────────────
 
 dmg: bundle
 	@echo "Creating disk image at $(DMG_PATH)"
@@ -84,6 +201,68 @@ pkg: bundle
 		--version "$(VERSION)" \
 		"$(PKG_PATH)"
 	@echo "PKG created at $(PKG_PATH)"
+
+# ───────────────────────────────────────────────────────────────────
+# Distribution (signed & notarized)
+# ───────────────────────────────────────────────────────────────────
+
+dmg-signed: sign notarize staple
+	@echo "Creating signed disk image at $(DMG_PATH)"
+	rm -f $(DMG_PATH)
+	hdiutil create -volname "$(APP_NAME)" -srcfolder "$(APP_BUNDLE)" -ov -format UDZO "$(DMG_PATH)"
+	@# Sign the DMG itself
+	codesign --force --sign "$(DEVELOPER_ID_APPLICATION)" --timestamp $(DMG_PATH)
+	@# Notarize and staple the DMG
+	@echo "Submitting DMG to Apple notary service …"
+	@if [ -n "$(KEYCHAIN_PROFILE)" ]; then \
+		xcrun notarytool submit $(DMG_PATH) \
+			--keychain-profile "$(KEYCHAIN_PROFILE)" \
+			--wait; \
+	else \
+		xcrun notarytool submit $(DMG_PATH) \
+			--apple-id "$(APPLE_ID)" \
+			--password "$(APPLE_ID_PASSWORD)" \
+			--team-id "$(APPLE_TEAM_ID)" \
+			--wait; \
+	fi
+	xcrun stapler staple $(DMG_PATH)
+	@echo "Signed DMG created at $(DMG_PATH)"
+
+pkg-signed: sign notarize staple
+	@if [ -z "$(DEVELOPER_ID_INSTALLER)" ]; then \
+		echo "ERROR: DEVELOPER_ID_INSTALLER is not set."; \
+		echo '  export DEVELOPER_ID_INSTALLER="Developer ID Installer: Your Name (TEAMID)"'; \
+		exit 1; \
+	fi
+	@echo "Creating signed installer package at $(PKG_PATH)"
+	rm -f $(PKG_PATH)
+	pkgbuild \
+		--component "$(APP_BUNDLE)" \
+		--install-location "/Applications" \
+		--identifier "$(PKG_IDENTIFIER)" \
+		--version "$(VERSION)" \
+		--sign "$(DEVELOPER_ID_INSTALLER)" \
+		--timestamp \
+		"$(PKG_PATH)"
+	@# Notarize and staple the PKG
+	@echo "Submitting PKG to Apple notary service …"
+	@if [ -n "$(KEYCHAIN_PROFILE)" ]; then \
+		xcrun notarytool submit $(PKG_PATH) \
+			--keychain-profile "$(KEYCHAIN_PROFILE)" \
+			--wait; \
+	else \
+		xcrun notarytool submit $(PKG_PATH) \
+			--apple-id "$(APPLE_ID)" \
+			--password "$(APPLE_ID_PASSWORD)" \
+			--team-id "$(APPLE_TEAM_ID)" \
+			--wait; \
+	fi
+	xcrun stapler staple $(PKG_PATH)
+	@echo "Signed PKG created at $(PKG_PATH)"
+
+# ───────────────────────────────────────────────────────────────────
+# Development
+# ───────────────────────────────────────────────────────────────────
 
 fmt:
 	swift format --in-place Package.swift src tests
