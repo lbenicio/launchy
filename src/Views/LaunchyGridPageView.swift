@@ -22,7 +22,8 @@ struct LaunchyGridPageView: View {
                     .frame(width: metrics.itemDimension, height: metrics.itemDimension)
                     .onDrop(
                         of: [.launchyItemIdentifier],
-                        delegate: LaunchyTrailingDropDelegate(viewModel: viewModel))
+                        delegate: LaunchyTrailingDropDelegate(viewModel: viewModel)
+                    )
             }
         }
         .padding(.horizontal, metrics.padding)

@@ -88,6 +88,9 @@ struct LaunchyRootView: View {
         .onReceive(NotificationCenter.default.publisher(for: .importLayout)) { _ in
             viewModel.importLayout()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .resetToDefaultLayout)) { _ in
+            viewModel.resetToDefaultLayout()
+        }
     }
 
     @ViewBuilder

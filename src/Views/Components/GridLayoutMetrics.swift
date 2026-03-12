@@ -61,7 +61,9 @@ struct GridLayoutMetrics {
             if needsWidthAdjustment {
                 if horizontalSpacing > horizontalSpacingRange.lowerBound {
                     horizontalSpacing = max(
-                        horizontalSpacingRange.lowerBound, horizontalSpacing - 2)
+                        horizontalSpacingRange.lowerBound,
+                        horizontalSpacing - 2
+                    )
                     return true
                 }
                 if padding > paddingRange.lowerBound {
@@ -162,7 +164,8 @@ struct GridLayoutMetrics {
         self.verticalSpacing = finalVSpacing
         self.columns = Array(
             repeating: GridItem(.fixed(resolvedDimension), spacing: finalHSpacing),
-            count: columns)
+            count: columns
+        )
         self.padding = padding
     }
 }

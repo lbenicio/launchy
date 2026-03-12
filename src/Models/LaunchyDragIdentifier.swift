@@ -21,7 +21,8 @@ extension LaunchyDragIdentifier {
         let provider = NSItemProvider()
         let payload = self
         provider.registerDataRepresentation(
-            forTypeIdentifier: UTType.launchyItemIdentifier.identifier, visibility: .all
+            forTypeIdentifier: UTType.launchyItemIdentifier.identifier,
+            visibility: .all
         ) { completion -> Progress? in
             do {
                 let data = try JSONEncoder().encode(payload)

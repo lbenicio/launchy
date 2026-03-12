@@ -110,7 +110,8 @@ final class LaunchyDataStore {
 extension LaunchyDataStore {
     fileprivate func reconcile(stored: [LaunchyItem], installed: [AppIcon]) -> [LaunchyItem] {
         var available = Dictionary(
-            uniqueKeysWithValues: installed.map { ($0.bundleIdentifier, $0) })
+            uniqueKeysWithValues: installed.map { ($0.bundleIdentifier, $0) }
+        )
         var results: [LaunchyItem] = []
 
         for item in stored {

@@ -16,7 +16,9 @@ final class LaunchyViewModelTests: XCTestCase {
             isDirectory: true
         )
         try FileManager.default.createDirectory(
-            at: tempDirectory, withIntermediateDirectories: true)
+            at: tempDirectory,
+            withIntermediateDirectories: true
+        )
 
         fileManager = StubFileManager(applicationSupportDirectory: tempDirectory)
         let applicationsProvider = InstalledApplicationsProvider(fileManager: fileManager)

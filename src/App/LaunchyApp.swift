@@ -11,6 +11,12 @@ import SwiftUI
             }
             hotkeyService.start()
 
+            let trackpadService = TrackpadGestureService.shared
+            trackpadService.onPinchIn = { [weak self] in
+                self?.toggleLauncher()
+            }
+            trackpadService.start()
+
             MenuBarService.shared.setup()
 
             NotificationCenter.default.addObserver(
@@ -27,6 +33,7 @@ import SwiftUI
         func applicationWillTerminate(_ notification: Notification) {
             NSApp.presentationOptions = []
             GlobalHotkeyService.shared.stop()
+            TrackpadGestureService.shared.stop()
             MenuBarService.shared.teardown()
         }
 

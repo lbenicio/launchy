@@ -6,6 +6,11 @@ The format is based on "Keep a Changelog" and this project adheres to [Semantic 
 
 ## [Unreleased]
 
+### Fixed
+
+- **`resetToDefaultLayout` notification not subscribed to:** Added `.onReceive` handler in `LaunchyRootView` for `Notification.Name.resetToDefaultLayout`, so the Settings → Reset Layout button now correctly calls `viewModel.resetToDefaultLayout()`.
+- **`TrackpadGestureService` not wired up:** Started `TrackpadGestureService.shared` in `AppDelegate.applicationDidFinishLaunching` with `onPinchIn` calling `toggleLauncher()`, and added `.stop()` in `applicationWillTerminate`. Four-finger pinch-in gestures now toggle the launcher as expected.
+
 ## [0.4.2] - 2026-03-12
 
 ### Added

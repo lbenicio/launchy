@@ -100,7 +100,8 @@ struct LaunchyPagedGridView: View {
                                     onEdgeEntered: { targetPage in
                                         edgeDragTimer?.invalidate()
                                         edgeDragTimer = Timer.scheduledTimer(
-                                            withTimeInterval: 0.4, repeats: false
+                                            withTimeInterval: 0.4,
+                                            repeats: false
                                         ) { _ in
                                             DispatchQueue.main.async {
                                                 guard viewModel.dragItemID != nil else { return }
@@ -112,7 +113,8 @@ struct LaunchyPagedGridView: View {
                                         edgeDragTimer?.invalidate()
                                         edgeDragTimer = nil
                                     }
-                                ))
+                                )
+                            )
 
                         Spacer()
 
@@ -129,7 +131,8 @@ struct LaunchyPagedGridView: View {
                                     onEdgeEntered: { targetPage in
                                         edgeDragTimer?.invalidate()
                                         edgeDragTimer = Timer.scheduledTimer(
-                                            withTimeInterval: 0.4, repeats: false
+                                            withTimeInterval: 0.4,
+                                            repeats: false
                                         ) { _ in
                                             DispatchQueue.main.async {
                                                 guard viewModel.dragItemID != nil else { return }
@@ -141,7 +144,8 @@ struct LaunchyPagedGridView: View {
                                         edgeDragTimer?.invalidate()
                                         edgeDragTimer = nil
                                     }
-                                ))
+                                )
+                            )
                     }
                     .frame(width: width, height: height)
                     .allowsHitTesting(true)

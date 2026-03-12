@@ -8,18 +8,22 @@
 
 ## 🐛 Bugs
 
-### 🔴 `resetToDefaultLayout` notification is posted but never subscribed to
-The **Settings → Reset Layout** button posts `Notification.Name.resetToDefaultLayout`, but there is no `.onReceive` or `addObserver` listening for it anywhere. Clicking "Reset" does nothing.
+### ~~🔴 `resetToDefaultLayout` notification is posted but never subscribed to~~
+~~The **Settings → Reset Layout** button posts `Notification.Name.resetToDefaultLayout`, but there is no `.onReceive` or `addObserver` listening for it anywhere. Clicking "Reset" does nothing.~~
 
-**File:** `src/Views/Settings/SettingsView.swift` (line ~292), `src/Views/LaunchyRootView.swift`
-**Fix:** Add `.onReceive(NotificationCenter.default.publisher(for: .resetToDefaultLayout))` in `LaunchyRootView` that calls `viewModel.resetToDefaultLayout()`.
+~~**File:** `src/Views/Settings/SettingsView.swift` (line ~292), `src/Views/LaunchyRootView.swift`~~
+~~**Fix:** Add `.onReceive(NotificationCenter.default.publisher(for: .resetToDefaultLayout))` in `LaunchyRootView` that calls `viewModel.resetToDefaultLayout()`.~~
+
+✅ **Done** — Added `.onReceive(NotificationCenter.default.publisher(for: .resetToDefaultLayout))` in `LaunchyRootView.body` that calls `viewModel.resetToDefaultLayout()`.
 
 ---
 
-### 🔴 `TrackpadGestureService` is defined but never instantiated or started
-The service exists in `src/Services/TrackpadGestureService.swift` but is never called from `AppDelegate`, `LaunchyApp`, or anywhere else. The four-finger pinch-in gesture (a key Launchpad activation method) doesn't work.
+### ~~🔴 `TrackpadGestureService` is defined but never instantiated or started~~
+~~The service exists in `src/Services/TrackpadGestureService.swift` but is never called from `AppDelegate`, `LaunchyApp`, or anywhere else. The four-finger pinch-in gesture (a key Launchpad activation method) doesn't work.~~
 
-**Fix:** Wire up `TrackpadGestureService.shared.start()` in `AppDelegate.applicationDidFinishLaunching` with `onPinchIn` calling `toggleLauncher()`. Also call `.stop()` in `applicationWillTerminate`.
+~~**Fix:** Wire up `TrackpadGestureService.shared.start()` in `AppDelegate.applicationDidFinishLaunching` with `onPinchIn` calling `toggleLauncher()`. Also call `.stop()` in `applicationWillTerminate`.~~
+
+✅ **Done** — Wired up `TrackpadGestureService.shared.start()` in `AppDelegate.applicationDidFinishLaunching` with `onPinchIn` calling `toggleLauncher()`, and `.stop()` in `applicationWillTerminate`.
 
 ---
 

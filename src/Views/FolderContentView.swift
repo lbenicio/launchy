@@ -20,13 +20,15 @@ struct FolderContentView: View {
                 let tileDimension = max(72, tileWidth)
                 let columns = Array(
                     repeating: GridItem(.fixed(tileDimension), spacing: spacing),
-                    count: max(settings.folderColumns, 1))
+                    count: max(settings.folderColumns, 1)
+                )
 
                 VStack(spacing: 20) {
                     HStack {
                         if viewModel.isEditing {
                             TextField(
-                                "Folder Name", text: $editingName,
+                                "Folder Name",
+                                text: $editingName,
                                 onCommit: {
                                     viewModel.renameFolder(folderID, to: editingName)
                                 }
@@ -84,7 +86,8 @@ struct FolderContentView: View {
                                                     .stroke(
                                                         Color.white,
                                                         lineWidth: folder.color == iconColor
-                                                            ? 2.5 : 0)
+                                                            ? 2.5 : 0
+                                                    )
                                             )
                                             .overlay(
                                                 folder.color == iconColor
@@ -95,7 +98,10 @@ struct FolderContentView: View {
                                             )
                                             .shadow(
                                                 color: iconColor.color.opacity(
-                                                    folder.color == iconColor ? 0.5 : 0), radius: 4)
+                                                    folder.color == iconColor ? 0.5 : 0
+                                                ),
+                                                radius: 4
+                                            )
                                     }
                                     .buttonStyle(.plain)
                                 }
@@ -116,7 +122,10 @@ struct FolderContentView: View {
                                 .onDrop(
                                     of: [.launchyItemIdentifier],
                                     delegate: FolderTrailingDropDelegate(
-                                        folderID: folder.id, viewModel: viewModel))
+                                        folderID: folder.id,
+                                        viewModel: viewModel
+                                    )
+                                )
                         }
                     }
                     .padding(.horizontal, 12)
@@ -124,7 +133,8 @@ struct FolderContentView: View {
                 }
                 .padding(32)
                 .background(
-                    .ultraThinMaterial, in: RoundedRectangle(cornerRadius: 36, style: .continuous)
+                    .ultraThinMaterial,
+                    in: RoundedRectangle(cornerRadius: 36, style: .continuous)
                 )
                 .frame(maxWidth: maxWidth)
                 .contentShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
@@ -135,7 +145,11 @@ struct FolderContentView: View {
     }
 
     @ViewBuilder
-    private func folderIconTile(app: AppIcon, folder: LaunchyFolder, tileDimension: CGFloat)
+    private func folderIconTile(
+        app: AppIcon,
+        folder: LaunchyFolder,
+        tileDimension: CGFloat
+    )
         -> some View
     {
         let base = AppIconTile(icon: app, isEditing: viewModel.isEditing, dimension: tileDimension)
@@ -182,7 +196,11 @@ struct FolderContentView: View {
                 .onDrop(
                     of: [.launchyItemIdentifier],
                     delegate: FolderAppDropDelegate(
-                        folderID: folder.id, targetAppID: app.id, viewModel: viewModel))
+                        folderID: folder.id,
+                        targetAppID: app.id,
+                        viewModel: viewModel
+                    )
+                )
         } else {
             base
                 .contentShape(Rectangle())

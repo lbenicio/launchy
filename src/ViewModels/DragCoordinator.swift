@@ -72,7 +72,9 @@ final class DragCoordinator: ObservableObject {
             let remainingApps = folder.apps.map { LaunchyItem.app($0) }
             viewModel.items.remove(at: folderIndex)
             viewModel.items.insert(
-                contentsOf: remainingApps, at: min(folderIndex, viewModel.items.count))
+                contentsOf: remainingApps,
+                at: min(folderIndex, viewModel.items.count)
+            )
             viewModel.items.insert(.app(app), at: min(folderIndex, viewModel.items.count))
         } else {
             viewModel.items[folderIndex] = .folder(folder)
