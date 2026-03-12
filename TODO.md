@@ -56,11 +56,11 @@
 
 ### P3 — Nice-to-have
 
-- [ ] **`folderCapacity` computed property is never used**
+- [x] **`folderCapacity` computed property is never used**
   `GridSettings.folderCapacity` exists but no code references it. Either implement folder content pagination or remove the dead code.
   _File: `GridSettings.swift`_
 
-- [ ] **Release workflow doesn't bundle the app icon**
+- [x] **Release workflow doesn't bundle the app icon**
   `.github/workflows/release.yml` copies the binary into a `.app` bundle but skips the `Resources/` directory and `launchy.icns`. The Makefile `bundle` target handles this correctly — the workflow should match.
   _File: `.github/workflows/release.yml`_
 

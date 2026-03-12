@@ -3,7 +3,7 @@ import XCTest
 @testable import Launchy
 
 final class GridSettingsTests: XCTestCase {
-    func testPageAndFolderCapacityReflectLayout() {
+    func testPageCapacityReflectsLayout() {
         let settings = GridSettings(
             columns: 6,
             rows: 4,
@@ -15,7 +15,6 @@ final class GridSettingsTests: XCTestCase {
         )
 
         XCTAssertEqual(settings.pageCapacity, 24)
-        XCTAssertEqual(settings.folderCapacity, 6)
     }
 
     func testDecodingFallsBackToDefaultsWhenValuesMissing() throws {

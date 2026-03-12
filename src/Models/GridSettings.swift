@@ -93,10 +93,6 @@ struct GridSettings: Codable, Equatable {
         max(1, columns * rows)
     }
 
-    var folderCapacity: Int {
-        max(1, folderColumns * folderRows)
-    }
-
     var windowedSize: CGSize? {
         guard let width = lastWindowedWidth, let height = lastWindowedHeight else { return nil }
         return CGSize(width: width, height: height)
