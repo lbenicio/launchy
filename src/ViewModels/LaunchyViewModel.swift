@@ -72,15 +72,27 @@ final class LaunchyViewModel: ObservableObject {
         let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalized.isEmpty else { return pagedItems }
 
-        let filtered = items.filter { item in
+        var filtered: [LaunchyItem] = []
+
+        for item in items {
             switch item {
             case .app(let icon):
-                return icon.name.localizedCaseInsensitiveContains(normalized)
+                if icon.name.localizedCaseInsensitiveContains(normalized) {
+                    filtered.append(item)
+                }
             case .folder(let folder):
                 if folder.name.localizedCaseInsensitiveContains(normalized) {
-                    return true
+                    // Folder name matches — include all apps as standalone tiles
+                    for app in folder.apps {
+                        filtered.append(.app(app))
+                    }
+                } else {
+                    // Check individual apps inside the folder
+                    for app in folder.apps
+                    where app.name.localizedCaseInsensitiveContains(normalized) {
+                        filtered.append(.app(app))
+                    }
                 }
-                return folder.apps.contains { $0.name.localizedCaseInsensitiveContains(normalized) }
             }
         }
 

@@ -67,6 +67,11 @@ struct LaunchyRootView: View {
         .sheet(isPresented: $isCreatingFolder) {
             newFolderSheet
         }
+        .onReceive(NotificationCenter.default.publisher(for: .toggleInAppSettings)) { _ in
+            withAnimation(.easeInOut(duration: 0.24)) {
+                isShowingSettings.toggle()
+            }
+        }
     }
 
     @ViewBuilder

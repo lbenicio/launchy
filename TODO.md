@@ -36,13 +36,13 @@
   If the app is force-quit or crashes while fullscreen, `NSApp.presentationOptions` stays at `[.autoHideDock, .autoHideMenuBar]`. The dock and menubar remain auto-hidden until another app resets them. Add cleanup in `applicationWillTerminate` or use `NSApp.delegate`.
   _File: `WindowConfigurator.swift`, `LaunchyApp.swift`_
 
-- [ ] **Duplicate `Settings` scene in `LaunchyApp`**
+- [x] **Duplicate `Settings` scene in `LaunchyApp`**
   The app declares both a system `Settings { SettingsView(...) }` scene AND an in-app overlay in `LaunchyRootView`. In fullscreen mode the system settings window opens *behind* the Launchy window and is unreachable. Either remove the `Settings` scene or wire ⌘, to toggle the in-app overlay instead.
   _File: `LaunchyApp.swift`_
 
 ### P2 — Should-do
 
-- [ ] **Search should flatten folders and show individual apps**
+- [x] **Search should flatten folders and show individual apps**
   `pagedItems(matching:)` returns the entire folder when any child matches. The folder preview grid doesn't highlight which app matched. Real Launchpad breaks folders open during search and shows each matching app as a standalone tile.
   _File: `LaunchyViewModel.swift` → `pagedItems(matching:)`_
 

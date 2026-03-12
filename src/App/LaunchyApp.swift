@@ -40,6 +40,14 @@ struct LaunchyApp: App {
                 .environmentObject(settingsStore)
         }
         .commands {
+            // Replace the default Preferences/Settings menu item with one
+            // that toggles the in-app overlay instead of opening a separate window.
+            CommandGroup(replacing: .appSettings) {
+                Button("Settings…") {
+                    NotificationCenter.default.post(name: .toggleInAppSettings, object: nil)
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
             CommandGroup(after: .appSettings) {
                 Button(viewModel.isEditing ? "Exit Wiggle Mode" : "Enter Wiggle Mode") {
                     viewModel.toggleEditing()
@@ -48,10 +56,9 @@ struct LaunchyApp: App {
                 .disabled(viewModel.presentedFolderID != nil)
             }
         }
-
-        Settings {
-            SettingsView(store: settingsStore)
-                .frame(width: 680, height: 540)
-        }
     }
+}
+
+extension Notification.Name {
+    static let toggleInAppSettings = Notification.Name("toggleInAppSettings")
 }
