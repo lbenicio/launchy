@@ -1,6 +1,12 @@
 import CoreGraphics
 import Foundation
 
+enum BackgroundMode: String, Codable, Sendable, CaseIterable {
+    case wallpaperBlur
+    case solidColor
+    case gradient
+}
+
 struct GridSettings: Codable, Equatable, Sendable {
     var columns: Int
     var rows: Int
@@ -12,6 +18,12 @@ struct GridSettings: Codable, Equatable, Sendable {
     var lastWindowedWidth: Double?
     var lastWindowedHeight: Double?
     var lastWindowedPage: Int?
+    var backgroundMode: BackgroundMode
+    var solidColorHex: String?
+    var gradientStartHex: String?
+    var gradientEndHex: String?
+    var blurIntensity: Double
+    var iCloudSyncEnabled: Bool
 
     static let defaults = GridSettings(
         columns: 7,
@@ -23,7 +35,13 @@ struct GridSettings: Codable, Equatable, Sendable {
         useFullScreenLayout: true,
         lastWindowedWidth: nil,
         lastWindowedHeight: nil,
-        lastWindowedPage: nil
+        lastWindowedPage: nil,
+        backgroundMode: .wallpaperBlur,
+        solidColorHex: nil,
+        gradientStartHex: nil,
+        gradientEndHex: nil,
+        blurIntensity: 0.14,
+        iCloudSyncEnabled: false
     )
 
     init(
@@ -36,7 +54,13 @@ struct GridSettings: Codable, Equatable, Sendable {
         useFullScreenLayout: Bool,
         lastWindowedWidth: Double? = nil,
         lastWindowedHeight: Double? = nil,
-        lastWindowedPage: Int? = nil
+        lastWindowedPage: Int? = nil,
+        backgroundMode: BackgroundMode = .wallpaperBlur,
+        solidColorHex: String? = nil,
+        gradientStartHex: String? = nil,
+        gradientEndHex: String? = nil,
+        blurIntensity: Double = 0.14,
+        iCloudSyncEnabled: Bool = false
     ) {
         self.columns = columns
         self.rows = rows
@@ -48,6 +72,12 @@ struct GridSettings: Codable, Equatable, Sendable {
         self.lastWindowedWidth = lastWindowedWidth
         self.lastWindowedHeight = lastWindowedHeight
         self.lastWindowedPage = lastWindowedPage
+        self.backgroundMode = backgroundMode
+        self.solidColorHex = solidColorHex
+        self.gradientStartHex = gradientStartHex
+        self.gradientEndHex = gradientEndHex
+        self.blurIntensity = blurIntensity
+        self.iCloudSyncEnabled = iCloudSyncEnabled
     }
 
     init(from decoder: Decoder) throws {
@@ -73,6 +103,18 @@ struct GridSettings: Codable, Equatable, Sendable {
         lastWindowedHeight =
             try container.decodeIfPresent(Double.self, forKey: .lastWindowedHeight)
         lastWindowedPage = try container.decodeIfPresent(Int.self, forKey: .lastWindowedPage)
+        backgroundMode =
+            try container.decodeIfPresent(BackgroundMode.self, forKey: .backgroundMode)
+            ?? defaults.backgroundMode
+        solidColorHex = try container.decodeIfPresent(String.self, forKey: .solidColorHex)
+        gradientStartHex = try container.decodeIfPresent(String.self, forKey: .gradientStartHex)
+        gradientEndHex = try container.decodeIfPresent(String.self, forKey: .gradientEndHex)
+        blurIntensity =
+            try container.decodeIfPresent(Double.self, forKey: .blurIntensity)
+            ?? defaults.blurIntensity
+        iCloudSyncEnabled =
+            try container.decodeIfPresent(Bool.self, forKey: .iCloudSyncEnabled)
+            ?? defaults.iCloudSyncEnabled
     }
 
     func encode(to encoder: Encoder) throws {
@@ -87,6 +129,12 @@ struct GridSettings: Codable, Equatable, Sendable {
         try container.encodeIfPresent(lastWindowedWidth, forKey: .lastWindowedWidth)
         try container.encodeIfPresent(lastWindowedHeight, forKey: .lastWindowedHeight)
         try container.encodeIfPresent(lastWindowedPage, forKey: .lastWindowedPage)
+        try container.encode(backgroundMode, forKey: .backgroundMode)
+        try container.encodeIfPresent(solidColorHex, forKey: .solidColorHex)
+        try container.encodeIfPresent(gradientStartHex, forKey: .gradientStartHex)
+        try container.encodeIfPresent(gradientEndHex, forKey: .gradientEndHex)
+        try container.encode(blurIntensity, forKey: .blurIntensity)
+        try container.encode(iCloudSyncEnabled, forKey: .iCloudSyncEnabled)
     }
 
     var pageCapacity: Int {
@@ -109,5 +157,11 @@ struct GridSettings: Codable, Equatable, Sendable {
         case lastWindowedWidth
         case lastWindowedHeight
         case lastWindowedPage
+        case backgroundMode
+        case solidColorHex
+        case gradientStartHex
+        case gradientEndHex
+        case blurIntensity
+        case iCloudSyncEnabled
     }
 }

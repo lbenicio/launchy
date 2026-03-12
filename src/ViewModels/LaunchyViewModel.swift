@@ -1,6 +1,7 @@
 import Combine
 import Foundation
 import SwiftUI
+import UniformTypeIdentifiers
 
 #if os(macOS)
     import AppKit
@@ -25,6 +26,7 @@ final class LaunchyViewModel: ObservableObject {
     let settingsStore: GridSettingsStore
 
     private(set) var dragCoordinator: DragCoordinator!
+    let undoManager = LayoutUndoManager()
 
     private var cancellables: Set<AnyCancellable> = []
     private var saveDebouncerTask: Task<Void, Never>?
@@ -39,6 +41,11 @@ final class LaunchyViewModel: ObservableObject {
     private func invalidateCaches() {
         _cachedPagedItems = nil
         _itemLookup = nil
+    }
+
+    /// Records the current layout for undo before performing a mutation.
+    private func recordForUndo() {
+        undoManager.recordSnapshot(items)
     }
 
     private func buildItemLookup() -> [UUID: LaunchyItem] {
@@ -102,11 +109,16 @@ final class LaunchyViewModel: ObservableObject {
                 self.ensureCurrentPageInBounds()
                 self.persistLastVisitedPageIfNeeded(self.currentPage)
                 self.isLayoutLoaded = true
+                self.setupICloudSync()
             }
         }
 
         dragCoordinator = DragCoordinator(viewModel: self)
         dragCoordinator.objectWillChange
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+
+        undoManager.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
     }
@@ -140,29 +152,39 @@ final class LaunchyViewModel: ObservableObject {
         let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalized.isEmpty else { return pagedItems }
 
-        var filtered: [LaunchyItem] = []
+        struct ScoredItem: Sendable {
+            let item: LaunchyItem
+            let score: Double
+        }
+
+        var scored: [ScoredItem] = []
 
         for item in items {
             switch item {
             case .app(let icon):
-                if icon.name.localizedCaseInsensitiveContains(normalized) {
-                    filtered.append(item)
+                if let score = icon.name.fuzzyMatch(normalized) {
+                    scored.append(ScoredItem(item: item, score: score))
                 }
             case .folder(let folder):
-                if folder.name.localizedCaseInsensitiveContains(normalized) {
+                if let folderScore = folder.name.fuzzyMatch(normalized) {
                     // Folder name matches — include all apps as standalone tiles
                     for app in folder.apps {
-                        filtered.append(.app(app))
+                        scored.append(ScoredItem(item: .app(app), score: folderScore))
                     }
                 } else {
                     // Check individual apps inside the folder
-                    for app in folder.apps
-                    where app.name.localizedCaseInsensitiveContains(normalized) {
-                        filtered.append(.app(app))
+                    for app in folder.apps {
+                        if let appScore = app.name.fuzzyMatch(normalized) {
+                            scored.append(ScoredItem(item: .app(app), score: appScore))
+                        }
                     }
                 }
             }
         }
+
+        // Sort by relevance score descending (higher = better match first)
+        scored.sort { $0.score > $1.score }
+        let filtered = scored.map(\.item)
 
         let capacity = settings.pageCapacity
         guard capacity > 0 else { return [filtered] }
@@ -279,6 +301,7 @@ final class LaunchyViewModel: ObservableObject {
         saveDebouncerTask?.cancel()
         saveDebouncerTask = nil
         dataStore.save(items)
+        uploadToICloudIfNeeded()
     }
 
     // MARK: - Modifiers (create, delete, move)
@@ -286,8 +309,11 @@ final class LaunchyViewModel: ObservableObject {
     /// Creates a new folder from the given app IDs, inserting it at the position of the first
     /// selected app. Returns `nil` if fewer than two apps are provided.
     func createFolder(
-        named name: String, color: IconColor = .blue, from ids: [UUID]
+        named name: String,
+        color: IconColor = .blue,
+        from ids: [UUID]
     ) -> LaunchyFolder? {
+        recordForUndo()
         var moved: [AppIcon] = []
         var remaining: [LaunchyItem] = []
         var firstSelectedIndex: Int? = nil
@@ -326,6 +352,7 @@ final class LaunchyViewModel: ObservableObject {
     /// Moves the specified top-level apps into the target folder.
     func addApps(_ appIDs: [UUID], toFolder folderID: UUID) {
         guard !appIDs.isEmpty else { return }
+        recordForUndo()
 
         guard let folderIndex = items.firstIndex(where: { $0.id == folderID }),
             var folder = items[folderIndex].asFolder
@@ -364,6 +391,7 @@ final class LaunchyViewModel: ObservableObject {
 
     /// Dissolves a folder, inserting its apps back into the grid at the folder's former position.
     func disbandFolder(_ folderID: UUID) {
+        recordForUndo()
         guard let index = items.firstIndex(where: { $0.id == folderID }),
             let folder = items[index].asFolder
         else { return }
@@ -378,6 +406,7 @@ final class LaunchyViewModel: ObservableObject {
     /// Removes an item from the grid. Folders are auto-disbanded (apps returned to grid);
     /// apps are moved to the recently-removed list for possible restoration.
     func deleteItem(_ id: UUID) {
+        recordForUndo()
         if let idx = items.firstIndex(where: { $0.id == id }) {
             // If it's a folder, auto-disband: move apps back to the grid
             // instead of silently destroying them.
@@ -417,6 +446,7 @@ final class LaunchyViewModel: ObservableObject {
     /// Restores all recently removed apps back to the end of the grid.
     func restoreRemovedApps() {
         guard !recentlyRemovedApps.isEmpty else { return }
+        recordForUndo()
         let restored = recentlyRemovedApps.map { LaunchyItem.app($0) }
         items.append(contentsOf: restored)
         recentlyRemovedApps.removeAll()
@@ -425,6 +455,7 @@ final class LaunchyViewModel: ObservableObject {
 
     /// Deletes the persisted layout and reloads a fresh one from installed applications.
     func resetToDefaultLayout() {
+        recordForUndo()
         Task { [weak self] in
             guard let self else { return }
             let fresh = await dataStore.loadFresh()
@@ -448,6 +479,7 @@ final class LaunchyViewModel: ObservableObject {
 
     /// Shifts a top-level item by the given offset (positive = rightward, negative = leftward).
     func shiftItem(_ id: UUID, by offset: Int) {
+        recordForUndo()
         guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
         let newIndex = min(max(0, idx + offset), items.count - 1)
         if newIndex == idx { return }
@@ -459,6 +491,7 @@ final class LaunchyViewModel: ObservableObject {
     /// Repositions a top-level item before the target item, or appends it if target is `nil`.
     /// Used during drag reordering; saves are debounced.
     func moveItem(_ id: UUID, before targetID: UUID?) {
+        recordForUndo()
         guard let from = items.firstIndex(where: { $0.id == id }) else { return }
 
         if let targetID {
@@ -507,6 +540,11 @@ final class LaunchyViewModel: ObservableObject {
             case .app(let icon):
                 isLaunchingApp = true
                 launchingItemID = icon.id
+                MenuBarService.shared.recordLaunch(
+                    name: icon.name,
+                    bundleIdentifier: icon.bundleIdentifier,
+                    bundleURL: icon.bundleURL
+                )
                 NSWorkspace.shared.openApplication(
                     at: icon.bundleURL,
                     configuration: NSWorkspace.OpenConfiguration()
@@ -544,6 +582,28 @@ final class LaunchyViewModel: ObservableObject {
         launchingItemID = nil
     }
 
+    // MARK: - iCloud Sync
+
+    private func setupICloudSync() {
+        guard settingsStore.settings.iCloudSyncEnabled else { return }
+        let syncService = ICloudSyncService.shared
+        syncService.onRemoteChange = { [weak self] remoteItems in
+            guard let self, self.settingsStore.settings.iCloudSyncEnabled else { return }
+            // Only replace if remote is different
+            if remoteItems != self.items {
+                self.items = remoteItems
+                self.ensureCurrentPageInBounds()
+            }
+        }
+        syncService.startObserving()
+    }
+
+    /// Uploads the current layout to iCloud if sync is enabled.
+    private func uploadToICloudIfNeeded() {
+        guard settingsStore.settings.iCloudSyncEnabled else { return }
+        ICloudSyncService.shared.upload(items: items)
+    }
+
     /// Hides the launcher window after a successful app launch, matching
     /// real Launchpad's dismiss-on-launch behavior. The app stays alive
     /// so it can be brought back via the dock icon or a global hotkey.
@@ -562,7 +622,8 @@ final class LaunchyViewModel: ObservableObject {
                             window.orderOut(nil)
                             NSApp.hide(nil)
                         }
-                    })
+                    }
+                )
             } else {
                 NSApp.hide(nil)
             }
@@ -625,6 +686,66 @@ final class LaunchyViewModel: ObservableObject {
         scheduleDebouncedSave()
     }
 
+    // MARK: - Finder drop (external .app bundles)
+
+    /// Accepts a file URL pointing to an `.app` bundle and adds it to the grid if not already present.
+    func addAppFromFinder(url: URL) -> Bool {
+        #if os(macOS)
+            guard url.pathExtension == "app" else { return false }
+            guard let bundle = Bundle(url: url),
+                let bundleID = bundle.bundleIdentifier
+            else { return false }
+
+            // Check if already present
+            let allBundleIDs = items.flatMap { item -> [String] in
+                switch item {
+                case .app(let icon): return [icon.bundleIdentifier]
+                case .folder(let folder): return folder.apps.map(\.bundleIdentifier)
+                }
+            }
+            guard !allBundleIDs.contains(bundleID) else { return false }
+
+            let name =
+                bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
+                ?? bundle.object(forInfoDictionaryKey: "CFBundleName") as? String
+                ?? url.deletingPathExtension().lastPathComponent
+
+            let app = AppIcon(name: name, bundleIdentifier: bundleID, bundleURL: url)
+            items.append(.app(app))
+            saveNow()
+            return true
+        #else
+            return false
+        #endif
+    }
+
+    /// Accepts multiple file URLs from a Finder drop, returns how many were added.
+    func addAppsFromFinder(urls: [URL]) -> Int {
+        var count = 0
+        for url in urls {
+            if addAppFromFinder(url: url) {
+                count += 1
+            }
+        }
+        return count
+    }
+
+    // MARK: - Undo / Redo
+
+    func undo() {
+        if let previous = undoManager.undo(current: items) {
+            items = previous
+            saveNow()
+        }
+    }
+
+    func redo() {
+        if let next = undoManager.redo(current: items) {
+            items = next
+            saveNow()
+        }
+    }
+
     // MARK: - Drag & drop (forwarded to DragCoordinator)
 
     /// Starts a drag session for the given item. Forwarded to `DragCoordinator`.
@@ -665,5 +786,68 @@ final class LaunchyViewModel: ObservableObject {
     @discardableResult
     func stackDraggedItem(onto targetID: UUID) -> Bool {
         dragCoordinator.stackDraggedItem(onto: targetID)
+    }
+
+    // MARK: - Import / Export Layout
+
+    /// Exports the current layout to a JSON file chosen by the user via a save panel.
+    func exportLayout() {
+        #if os(macOS)
+            let panel = NSSavePanel()
+            panel.title = "Export Launchy Layout"
+            panel.nameFieldStringValue = "launchy-layout.json"
+            panel.allowedContentTypes = [.json]
+            panel.canCreateDirectories = true
+
+            guard panel.runModal() == .OK, let url = panel.url else { return }
+
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+
+            do {
+                let data = try encoder.encode(items)
+                try data.write(to: url, options: [.atomic])
+            } catch {
+                let alert = NSAlert()
+                alert.messageText = "Export Failed"
+                alert.informativeText = error.localizedDescription
+                alert.alertStyle = .warning
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+            }
+        #endif
+    }
+
+    /// Imports a layout from a user-selected JSON file, replacing the current arrangement.
+    func importLayout() {
+        #if os(macOS)
+            let panel = NSOpenPanel()
+            panel.title = "Import Launchy Layout"
+            panel.allowedContentTypes = [.json]
+            panel.allowsMultipleSelection = false
+            panel.canChooseDirectories = false
+
+            guard panel.runModal() == .OK, let url = panel.url else { return }
+
+            do {
+                let data = try Data(contentsOf: url)
+                let imported = try JSONDecoder().decode([LaunchyItem].self, from: data)
+                items = imported
+                currentPage = 0
+                presentedFolderID = nil
+                selectedItemIDs.removeAll()
+                recentlyRemovedApps.removeAll()
+                isEditing = false
+                saveNow()
+            } catch {
+                let alert = NSAlert()
+                alert.messageText = "Import Failed"
+                alert.informativeText =
+                    "The file could not be read as a valid Launchy layout. \(error.localizedDescription)"
+                alert.alertStyle = .warning
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+            }
+        #endif
     }
 }

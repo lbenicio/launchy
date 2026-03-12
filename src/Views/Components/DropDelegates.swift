@@ -26,7 +26,7 @@ struct CrossPageEdgeDropDelegate: DropDelegate {
     }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
-        return DropProposal(operation: .move)
+        DropProposal(operation: .move)
     }
 
     func performDrop(info: DropInfo) -> Bool {
@@ -234,5 +234,34 @@ struct FolderTrailingDropDelegate: DropDelegate {
         viewModel.cancelPendingStacking()
         viewModel.endDrag(commit: true)
         return true
+    }
+}
+
+// MARK: - Finder File URL Drop Delegate
+
+struct FinderDropDelegate: DropDelegate {
+    let viewModel: LaunchyViewModel
+
+    func validateDrop(info: DropInfo) -> Bool {
+        info.hasItemsConforming(to: [.fileURL])
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        let providers = info.itemProviders(for: [.fileURL])
+        guard !providers.isEmpty else { return false }
+
+        for provider in providers {
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                guard let url else { return }
+                DispatchQueue.main.async {
+                    _ = viewModel.addAppFromFinder(url: url)
+                }
+            }
+        }
+        return true
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .copy)
     }
 }

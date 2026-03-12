@@ -33,7 +33,16 @@ final class GridSettingsStore: ObservableObject {
         useFullScreenLayout: Bool? = nil,
         windowedWidth: Double? = nil,
         windowedHeight: Double? = nil,
-        lastWindowedPage: Int? = nil
+        lastWindowedPage: Int? = nil,
+        backgroundMode: BackgroundMode? = nil,
+        solidColorHex: String? = nil,
+        clearSolidColor: Bool = false,
+        gradientStartHex: String? = nil,
+        clearGradientStart: Bool = false,
+        gradientEndHex: String? = nil,
+        clearGradientEnd: Bool = false,
+        blurIntensity: Double? = nil,
+        iCloudSyncEnabled: Bool? = nil
     ) {
         var next = settings
         if let columns { next.columns = max(3, min(columns, 10)) }
@@ -56,6 +65,24 @@ final class GridSettingsStore: ObservableObject {
         if let lastWindowedPage {
             next.lastWindowedPage = max(0, lastWindowedPage)
         }
+        if let backgroundMode { next.backgroundMode = backgroundMode }
+        if clearSolidColor {
+            next.solidColorHex = nil
+        } else if let solidColorHex {
+            next.solidColorHex = solidColorHex
+        }
+        if clearGradientStart {
+            next.gradientStartHex = nil
+        } else if let gradientStartHex {
+            next.gradientStartHex = gradientStartHex
+        }
+        if clearGradientEnd {
+            next.gradientEndHex = nil
+        } else if let gradientEndHex {
+            next.gradientEndHex = gradientEndHex
+        }
+        if let blurIntensity { next.blurIntensity = min(max(blurIntensity, 0.0), 1.0) }
+        if let iCloudSyncEnabled { next.iCloudSyncEnabled = iCloudSyncEnabled }
         settings = next
     }
 

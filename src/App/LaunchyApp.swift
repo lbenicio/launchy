@@ -10,16 +10,32 @@ import SwiftUI
                 self?.toggleLauncher()
             }
             hotkeyService.start()
+
+            MenuBarService.shared.setup()
+
+            NotificationCenter.default.addObserver(
+                forName: .menuBarToggleLauncher,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.toggleLauncher()
+                }
+            }
         }
 
         func applicationWillTerminate(_ notification: Notification) {
             NSApp.presentationOptions = []
             GlobalHotkeyService.shared.stop()
+            MenuBarService.shared.teardown()
         }
 
         /// When the user clicks the dock icon while the app is already running
         /// but the window is hidden, bring it back on screen.
-        func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool)
+        func applicationShouldHandleReopen(
+            _ sender: NSApplication,
+            hasVisibleWindows flag: Bool
+        )
             -> Bool
         {
             if !flag {
@@ -76,7 +92,8 @@ struct LaunchyApp: App {
         let dataStore = LaunchyDataStore()
         _settingsStore = StateObject(wrappedValue: settings)
         _viewModel = StateObject(
-            wrappedValue: LaunchyViewModel(dataStore: dataStore, settingsStore: settings))
+            wrappedValue: LaunchyViewModel(dataStore: dataStore, settingsStore: settings)
+        )
 
         #if os(macOS)
             DispatchQueue.main.async {
@@ -107,6 +124,19 @@ struct LaunchyApp: App {
                 .keyboardShortcut("e", modifiers: .command)
                 .disabled(viewModel.presentedFolderID != nil)
             }
+            CommandGroup(replacing: .undoRedo) {
+                Button("Undo") {
+                    viewModel.undo()
+                }
+                .keyboardShortcut("z", modifiers: .command)
+                .disabled(!viewModel.undoManager.canUndo)
+
+                Button("Redo") {
+                    viewModel.redo()
+                }
+                .keyboardShortcut("z", modifiers: [.command, .shift])
+                .disabled(!viewModel.undoManager.canRedo)
+            }
         }
     }
 }
@@ -116,4 +146,7 @@ extension Notification.Name {
     static let launcherDidReappear = Notification.Name("launcherDidReappear")
     static let dismissLauncher = Notification.Name("dismissLauncher")
     static let resetToDefaultLayout = Notification.Name("resetToDefaultLayout")
+    static let menuBarToggleLauncher = Notification.Name("menuBarToggleLauncher")
+    static let exportLayout = Notification.Name("exportLayout")
+    static let importLayout = Notification.Name("importLayout")
 }

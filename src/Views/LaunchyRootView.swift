@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 #if os(macOS)
     import AppKit
@@ -81,6 +82,12 @@ struct LaunchyRootView: View {
         .onReceive(NotificationCenter.default.publisher(for: .dismissLauncher)) { _ in
             dismissLauncher()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .exportLayout)) { _ in
+            viewModel.exportLayout()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .importLayout)) { _ in
+            viewModel.importLayout()
+        }
     }
 
     @ViewBuilder
@@ -116,6 +123,7 @@ struct LaunchyRootView: View {
                             isOverlayPresented: viewModel.presentedFolderID != nil
                                 || isShowingSettings
                         )
+                        .onDrop(of: [.fileURL], delegate: FinderDropDelegate(viewModel: viewModel))
 
                         if !hasResults {
                             VStack(spacing: 16) {
@@ -235,29 +243,50 @@ struct LaunchyRootView: View {
             .padding(32)
             .background(
                 Color.black.opacity(0.35),
-                in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                in: RoundedRectangle(cornerRadius: 24, style: .continuous)
+            )
         }
     }
 
     #if os(macOS)
-        private func backgroundLayer(fillScreen: Bool) -> some View {
-            Group {
+        @ViewBuilder
+        private func themedBackgroundContent(fillScreen: Bool) -> some View {
+            let settings = settingsStore.settings
+            switch settings.backgroundMode {
+            case .wallpaperBlur:
                 if fillScreen {
                     DesktopBackdropView()
                         .overlay {
                             backgroundGradient
-                                .opacity(0.14)
+                                .opacity(settings.blurIntensity)
                         }
                         .ignoresSafeArea()
                 } else {
                     backgroundGradient
                         .ignoresSafeArea()
                 }
+            case .solidColor:
+                Color(hex: settings.solidColorHex ?? "1A2030")
+                    .ignoresSafeArea()
+            case .gradient:
+                LinearGradient(
+                    colors: [
+                        Color(hex: settings.gradientStartHex ?? "212833"),
+                        Color(hex: settings.gradientEndHex ?? "080A0D"),
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
             }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                handleBackgroundTap()
-            }
+        }
+
+        private func backgroundLayer(fillScreen: Bool) -> some View {
+            themedBackgroundContent(fillScreen: fillScreen)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    handleBackgroundTap()
+                }
         }
     #else
         private func backgroundLayer(fillScreen _: Bool) -> some View {
@@ -639,7 +668,8 @@ struct LaunchyRootView: View {
                                             .stroke(
                                                 Color.white,
                                                 lineWidth: newFolderColor == iconColor
-                                                    ? 2.5 : 0)
+                                                    ? 2.5 : 0
+                                            )
                                     )
                                     .overlay(
                                         newFolderColor == iconColor
@@ -650,7 +680,10 @@ struct LaunchyRootView: View {
                                     )
                                     .shadow(
                                         color: iconColor.color.opacity(
-                                            newFolderColor == iconColor ? 0.5 : 0), radius: 4)
+                                            newFolderColor == iconColor ? 0.5 : 0
+                                        ),
+                                        radius: 4
+                                    )
                             }
                             .buttonStyle(.plain)
                         }

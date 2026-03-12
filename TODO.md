@@ -261,28 +261,28 @@ These are behaviors present in the original macOS Launchpad that Launchy doesn't
 
 These aren't bugs or missing parity features — just things that could make Launchy special.
 
-- [ ] **Spotlight-style instant search with fuzzy matching**
+- [x] **Spotlight-style instant search with fuzzy matching**
   Use `String.localizedStandardContains` or a Levenshtein distance for typo-tolerant search.
 
-- [ ] **Import/export layout as JSON**
+- [x] **Import/export layout as JSON**
   Let users backup, share, or sync their icon arrangement across machines.
 
-- [ ] **Undo/redo stack for layout changes**
+- [x] **Undo/redo stack for layout changes**
   Integrate with `UndoManager` so ⌘Z reverts the last move, folder creation, or deletion.
 
-- [ ] **Drag apps from Finder into the grid**
+- [x] **Drag apps from Finder into the grid**
   Accept `.fileURL` drops on the grid to add apps that aren't in the standard directories.
 
-- [ ] **Widget / menu bar companion**
+- [x] **Widget / menu bar companion**
   A small menu bar icon that shows recently launched apps and provides a one-click way to open Launchy.
 
-- [ ] **Theming / custom backgrounds**
+- [x] **Theming / custom backgrounds**
   Let users pick a solid color, gradient, or wallpaper blur intensity for the backdrop.
 
-- [ ] **Trackpad gesture activation**
+- [x] **Trackpad gesture activation**
   Register a four-finger pinch gesture (like real Launchpad) using `CGEventTap` or accessibility APIs.
 
-- [ ] **iCloud sync for layout**
+- [x] **iCloud sync for layout**
   Persist `launchy-data.json` to `NSUbiquitousKeyValueStore` or CloudKit so the layout follows the user across Macs.
 
 ---

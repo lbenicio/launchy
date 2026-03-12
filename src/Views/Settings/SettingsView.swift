@@ -53,6 +53,55 @@ struct SettingsView: View {
         )
     }
 
+    private var backgroundModeBinding: Binding<BackgroundMode> {
+        Binding(
+            get: { store.settings.backgroundMode },
+            set: { store.update(backgroundMode: $0) }
+        )
+    }
+
+    private var blurIntensityBinding: Binding<Double> {
+        Binding(
+            get: { store.settings.blurIntensity },
+            set: { store.update(blurIntensity: $0) }
+        )
+    }
+
+    private var solidColorBinding: Binding<Color> {
+        Binding(
+            get: { Color(hex: store.settings.solidColorHex ?? "1A2030") },
+            set: { store.update(solidColorHex: $0.hexString) }
+        )
+    }
+
+    private var gradientStartBinding: Binding<Color> {
+        Binding(
+            get: { Color(hex: store.settings.gradientStartHex ?? "212833") },
+            set: { store.update(gradientStartHex: $0.hexString) }
+        )
+    }
+
+    private var gradientEndBinding: Binding<Color> {
+        Binding(
+            get: { Color(hex: store.settings.gradientEndHex ?? "080A0D") },
+            set: { store.update(gradientEndHex: $0.hexString) }
+        )
+    }
+
+    private var iCloudSyncBinding: Binding<Bool> {
+        Binding(
+            get: { store.settings.iCloudSyncEnabled },
+            set: { newValue in
+                store.update(iCloudSyncEnabled: newValue)
+                if newValue {
+                    ICloudSyncService.shared.startObserving()
+                } else {
+                    ICloudSyncService.shared.stopObserving()
+                }
+            }
+        )
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
@@ -117,7 +166,8 @@ struct SettingsView: View {
                                 .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 4)
                                 .animation(
                                     .interactiveSpring(response: 0.3, dampingFraction: 0.7),
-                                    value: store.settings.iconScale)
+                                    value: store.settings.iconScale
+                                )
                             Text("Preview")
                                 .font(.system(size: 11))
                                 .foregroundStyle(.secondary)
@@ -171,7 +221,53 @@ struct SettingsView: View {
                     }
                     .toggleStyle(.switch)
                 }
+
+                settingsCard(title: "Background", systemImage: "paintbrush.fill") {
+                    Picker("Mode", selection: backgroundModeBinding) {
+                        Text("Wallpaper Blur").tag(BackgroundMode.wallpaperBlur)
+                        Text("Solid Color").tag(BackgroundMode.solidColor)
+                        Text("Gradient").tag(BackgroundMode.gradient)
+                    }
+                    .pickerStyle(.segmented)
+
+                    switch store.settings.backgroundMode {
+                    case .wallpaperBlur:
+                        sliderRow(
+                            title: "Blur Overlay Intensity",
+                            subtitle: "How much the dark overlay covers the desktop wallpaper",
+                            value: store.settings.blurIntensity,
+                            formattedValue: String(
+                                format: "%.0f%%",
+                                store.settings.blurIntensity * 100
+                            ),
+                            binding: blurIntensityBinding,
+                            range: 0.0...1.0,
+                            step: 0.05
+                        )
+                    case .solidColor:
+                        ColorPicker("Background Color", selection: solidColorBinding)
+                    case .gradient:
+                        ColorPicker("Start Color", selection: gradientStartBinding)
+                        ColorPicker("End Color", selection: gradientEndBinding)
+                    }
+                }
+
                 settingsCard(title: "Data", systemImage: "arrow.counterclockwise") {
+                    Toggle(isOn: iCloudSyncBinding) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("iCloud Sync")
+                                .font(.system(size: 15, weight: .semibold))
+                            Text(
+                                "Sync your layout across Macs using iCloud. Changes on one Mac will appear on others."
+                            )
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                        }
+                    }
+                    .toggleStyle(.switch)
+
+                    Divider()
+
                     VStack(alignment: .leading, spacing: 12) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Reset Layout")
@@ -194,7 +290,9 @@ struct SettingsView: View {
                                 Button("Reset") {
                                     isConfirmingReset = false
                                     NotificationCenter.default.post(
-                                        name: .resetToDefaultLayout, object: nil)
+                                        name: .resetToDefaultLayout,
+                                        object: nil
+                                    )
                                 }
                                 .foregroundStyle(.red)
                             }
@@ -203,9 +301,38 @@ struct SettingsView: View {
                                 isConfirmingReset = true
                             } label: {
                                 Label(
-                                    "Reset to Default Layout", systemImage: "arrow.counterclockwise"
+                                    "Reset to Default Layout",
+                                    systemImage: "arrow.counterclockwise"
                                 )
                                 .font(.system(size: 13, weight: .semibold))
+                            }
+                            .buttonStyle(.bordered)
+                        }
+
+                        Divider()
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Import / Export")
+                                .font(.system(size: 15, weight: .semibold))
+                            Text("Save your layout to a file or restore from a previous export.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                        }
+
+                        HStack(spacing: 12) {
+                            Button {
+                                NotificationCenter.default.post(name: .exportLayout, object: nil)
+                            } label: {
+                                Label("Export Layout", systemImage: "square.and.arrow.up")
+                                    .font(.system(size: 13, weight: .semibold))
+                            }
+                            .buttonStyle(.bordered)
+
+                            Button {
+                                NotificationCenter.default.post(name: .importLayout, object: nil)
+                            } label: {
+                                Label("Import Layout", systemImage: "square.and.arrow.down")
+                                    .font(.system(size: 13, weight: .semibold))
                             }
                             .buttonStyle(.bordered)
                         }
@@ -224,7 +351,9 @@ struct SettingsView: View {
 extension SettingsView {
     @ViewBuilder
     fileprivate func settingsCard(
-        title: String, systemImage: String, @ViewBuilder content: () -> some View
+        title: String,
+        systemImage: String,
+        @ViewBuilder content: () -> some View
     )
         -> some View
     {
@@ -249,7 +378,11 @@ extension SettingsView {
     }
 
     fileprivate func gridStepperRow(
-        title: String, subtitle: String, value: Int, binding: Binding<Int>, range: ClosedRange<Int>
+        title: String,
+        subtitle: String,
+        value: Int,
+        binding: Binding<Int>,
+        range: ClosedRange<Int>
     ) -> some View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 4) {
