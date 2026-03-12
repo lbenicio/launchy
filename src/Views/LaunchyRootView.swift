@@ -331,11 +331,35 @@ struct LaunchyRootView: View {
             }
             Spacer()
             if viewModel.isEditing {
+                if !viewModel.recentlyRemovedApps.isEmpty {
+                    restoreRemovedButton
+                }
                 newFolderButton
             }
             wiggleToggle
             settingsButton
         }
+    }
+
+    private var restoreRemovedButton: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.24)) {
+                viewModel.restoreRemovedApps()
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.uturn.backward.circle.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                Text("Restore Removed (\(viewModel.recentlyRemovedApps.count))")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+            }
+            .foregroundStyle(Color.white.opacity(0.9))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(Color.orange.opacity(0.55), in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .transition(.opacity.combined(with: .scale(scale: 0.9)))
     }
 
     private var searchField: some View {

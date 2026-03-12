@@ -24,7 +24,7 @@
   `deleteItem` on a folder removes it and every app it contains — no confirmation, no undo. Expected behavior: either show a confirmation alert or auto-disband (move apps back to the grid) before removing the folder shell.
   _File: `LaunchyViewModel.swift` → `deleteItem(_:)`_
 
-- [ ] **Delete button removes apps from layout with no way to recover**
+- [x] **Delete button removes apps from layout with no way to recover**
   The ✕ badge in editing mode removes an `AppIcon` from the persisted `items` array. The app will reappear on next launch (reconciliation re-adds installed apps), but during the session it's gone with no undo. Consider hiding instead of removing, or adding a "recently removed" staging area.
   _File: `LaunchyViewModel.swift` → `deleteItem(_:)`_
 

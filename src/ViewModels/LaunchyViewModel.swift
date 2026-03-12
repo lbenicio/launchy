@@ -17,6 +17,8 @@ final class LaunchyViewModel: ObservableObject {
     @Published var selectedItemIDs: Set<UUID> = []
     @Published private(set) var isLaunchingApp: Bool = false
     @Published private(set) var isLayoutLoaded: Bool = false
+    /// Apps removed during this session that can be restored without restarting.
+    @Published private(set) var recentlyRemovedApps: [AppIcon] = []
 
     let dataStore: LaunchyDataStore
     let settingsStore: GridSettingsStore
@@ -294,6 +296,9 @@ final class LaunchyViewModel: ObservableObject {
                 if presentedFolderID == folder.id {
                     presentedFolderID = nil
                 }
+            } else if let app = items[idx].asApp {
+                recentlyRemovedApps.append(app)
+                items.remove(at: idx)
             } else {
                 items.remove(at: idx)
             }
@@ -304,7 +309,8 @@ final class LaunchyViewModel: ObservableObject {
             if case .folder(var folder) = items[i],
                 let appIdx = folder.apps.firstIndex(where: { $0.id == id })
             {
-                folder.apps.remove(at: appIdx)
+                let removedApp = folder.apps.remove(at: appIdx)
+                recentlyRemovedApps.append(removedApp)
                 if folder.apps.isEmpty {
                     items.remove(at: i)
                 } else {
@@ -314,6 +320,23 @@ final class LaunchyViewModel: ObservableObject {
                 return
             }
         }
+    }
+
+    /// Restores all recently removed apps back to the end of the grid.
+    func restoreRemovedApps() {
+        guard !recentlyRemovedApps.isEmpty else { return }
+        let restored = recentlyRemovedApps.map { LaunchyItem.app($0) }
+        items.append(contentsOf: restored)
+        recentlyRemovedApps.removeAll()
+        saveNow()
+    }
+
+    /// Restores a single recently removed app back to the end of the grid.
+    func restoreRemovedApp(_ id: UUID) {
+        guard let idx = recentlyRemovedApps.firstIndex(where: { $0.id == id }) else { return }
+        let app = recentlyRemovedApps.remove(at: idx)
+        items.append(.app(app))
+        saveNow()
     }
 
     func shiftItem(_ id: UUID, by offset: Int) {
