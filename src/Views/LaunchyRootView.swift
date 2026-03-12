@@ -12,6 +12,7 @@ struct LaunchyRootView: View {
     @State private var isShowingSettings: Bool = false
     @State private var isCreatingFolder: Bool = false
     @State private var newFolderName: String = ""
+    @State private var newFolderColor: IconColor = .blue
     @State private var folderCreationError: String?
     @State private var didActivateWindow = false
     @State private var editingBannerHeight: CGFloat = 0
@@ -56,7 +57,9 @@ struct LaunchyRootView: View {
         #endif
         .onChange(of: searchText) { _, newValue in
             let latestPages = buildPages(for: newValue)
-            viewModel.selectPage(0, totalPages: max(latestPages.count, 1))
+            withAnimation(.easeInOut(duration: 0.2)) {
+                viewModel.selectPage(0, totalPages: max(latestPages.count, 1))
+            }
         }
         .onChange(of: pages.count) { _, newCount in
             let maxIndex = max(newCount - 1, 0)
@@ -74,6 +77,9 @@ struct LaunchyRootView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .launcherDidReappear)) { _ in
             reappearLauncher()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .dismissLauncher)) { _ in
+            dismissLauncher()
         }
     }
 
@@ -112,13 +118,29 @@ struct LaunchyRootView: View {
                         )
 
                         if !hasResults {
-                            Text("No Matching Apps")
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundStyle(Color.white.opacity(0.7))
-                                .padding(24)
-                                .background(Color.black.opacity(0.35), in: Capsule())
+                            VStack(spacing: 16) {
+                                Image(systemName: "magnifyingglass")
+                                    .font(.system(size: 42, weight: .light))
+                                    .foregroundStyle(Color.white.opacity(0.5))
+                                Text("No Matching Apps")
+                                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(Color.white.opacity(0.8))
+                                if !searchText.isEmpty {
+                                    Text("Try a different search term")
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundStyle(Color.white.opacity(0.5))
+                                }
+                            }
+                            .padding(.horizontal, 40)
+                            .padding(.vertical, 32)
+                            .background(
+                                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                    .fill(Color.black.opacity(0.3))
+                            )
+                            .transition(.opacity.combined(with: .scale(scale: 0.9)))
                         }
                     }
+                    .animation(.easeInOut(duration: 0.25), value: hasResults)
 
                     if pages.count > 1 {
                         PageControlView(
@@ -547,6 +569,7 @@ struct LaunchyRootView: View {
     private func startFolderCreation() {
         guard canCreateFolder else { return }
         newFolderName = suggestedFolderName()
+        newFolderColor = .blue
         folderCreationError = nil
         isCreatingFolder = true
         DispatchQueue.main.async {
@@ -556,13 +579,15 @@ struct LaunchyRootView: View {
 
     private func commitFolderCreation() {
         let ids = Array(viewModel.selectedItemIDs)
-        guard viewModel.createFolder(named: newFolderName, from: ids) != nil else {
+        guard viewModel.createFolder(named: newFolderName, color: newFolderColor, from: ids) != nil
+        else {
             folderCreationError = "Select at least two apps to create a folder."
             return
         }
 
         folderCreationError = nil
         newFolderName = ""
+        newFolderColor = .blue
         isFolderNameFieldFocused = false
         isCreatingFolder = false
     }
@@ -595,6 +620,42 @@ struct LaunchyRootView: View {
                 TextField("New Folder", text: $newFolderName)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .focused($isFolderNameFieldFocused)
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Folder Color")
+                    .font(.system(size: 13, weight: .semibold))
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(IconColor.allCases, id: \.self) { iconColor in
+                            Button {
+                                newFolderColor = iconColor
+                            } label: {
+                                Circle()
+                                    .fill(iconColor.color)
+                                    .frame(width: 24, height: 24)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(
+                                                Color.white,
+                                                lineWidth: newFolderColor == iconColor
+                                                    ? 2.5 : 0)
+                                    )
+                                    .overlay(
+                                        newFolderColor == iconColor
+                                            ? Image(systemName: "checkmark")
+                                                .font(.system(size: 11, weight: .bold))
+                                                .foregroundStyle(.white)
+                                            : nil
+                                    )
+                                    .shadow(
+                                        color: iconColor.color.opacity(
+                                            newFolderColor == iconColor ? 0.5 : 0), radius: 4)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
             }
 
             if let error = folderCreationError {

@@ -4,8 +4,17 @@ import SwiftUI
     import AppKit
 
     final class AppDelegate: NSObject, NSApplicationDelegate {
+        func applicationDidFinishLaunching(_ notification: Notification) {
+            let hotkeyService = GlobalHotkeyService.shared
+            hotkeyService.onToggle = { [weak self] in
+                self?.toggleLauncher()
+            }
+            hotkeyService.start()
+        }
+
         func applicationWillTerminate(_ notification: Notification) {
             NSApp.presentationOptions = []
+            GlobalHotkeyService.shared.stop()
         }
 
         /// When the user clicks the dock icon while the app is already running
@@ -19,13 +28,22 @@ import SwiftUI
             return true
         }
 
-        /// Re-show the launcher when the app is activated from the background
-        /// (e.g. via Cmd-Tab or dock icon click).
-        func applicationDidBecomeActive(_ notification: Notification) {
-            showLauncherWindow()
+        @MainActor private func toggleLauncher() {
+            guard
+                let window = NSApp.windows.first(where: {
+                    $0.identifier?.rawValue != "com_apple_SwiftUI_Settings_window"
+                })
+            else { return }
+
+            if window.isVisible && window.alphaValue > 0 {
+                // Dismiss the launcher
+                NotificationCenter.default.post(name: .dismissLauncher, object: nil)
+            } else {
+                showLauncherWindow()
+            }
         }
 
-        private func showLauncherWindow() {
+        @MainActor private func showLauncherWindow() {
             guard
                 let window = NSApp.windows.first(where: {
                     $0.identifier?.rawValue != "com_apple_SwiftUI_Settings_window"
@@ -96,4 +114,6 @@ struct LaunchyApp: App {
 extension Notification.Name {
     static let toggleInAppSettings = Notification.Name("toggleInAppSettings")
     static let launcherDidReappear = Notification.Name("launcherDidReappear")
+    static let dismissLauncher = Notification.Name("dismissLauncher")
+    static let resetToDefaultLayout = Notification.Name("resetToDefaultLayout")
 }

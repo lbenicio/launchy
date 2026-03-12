@@ -8,14 +8,12 @@ import SwiftUI
 
 @MainActor
 final class LaunchyViewModel: ObservableObject {
-    @Published private(set) var items: [LaunchyItem] {
+    @Published var items: [LaunchyItem] {
         didSet { invalidateCaches() }
     }
     @Published var isEditing: Bool = false
     @Published var currentPage: Int = 0
     @Published var presentedFolderID: UUID? = nil
-    @Published private(set) var dragItemID: UUID? = nil
-    @Published private(set) var dragSourceFolderID: UUID? = nil
     @Published var selectedItemIDs: Set<UUID> = []
     @Published var isLaunchingApp: Bool = false
     @Published private(set) var launchingItemID: UUID? = nil
@@ -26,12 +24,10 @@ final class LaunchyViewModel: ObservableObject {
     let dataStore: LaunchyDataStore
     let settingsStore: GridSettingsStore
 
+    private(set) var dragCoordinator: DragCoordinator!
+
     private var cancellables: Set<AnyCancellable> = []
-    private var pendingStackWorkItem: DispatchWorkItem?
-    private var pendingStackTargetID: UUID?
-    private let stackingDelay: TimeInterval = 0.35
-    private var launchSuppressionWorkItem: DispatchWorkItem?
-    private var saveDebouncerWorkItem: DispatchWorkItem?
+    private var saveDebouncerTask: Task<Void, Never>?
     private let saveDebouncerDelay: TimeInterval = 0.5
 
     // MARK: - Caches
@@ -108,7 +104,18 @@ final class LaunchyViewModel: ObservableObject {
                 self.isLayoutLoaded = true
             }
         }
+
+        dragCoordinator = DragCoordinator(viewModel: self)
+        dragCoordinator.objectWillChange
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
     }
+
+    // MARK: - Forwarding drag state
+
+    var dragItemID: UUID? { dragCoordinator.dragItemID }
+    var dragSourceFolderID: UUID? { dragCoordinator.dragSourceFolderID }
+    var pendingStackTargetID: UUID? { dragCoordinator.pendingStackTargetID }
 
     var settings: GridSettings { settingsStore.settings }
 
@@ -252,26 +259,27 @@ final class LaunchyViewModel: ObservableObject {
     // MARK: - Debounced persistence
 
     /// Schedule a debounced save. Only the last call within the delay window persists.
-    private func scheduleDebouncedSave() {
-        saveDebouncerWorkItem?.cancel()
-        let work = DispatchWorkItem { [weak self] in
-            guard let self else { return }
+    func scheduleDebouncedSave() {
+        saveDebouncerTask?.cancel()
+        saveDebouncerTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(self?.saveDebouncerDelay ?? 0.5))
+            guard !Task.isCancelled, let self else { return }
             self.dataStore.save(self.items)
         }
-        saveDebouncerWorkItem = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + saveDebouncerDelay, execute: work)
     }
 
     /// Save immediately (used for user-initiated actions like folder creation, deletion, etc.)
-    private func saveNow() {
-        saveDebouncerWorkItem?.cancel()
-        saveDebouncerWorkItem = nil
+    func saveNow() {
+        saveDebouncerTask?.cancel()
+        saveDebouncerTask = nil
         dataStore.save(items)
     }
 
     // MARK: - Modifiers (create, delete, move)
 
-    func createFolder(named name: String, from ids: [UUID]) -> LaunchyFolder? {
+    func createFolder(
+        named name: String, color: IconColor = .blue, from ids: [UUID]
+    ) -> LaunchyFolder? {
         var moved: [AppIcon] = []
         var remaining: [LaunchyItem] = []
         var firstSelectedIndex: Int? = nil
@@ -292,7 +300,7 @@ final class LaunchyViewModel: ObservableObject {
 
         guard moved.count >= 2 else { return nil }
 
-        let newFolder = LaunchyFolder(name: name, apps: moved)
+        let newFolder = LaunchyFolder(name: name, color: color, apps: moved)
         let insertIndex = min(firstSelectedIndex ?? remaining.count, remaining.count)
         remaining.insert(.folder(newFolder), at: insertIndex)
         items = remaining
@@ -403,6 +411,21 @@ final class LaunchyViewModel: ObservableObject {
         saveNow()
     }
 
+    /// Deletes the persisted layout and reloads a fresh one from installed applications.
+    func resetToDefaultLayout() {
+        Task { [weak self] in
+            guard let self else { return }
+            let fresh = await dataStore.loadFresh()
+            self.items = fresh
+            self.currentPage = 0
+            self.presentedFolderID = nil
+            self.selectedItemIDs.removeAll()
+            self.recentlyRemovedApps.removeAll()
+            self.isEditing = false
+            self.saveNow()
+        }
+    }
+
     /// Restores a single recently removed app back to the end of the grid.
     func restoreRemovedApp(_ id: UUID) {
         guard let idx = recentlyRemovedApps.firstIndex(where: { $0.id == id }) else { return }
@@ -447,6 +470,17 @@ final class LaunchyViewModel: ObservableObject {
 
     func closeFolder() {
         presentedFolderID = nil
+    }
+
+    func showInFinder(_ item: LaunchyItem) {
+        #if os(macOS)
+            switch item {
+            case .app(let icon):
+                NSWorkspace.shared.activateFileViewerSelecting([icon.bundleURL])
+            case .folder:
+                break
+            }
+        #endif
     }
 
     func launch(_ item: LaunchyItem) {
@@ -530,6 +564,15 @@ final class LaunchyViewModel: ObservableObject {
         saveNow()
     }
 
+    func updateFolderColor(_ folderID: UUID, to color: IconColor) {
+        guard let index = items.firstIndex(where: { $0.id == folderID }),
+            var folder = items[index].asFolder
+        else { return }
+        folder.color = color
+        items[index] = .folder(folder)
+        saveNow()
+    }
+
     func shiftAppInFolder(folderID: UUID, appID: UUID, by offset: Int) {
         guard let idx = items.firstIndex(where: { $0.id == folderID }),
             var folder = items[idx].asFolder,
@@ -562,192 +605,34 @@ final class LaunchyViewModel: ObservableObject {
         scheduleDebouncedSave()
     }
 
-    // MARK: - Drag & drop
+    // MARK: - Drag & drop (forwarded to DragCoordinator)
 
     func beginDrag(for id: UUID, sourceFolder: UUID? = nil) {
-        dragItemID = id
-        dragSourceFolderID = sourceFolder
+        dragCoordinator.beginDrag(for: id, sourceFolder: sourceFolder)
     }
 
     func endDrag(commit: Bool) {
-        if commit {
-            // Flush any pending debounced save immediately
-            saveDebouncerWorkItem?.cancel()
-            saveDebouncerWorkItem = nil
-            dataStore.save(items)
-        }
-        dragItemID = nil
-        dragSourceFolderID = nil
-        cancelPendingStacking()
+        dragCoordinator.endDrag(commit: commit)
     }
 
-    /// When an item is dragged from inside a folder onto the main grid,
-    /// extract it from the source folder and insert it as a top-level item.
     func extractDraggedItemIfNeeded() {
-        guard let dragID = dragItemID, let sourceFolderID = dragSourceFolderID else { return }
-
-        // Already extracted to top level?
-        if items.contains(where: { $0.id == dragID }) { return }
-
-        guard let folderIndex = items.firstIndex(where: { $0.id == sourceFolderID }),
-            var folder = items[folderIndex].asFolder,
-            let appIndex = folder.apps.firstIndex(where: { $0.id == dragID })
-        else { return }
-
-        let app = folder.apps.remove(at: appIndex)
-
-        // If the folder has only one app left, disband it
-        if folder.apps.count <= 1 {
-            let remainingApps = folder.apps.map { LaunchyItem.app($0) }
-            items.remove(at: folderIndex)
-            items.insert(contentsOf: remainingApps, at: min(folderIndex, items.count))
-            items.insert(.app(app), at: min(folderIndex, items.count))
-        } else {
-            items[folderIndex] = .folder(folder)
-            items.insert(.app(app), at: min(folderIndex + 1, items.count))
-        }
-
-        // Clear the source folder reference since item is now top-level
-        dragSourceFolderID = nil
-        scheduleDebouncedSave()
+        dragCoordinator.extractDraggedItemIfNeeded()
     }
 
     func requestStacking(onto id: UUID) {
-        guard id != pendingStackTargetID else { return }
-        cancelPendingStacking()
-        pendingStackTargetID = id
-        let work = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            if self.dragItemID != nil {
-                _ = self.stackDraggedItem(onto: id)
-            }
-        }
-        pendingStackWorkItem = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + stackingDelay, execute: work)
+        dragCoordinator.requestStacking(onto: id)
     }
 
     func cancelPendingStacking() {
-        pendingStackWorkItem?.cancel()
-        pendingStackWorkItem = nil
-        pendingStackTargetID = nil
+        dragCoordinator.cancelPendingStacking()
     }
 
     func commitPendingStackingIfNeeded(for id: UUID) -> Bool {
-        guard let pending = pendingStackTargetID, pending == id, dragItemID != nil else {
-            return false
-        }
-        cancelPendingStacking()
-        return stackDraggedItem(onto: id)
+        dragCoordinator.commitPendingStackingIfNeeded(for: id)
     }
 
     @discardableResult
     func stackDraggedItem(onto targetID: UUID) -> Bool {
-        guard let draggedID = dragItemID else { return false }
-
-        // Case 1: Target is a folder — add dragged app into the folder
-        if let targetIndex = items.firstIndex(where: { $0.id == targetID }),
-            var folder = items[targetIndex].asFolder
-        {
-            // Source is inside a folder
-            if let sourceFolderID = dragSourceFolderID,
-                let sourceIndex = items.firstIndex(where: { $0.id == sourceFolderID }),
-                var sourceFolder = items[sourceIndex].asFolder,
-                let appIdx = sourceFolder.apps.firstIndex(where: { $0.id == draggedID })
-            {
-                let app = sourceFolder.apps.remove(at: appIdx)
-                folder.apps.append(app)
-
-                // Update both folders carefully (indices may be same if source == target)
-                if sourceIndex == targetIndex {
-                    // Same folder, just update once
-                    items[targetIndex] = .folder(folder)
-                } else {
-                    // Update the one with the higher index first to avoid shift
-                    if sourceIndex > targetIndex {
-                        if sourceFolder.apps.isEmpty {
-                            items.remove(at: sourceIndex)
-                        } else {
-                            items[sourceIndex] = .folder(sourceFolder)
-                        }
-                        items[targetIndex] = .folder(folder)
-                    } else {
-                        items[targetIndex] = .folder(folder)
-                        if sourceFolder.apps.isEmpty {
-                            items.remove(at: sourceIndex)
-                        } else {
-                            items[sourceIndex] = .folder(sourceFolder)
-                        }
-                    }
-                }
-                saveNow()
-                return true
-            }
-
-            // Source is a top-level app
-            if let topIndex = items.firstIndex(where: { $0.id == draggedID }),
-                case .app(let app) = items[topIndex]
-            {
-                // Remove the dragged app first, then adjust target index
-                items.remove(at: topIndex)
-                let adjustedTargetIndex = topIndex < targetIndex ? targetIndex - 1 : targetIndex
-                folder.apps.append(app)
-                items[adjustedTargetIndex] = .folder(folder)
-                saveNow()
-                return true
-            }
-
-            return false
-        }
-
-        // Case 2: Target is an app — create a new folder from both apps
-        if let targetIndex = items.firstIndex(where: { $0.id == targetID }),
-            case .app(let targetApp) = items[targetIndex]
-        {
-            var draggedApp: AppIcon?
-
-            // Get the dragged app from a source folder
-            if let sourceFolderID = dragSourceFolderID,
-                let sourceIndex = items.firstIndex(where: { $0.id == sourceFolderID }),
-                var sourceFolder = items[sourceIndex].asFolder,
-                let appIdx = sourceFolder.apps.firstIndex(where: { $0.id == draggedID })
-            {
-                draggedApp = sourceFolder.apps.remove(at: appIdx)
-                if sourceFolder.apps.isEmpty {
-                    items.remove(at: sourceIndex)
-                } else {
-                    items[sourceIndex] = .folder(sourceFolder)
-                }
-            }
-            // Or get the dragged app from top-level
-            else if let topIndex = items.firstIndex(where: { $0.id == draggedID }),
-                case .app(let app) = items[topIndex]
-            {
-                draggedApp = app
-                items.remove(at: topIndex)
-            }
-
-            guard let draggedApp else { return false }
-
-            // Find the (possibly shifted) target index again
-            guard let newTargetIndex = items.firstIndex(where: { $0.id == targetID }) else {
-                // Target was removed somehow, just add dragged back
-                items.append(.app(draggedApp))
-                saveNow()
-                return false
-            }
-
-            // Create a new folder with both apps
-            let folderName = targetApp.name
-            let newFolder = LaunchyFolder(
-                name: folderName,
-                apps: [targetApp, draggedApp]
-            )
-            items[newTargetIndex] = .folder(newFolder)
-            saveNow()
-            presentedFolderID = newFolder.id
-            return true
-        }
-
-        return false
+        dragCoordinator.stackDraggedItem(onto: targetID)
     }
 }

@@ -84,6 +84,19 @@ final class LaunchyDataStore {
         }
     }
 
+    /// Returns a fresh layout from currently installed applications,
+    /// ignoring any previously persisted arrangement.
+    func loadFresh() async -> [LaunchyItem] {
+        nonisolated(unsafe) let provider = self.applicationsProvider
+        let installedApps: [AppIcon] = await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let apps = provider.fetchApplications()
+                continuation.resume(returning: apps)
+            }
+        }
+        return installedApps.map { LaunchyItem.app($0) }
+    }
+
     func save(_ items: [LaunchyItem]) {
         do {
             let data = try encoder.encode(items)

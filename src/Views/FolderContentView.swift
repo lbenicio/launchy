@@ -69,6 +69,41 @@ struct FolderContentView: View {
                         .buttonStyle(.plain)
                     }
 
+                    if viewModel.isEditing {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(IconColor.allCases, id: \.self) { iconColor in
+                                    Button {
+                                        viewModel.updateFolderColor(folderID, to: iconColor)
+                                    } label: {
+                                        Circle()
+                                            .fill(iconColor.color)
+                                            .frame(width: 24, height: 24)
+                                            .overlay(
+                                                Circle()
+                                                    .stroke(
+                                                        Color.white,
+                                                        lineWidth: folder.color == iconColor
+                                                            ? 2.5 : 0)
+                                            )
+                                            .overlay(
+                                                folder.color == iconColor
+                                                    ? Image(systemName: "checkmark")
+                                                        .font(.system(size: 11, weight: .bold))
+                                                        .foregroundStyle(.white)
+                                                    : nil
+                                            )
+                                            .shadow(
+                                                color: iconColor.color.opacity(
+                                                    folder.color == iconColor ? 0.5 : 0), radius: 4)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+
                     LazyVGrid(columns: columns, alignment: .center, spacing: spacing) {
                         ForEach(folder.apps) { app in
                             folderIconTile(app: app, folder: folder, tileDimension: tileDimension)
@@ -97,22 +132,6 @@ struct FolderContentView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
         }
-    }
-
-    private func makeProvider(for payload: LaunchyDragIdentifier) -> NSItemProvider {
-        let provider = NSItemProvider()
-        provider.registerDataRepresentation(
-            forTypeIdentifier: UTType.launchyItemIdentifier.identifier, visibility: .all
-        ) { completion -> Progress? in
-            do {
-                let data = try JSONEncoder().encode(payload)
-                completion(data, nil)
-            } catch {
-                completion(nil, error)
-            }
-            return nil
-        }
-        return provider
     }
 
     @ViewBuilder
@@ -157,8 +176,8 @@ struct FolderContentView: View {
                 }
                 .onDrag {
                     viewModel.beginDrag(for: app.id, sourceFolder: folder.id)
-                    return makeProvider(
-                        for: LaunchyDragIdentifier(itemID: app.id, sourceFolderID: folder.id))
+                    return LaunchyDragIdentifier(itemID: app.id, sourceFolderID: folder.id)
+                        .makeProvider()
                 }
                 .onDrop(
                     of: [.launchyItemIdentifier],

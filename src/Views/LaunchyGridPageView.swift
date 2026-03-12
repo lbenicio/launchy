@@ -58,7 +58,8 @@ struct LaunchyGridPageView: View {
             onMoveRight: { viewModel.shiftItem($0, by: 1) },
             onAddSelectedAppsToFolder: { viewModel.addSelectedApps(toFolder: $0) },
             onDisbandFolder: { viewModel.disbandFolder($0) },
-            onToggleEditing: { viewModel.toggleEditing() }
+            onToggleEditing: { viewModel.toggleEditing() },
+            onShowInFinder: { viewModel.showInFinder($0) }
         )
         .frame(width: metrics.itemDimension, height: metrics.itemDimension + 36)
         .contentShape(Rectangle())
@@ -88,26 +89,11 @@ struct LaunchyGridPageView: View {
         if viewModel.isEditing {
             tileWithDrop.onDrag {
                 viewModel.beginDrag(for: item.id)
-                return makeProvider(for: LaunchyDragIdentifier(itemID: item.id))
+                return LaunchyDragIdentifier(itemID: item.id).makeProvider()
             }
         } else {
             tileWithDrop
         }
     }
 
-    private func makeProvider(for payload: LaunchyDragIdentifier) -> NSItemProvider {
-        let provider = NSItemProvider()
-        provider.registerDataRepresentation(
-            forTypeIdentifier: UTType.launchyItemIdentifier.identifier, visibility: .all
-        ) { completion -> Progress? in
-            do {
-                let data = try JSONEncoder().encode(payload)
-                completion(data, nil)
-            } catch {
-                completion(nil, error)
-            }
-            return nil
-        }
-        return provider
-    }
 }

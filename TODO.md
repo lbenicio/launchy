@@ -155,32 +155,32 @@ These are behaviors present in the original macOS Launchpad that Launchy doesn't
 
 ### P1
 
-- [ ] **Global hotkey to toggle Launchy**
+- [x] **Global hotkey to toggle Launchy**
   Real Launchpad can be triggered with F4, a trackpad gesture, or a hot corner. Launchy has no activation mechanism other than launching the app. Register a global hotkey (e.g., `CGEvent.tapCreate` or `MASShortcut`) or at least support a configurable keyboard shortcut in Settings.
 
-- [ ] **Restore presentation options on quit**
+- [x] **Restore presentation options on quit**
   Add an `NSApplicationDelegate` method (`applicationWillTerminate`) that resets `NSApp.presentationOptions = []` to guarantee the dock and menubar come back even on a clean quit.
 
 ### P2
 
-- [ ] **Folder color picker**
+- [x] **Folder color picker**
   `IconColor` has 10 beautiful colors but new folders always get `.gray`. Add a color picker strip in `FolderContentView` header (visible in editing mode) or in the folder creation sheet.
 
-- [ ] **Right-click context menu on app tiles**
+- [x] **Right-click context menu on app tiles**
   Options: "Open", "Show in Finder", "Remove from Launchy", "Get Info". Would provide discoverability for power users who don't want wiggle mode.
 
-- [ ] **"Reset to Default Layout" button in Settings**
+- [x] **"Reset to Default Layout" button in Settings**
   Deletes the persisted JSON and reloads from `InstalledApplicationsProvider`. Useful when the layout gets into a bad state.
 
 ### P3
 
-- [ ] **Icon size preview in Settings**
+- [x] **Icon size preview in Settings**
   The "Icon Scale" slider changes a number but gives no visual feedback. Show a small preview tile that scales in real-time.
 
-- [ ] **Smooth page transition on search**
+- [x] **Smooth page transition on search**
   When the search text changes, the grid jumps to page 0 without animation. Add a cross-fade or slide transition.
 
-- [ ] **Empty-state illustration**
+- [x] **Empty-state illustration**
   When no apps match the search, show a friendlier empty state than just a text capsule — maybe a magnifying glass icon with a subtitle.
 
 ---
@@ -189,27 +189,27 @@ These are behaviors present in the original macOS Launchpad that Launchy doesn't
 
 ### P2
 
-- [ ] **Extract drag-and-drop logic into a dedicated `DragCoordinator`**
+- [x] **Extract drag-and-drop logic into a dedicated `DragCoordinator`**
   `LaunchyViewModel` is ~590 lines with drag state, stacking timers, debounced saves, and folder mutation all interleaved. A focused `DragCoordinator` object would be easier to test and reason about.
 
-- [ ] **Replace `DispatchWorkItem` timers with structured concurrency**
+- [x] **Replace `DispatchWorkItem` timers with structured concurrency**
   The stacking delay, save debouncer, and launch suppression all use raw `DispatchWorkItem` + `asyncAfter`. Swift concurrency `Task.sleep` with cancellation would be cleaner and avoid retain-cycle risks.
 
-- [ ] **Add `@MainActor` to `LaunchyDataStore`**
+- [x] **Add `@MainActor` to `LaunchyDataStore`**
   Or make `save()` / `load()` explicitly async. Currently relies on callers always being on the main thread, which isn't enforced by the type system.
 
-- [ ] **Make `LaunchyFolder.color` part of folder creation UI**
+- [x] **Make `LaunchyFolder.color` part of folder creation UI**
   The model supports it, the view renders it, but the creation flow never sets it.
 
 ### P3
 
-- [ ] **Rename test file `LaunchpadViewModelTests.swift` → `LaunchyViewModelTests.swift`**
+- [x] **Rename test file `LaunchpadViewModelTests.swift` → `LaunchyViewModelTests.swift`**
   Leftover from the pre-rebrand naming. The class inside is already `LaunchyViewModelTests` but the filename still says `Launchpad`.
 
 - [ ] **Add `Sendable` conformance to model types**
   `AppIcon`, `LaunchyFolder`, `LaunchyItem`, `GridSettings` are all value types and should be explicitly `Sendable` for Swift 6.
 
-- [ ] **Consolidate `makeProvider(for:)` helper**
+- [x] **Consolidate `makeProvider(for:)` helper**
   The same `NSItemProvider` creation code is duplicated in `LaunchyGridPageView` and `FolderContentView`. Extract into an extension on `LaunchyDragIdentifier`.
 
 ---

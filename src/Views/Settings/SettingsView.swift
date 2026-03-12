@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var store: GridSettingsStore
+    @State private var isConfirmingReset: Bool = false
 
     private var columnsBinding: Binding<Int> {
         Binding(
@@ -93,6 +94,37 @@ struct SettingsView: View {
                         range: 0.8...1.4,
                         step: 0.05
                     )
+
+                    Divider()
+
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 6) {
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.blue.opacity(0.7), Color.purple.opacity(0.7),
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(
+                                    width: 64 * store.settings.iconScale,
+                                    height: 64 * store.settings.iconScale
+                                )
+                                .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 4)
+                                .animation(
+                                    .interactiveSpring(response: 0.3, dampingFraction: 0.7),
+                                    value: store.settings.iconScale)
+                            Text("Preview")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                    .padding(.top, 4)
                 }
 
                 settingsCard(title: "Folder Grid", systemImage: "folder.fill") {
@@ -138,6 +170,46 @@ struct SettingsView: View {
                         }
                     }
                     .toggleStyle(.switch)
+                }
+                settingsCard(title: "Data", systemImage: "arrow.counterclockwise") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Reset Layout")
+                                .font(.system(size: 15, weight: .semibold))
+                            Text(
+                                "Remove all folders and custom arrangement. Apps will be re-imported from your Applications directories in alphabetical order."
+                            )
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                        }
+
+                        if isConfirmingReset {
+                            HStack(spacing: 12) {
+                                Text("Are you sure?")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(.orange)
+                                Button("Cancel") {
+                                    isConfirmingReset = false
+                                }
+                                Button("Reset") {
+                                    isConfirmingReset = false
+                                    NotificationCenter.default.post(
+                                        name: .resetToDefaultLayout, object: nil)
+                                }
+                                .foregroundStyle(.red)
+                            }
+                        } else {
+                            Button {
+                                isConfirmingReset = true
+                            } label: {
+                                Label(
+                                    "Reset to Default Layout", systemImage: "arrow.counterclockwise"
+                                )
+                                .font(.system(size: 13, weight: .semibold))
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

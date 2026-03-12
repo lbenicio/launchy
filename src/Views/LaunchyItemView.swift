@@ -18,6 +18,7 @@ struct LaunchyItemView: View {
     let onAddSelectedAppsToFolder: (UUID) -> Void
     let onDisbandFolder: (UUID) -> Void
     let onToggleEditing: () -> Void
+    let onShowInFinder: (LaunchyItem) -> Void
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -80,6 +81,49 @@ struct LaunchyItemView: View {
             }
         }
         .overlay(selectionHighlight)
+        .contextMenu {
+            if case .app = item {
+                Button {
+                    onLaunch(item)
+                } label: {
+                    Label("Open", systemImage: "arrow.up.forward.app")
+                }
+
+                Button {
+                    onShowInFinder(item)
+                } label: {
+                    Label("Show in Finder", systemImage: "folder")
+                }
+
+                Divider()
+
+                Button(role: .destructive) {
+                    onDelete(item.id)
+                } label: {
+                    Label("Remove from Launchy", systemImage: "trash")
+                }
+            } else if case .folder(let folder) = item {
+                Button {
+                    onOpenFolder(item.id)
+                } label: {
+                    Label("Open Folder", systemImage: "folder")
+                }
+
+                Button {
+                    onDisbandFolder(item.id)
+                } label: {
+                    Label("Split Folder", systemImage: "square.stack.3d.down.forward")
+                }
+
+                Divider()
+
+                Button(role: .destructive) {
+                    onDelete(item.id)
+                } label: {
+                    Label("Remove Folder", systemImage: "trash")
+                }
+            }
+        }
         .scaleEffect(isLaunching ? 1.25 : 1.0)
         .opacity(isLaunching ? 0.0 : 1.0)
         .animation(.easeOut(duration: 0.3), value: isLaunching)
