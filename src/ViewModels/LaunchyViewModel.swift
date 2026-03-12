@@ -40,8 +40,10 @@ final class LaunchyViewModel: ObservableObject {
         self.settingsStore = settingsStore
         if let initialItems {
             items = initialItems
+            isLayoutLoaded = true
         } else {
-            items = dataStore.load()
+            items = []
+            isLayoutLoaded = false
         }
 
         let storedPage = settingsStore.settings.lastWindowedPage ?? 0
@@ -54,9 +56,29 @@ final class LaunchyViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        ensureCurrentPageInBounds()
-        persistLastVisitedPageIfNeeded(currentPage)
-        isLayoutLoaded = true
+        if initialItems != nil {
+            ensureCurrentPageInBounds()
+            persistLastVisitedPageIfNeeded(currentPage)
+        } else {
+            Task { [weak self] in
+                guard let self else { return }
+                let loaded = await dataStore.loadAsync()
+                self.items = loaded
+
+                // Pre-warm the icon cache in the background
+                let appURLs = loaded.flatMap { item -> [URL] in
+                    switch item {
+                    case .app(let icon): return [icon.bundleURL]
+                    case .folder(let folder): return folder.apps.map(\.bundleURL)
+                    }
+                }
+                ApplicationIconProvider.shared.preWarmCache(for: appURLs)
+
+                self.ensureCurrentPageInBounds()
+                self.persistLastVisitedPageIfNeeded(self.currentPage)
+                self.isLayoutLoaded = true
+            }
+        }
     }
 
     var settings: GridSettings { settingsStore.settings }

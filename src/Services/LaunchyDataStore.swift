@@ -54,6 +54,36 @@ final class LaunchyDataStore {
         }
     }
 
+    func loadAsync() async -> [LaunchyItem] {
+        // Copy value-type provider so the closure doesn't capture `self`.
+        // nonisolated(unsafe) silences the Sendable warning — the struct only
+        // wraps FileManager.default which is thread-safe in practice.
+        nonisolated(unsafe) let provider = self.applicationsProvider
+        let installedApps: [AppIcon] = await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let apps = provider.fetchApplications()
+                continuation.resume(returning: apps)
+            }
+        }
+
+        guard fileManager.fileExists(atPath: storageURL.path) else {
+            return installedApps.map { LaunchyItem.app($0) }
+        }
+
+        do {
+            let data = try Data(contentsOf: storageURL)
+            let storedItems = try decoder.decode([LaunchyItem].self, from: data)
+            let reconciled = reconcile(stored: storedItems, installed: installedApps)
+            if reconciled != storedItems {
+                save(reconciled)
+            }
+            return reconciled
+        } catch {
+            print("LaunchyDataStore: Load error => \(error)")
+            return installedApps.map { LaunchyItem.app($0) }
+        }
+    }
+
     func save(_ items: [LaunchyItem]) {
         do {
             let data = try encoder.encode(items)

@@ -70,11 +70,11 @@
 
 ### P1
 
-- [ ] **`ApplicationIconProvider.icon(for:)` loads icons synchronously on the main thread**
+- [x] **`ApplicationIconProvider.icon(for:)` loads icons synchronously on the main thread**
   `NSWorkspace.shared.icon(forFile:)` can be slow for apps on network volumes or APFS snapshots. With 150+ apps, this blocks the first layout pass. Consider pre-warming the cache on a background thread during `LaunchyDataStore.load()`.
   _File: `ApplicationIconProvider.swift`_
 
-- [ ] **`InstalledApplicationsProvider.fetchApplications()` blocks the main thread**
+- [x] **`InstalledApplicationsProvider.fetchApplications()` blocks the main thread**
   FileManager enumeration of `/Applications`, `/System/Applications`, and `~/Applications` is synchronous disk I/O. Should run on a background task and publish results.
   _File: `InstalledApplicationsProvider.swift`_
 
