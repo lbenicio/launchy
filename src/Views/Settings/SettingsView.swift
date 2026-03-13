@@ -102,6 +102,20 @@ struct SettingsView: View {
         )
     }
 
+    #if os(macOS)
+        private var hotkeyKeyCodeBinding: Binding<Int> {
+            Binding(
+                get: { store.settings.hotkeyKeyCode },
+                set: { newCode in
+                    store.update(hotkeyKeyCode: newCode)
+                    GlobalHotkeyService.shared.stop()
+                    GlobalHotkeyService.shared.keyCode = CGKeyCode(newCode)
+                    GlobalHotkeyService.shared.start()
+                }
+            )
+        }
+    #endif
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
@@ -207,6 +221,22 @@ struct SettingsView: View {
                         range: 0.2...2.0,
                         step: 0.05
                     )
+
+                    #if os(macOS)
+                        Divider()
+
+                        HStack(alignment: .center) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Global Hotkey")
+                                    .font(.system(size: 15, weight: .semibold))
+                                Text("Key to show/hide Launchy from any application")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 24)
+                            HotkeyRecorderCell(keyCode: hotkeyKeyCodeBinding)
+                        }
+                    #endif
                 }
 
                 settingsCard(title: "Window", systemImage: "rectangle.topthird.inset") {

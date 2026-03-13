@@ -25,6 +25,8 @@ struct GridSettings: Codable, Equatable, Sendable {
     var blurIntensity: Double
     var iCloudSyncEnabled: Bool
     var customSearchDirectories: [String]
+    /// Virtual key code for the global hotkey. Default 118 = F4.
+    var hotkeyKeyCode: Int
 
     static let defaults = GridSettings(
         columns: 7,
@@ -43,7 +45,8 @@ struct GridSettings: Codable, Equatable, Sendable {
         gradientEndHex: nil,
         blurIntensity: 0.14,
         iCloudSyncEnabled: false,
-        customSearchDirectories: []
+        customSearchDirectories: [],
+        hotkeyKeyCode: 118
     )
 
     init(
@@ -63,7 +66,8 @@ struct GridSettings: Codable, Equatable, Sendable {
         gradientEndHex: String? = nil,
         blurIntensity: Double = 0.14,
         iCloudSyncEnabled: Bool = false,
-        customSearchDirectories: [String] = []
+        customSearchDirectories: [String] = [],
+        hotkeyKeyCode: Int = 118
     ) {
         self.columns = columns
         self.rows = rows
@@ -82,6 +86,7 @@ struct GridSettings: Codable, Equatable, Sendable {
         self.blurIntensity = blurIntensity
         self.iCloudSyncEnabled = iCloudSyncEnabled
         self.customSearchDirectories = customSearchDirectories
+        self.hotkeyKeyCode = hotkeyKeyCode
     }
 
     init(from decoder: Decoder) throws {
@@ -124,6 +129,9 @@ struct GridSettings: Codable, Equatable, Sendable {
                 [String].self,
                 forKey: .customSearchDirectories
             ) ?? defaults.customSearchDirectories
+        hotkeyKeyCode =
+            try container.decodeIfPresent(Int.self, forKey: .hotkeyKeyCode)
+            ?? defaults.hotkeyKeyCode
     }
 
     func encode(to encoder: Encoder) throws {
@@ -148,6 +156,7 @@ struct GridSettings: Codable, Equatable, Sendable {
             customSearchDirectories,
             forKey: .customSearchDirectories
         )
+        try container.encode(hotkeyKeyCode, forKey: .hotkeyKeyCode)
     }
 
     var pageCapacity: Int {
@@ -177,5 +186,6 @@ struct GridSettings: Codable, Equatable, Sendable {
         case blurIntensity
         case iCloudSyncEnabled
         case customSearchDirectories
+        case hotkeyKeyCode
     }
 }

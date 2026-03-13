@@ -119,7 +119,7 @@ struct LaunchyPagedGridView: View {
 
                         Spacer()
 
-                        // Right edge zone – navigate to next page
+                        // Right edge zone – navigate to next page (or create a new page)
                         Color.clear
                             .frame(width: 60)
                             .contentShape(Rectangle())
@@ -137,7 +137,15 @@ struct LaunchyPagedGridView: View {
                                         ) { _ in
                                             DispatchQueue.main.async {
                                                 guard viewModel.dragItemID != nil else { return }
-                                                navigateToPage(targetPage)
+                                                if targetPage >= totalPages {
+                                                    // Move dragged item to end to create a new page
+                                                    viewModel.moveDraggedItemToEnd()
+                                                    DispatchQueue.main.async {
+                                                        navigateToPage(viewModel.pageCount - 1)
+                                                    }
+                                                } else {
+                                                    navigateToPage(targetPage)
+                                                }
                                             }
                                         }
                                     },
@@ -226,6 +234,14 @@ struct LaunchyPagedGridView: View {
                 }
             }
         }
+        .overlay(alignment: .bottom) {
+            if viewModel.isEditing && viewModel.dragItemID != nil {
+                TrashZoneView(viewModel: viewModel)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .allowsHitTesting(true)
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: viewModel.isEditing && viewModel.dragItemID != nil)
         #if os(macOS)
             .overlay(
                 PageNavigationKeyHandler(
@@ -239,5 +255,41 @@ struct LaunchyPagedGridView: View {
                 .allowsHitTesting(false)
             )
         #endif
+    }
+}
+
+// MARK: - Trash Zone
+
+private struct TrashZoneView: View {
+    let viewModel: LaunchyViewModel
+    @State private var isHovering = false
+
+    var body: some View {
+        Color.clear
+            .frame(height: 80)
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+            .overlay {
+                VStack(spacing: 6) {
+                    Image(systemName: isHovering ? "trash.fill" : "trash")
+                        .font(.system(size: 28, weight: .light))
+                        .foregroundStyle(isHovering ? Color.red : Color.white.opacity(0.75))
+                    Text("Remove")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(isHovering ? Color.red : Color.white.opacity(0.75))
+                }
+                .animation(.easeInOut(duration: 0.15), value: isHovering)
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(isHovering ? Color.red.opacity(0.2) : Color.black.opacity(0.25))
+                    .animation(.easeInOut(duration: 0.15), value: isHovering)
+            )
+            .padding(.horizontal, 80)
+            .padding(.bottom, 24)
+            .onDrop(
+                of: [.launchyItemIdentifier],
+                delegate: TrashDropDelegate(viewModel: viewModel, isHovering: $isHovering)
+            )
     }
 }

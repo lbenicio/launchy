@@ -43,7 +43,8 @@ final class GridSettingsStore: ObservableObject {
         clearGradientEnd: Bool = false,
         blurIntensity: Double? = nil,
         iCloudSyncEnabled: Bool? = nil,
-        customSearchDirectories: [String]? = nil
+        customSearchDirectories: [String]? = nil,
+        hotkeyKeyCode: Int? = nil
     ) {
         var next = settings
         if let columns { next.columns = max(3, min(columns, 10)) }
@@ -87,6 +88,7 @@ final class GridSettingsStore: ObservableObject {
         if let customSearchDirectories {
             next.customSearchDirectories = customSearchDirectories
         }
+        if let hotkeyKeyCode { next.hotkeyKeyCode = max(0, hotkeyKeyCode) }
         settings = next
     }
 

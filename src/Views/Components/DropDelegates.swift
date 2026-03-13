@@ -17,7 +17,11 @@ struct CrossPageEdgeDropDelegate: DropDelegate {
     func dropEntered(info: DropInfo) {
         let currentPage = viewModel.currentPage
         let targetPage = currentPage + direction
-        guard targetPage >= 0, targetPage < totalPages else { return }
+        guard targetPage >= 0 else { return }
+        // For rightward drags past the last page, allow signalling new-page creation.
+        if direction < 0 {
+            guard targetPage < totalPages else { return }
+        }
         onEdgeEntered(targetPage)
     }
 
@@ -233,6 +237,37 @@ struct FolderTrailingDropDelegate: DropDelegate {
     func performDrop(info: DropInfo) -> Bool {
         viewModel.cancelPendingStacking()
         viewModel.endDrag(commit: true)
+        return true
+    }
+}
+
+// MARK: - Trash Drop Delegate
+
+struct TrashDropDelegate: DropDelegate {
+    let viewModel: LaunchyViewModel
+    let isHovering: Binding<Bool>
+
+    func validateDrop(info: DropInfo) -> Bool {
+        viewModel.isEditing && info.hasItemsConforming(to: [.launchyItemIdentifier])
+    }
+
+    func dropEntered(info: DropInfo) {
+        isHovering.wrappedValue = true
+    }
+
+    func dropExited(info: DropInfo) {
+        isHovering.wrappedValue = false
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        isHovering.wrappedValue = false
+        guard let dragID = viewModel.dragItemID else { return false }
+        viewModel.endDrag(commit: false)
+        viewModel.deleteItem(dragID)
         return true
     }
 }
