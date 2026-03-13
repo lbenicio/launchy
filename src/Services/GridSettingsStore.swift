@@ -42,7 +42,8 @@ final class GridSettingsStore: ObservableObject {
         gradientEndHex: String? = nil,
         clearGradientEnd: Bool = false,
         blurIntensity: Double? = nil,
-        iCloudSyncEnabled: Bool? = nil
+        iCloudSyncEnabled: Bool? = nil,
+        customSearchDirectories: [String]? = nil
     ) {
         var next = settings
         if let columns { next.columns = max(3, min(columns, 10)) }
@@ -83,6 +84,9 @@ final class GridSettingsStore: ObservableObject {
         }
         if let blurIntensity { next.blurIntensity = min(max(blurIntensity, 0.0), 1.0) }
         if let iCloudSyncEnabled { next.iCloudSyncEnabled = iCloudSyncEnabled }
+        if let customSearchDirectories {
+            next.customSearchDirectories = customSearchDirectories
+        }
         settings = next
     }
 

@@ -199,8 +199,8 @@ struct SettingsView: View {
 
                 settingsCard(title: "Interaction", systemImage: "cursorarrow.click") {
                     sliderRow(
-                        title: "Scroll Wheel Sensitivity",
-                        subtitle: "Adjust how many scroll steps are needed to change pages",
+                        title: "Scroll Wheel Threshold",
+                        subtitle: "Higher values require more scrolling to change pages",
                         value: store.settings.scrollSensitivity,
                         formattedValue: String(format: "%.2f×", store.settings.scrollSensitivity),
                         binding: scrollSensitivityBinding,
@@ -336,6 +336,32 @@ struct SettingsView: View {
                             }
                             .buttonStyle(.bordered)
                         }
+
+                        Divider()
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Sort Layout")
+                                .font(.system(size: 15, weight: .semibold))
+                            Text(
+                                "Arrange all apps alphabetically. Custom folder and page arrangement will be reset."
+                            )
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                        }
+
+                        Button {
+                            NotificationCenter.default.post(
+                                name: .sortAlphabetically,
+                                object: nil
+                            )
+                        } label: {
+                            Label(
+                                "Sort Alphabetically",
+                                systemImage: "textformat.abc"
+                            )
+                            .font(.system(size: 13, weight: .semibold))
+                        }
+                        .buttonStyle(.bordered)
                     }
                 }
             }

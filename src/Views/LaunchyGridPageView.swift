@@ -29,6 +29,7 @@ struct LaunchyGridPageView: View {
         .padding(.horizontal, metrics.padding)
         .padding(.vertical, metrics.padding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: items.map(\.id))
     }
 
     @ViewBuilder
@@ -37,6 +38,14 @@ struct LaunchyGridPageView: View {
         let globalIndex = viewModel.indexOfItem(item.id) ?? 0
         let canMoveLeft = globalIndex > 0
         let canMoveRight = globalIndex < max(viewModel.items.count - 1, 0)
+
+        let recentlyAdded: Bool = {
+            if case .app(let icon) = item {
+                return viewModel.recentlyAddedBundleIDs
+                    .contains(icon.bundleIdentifier)
+            }
+            return false
+        }()
 
         let baseContent = LaunchyItemView(
             item: item,
@@ -47,6 +56,7 @@ struct LaunchyGridPageView: View {
             canMoveLeft: canMoveLeft,
             canMoveRight: canMoveRight,
             hasSelectedApps: viewModel.hasSelectedApps,
+            isRecentlyAdded: recentlyAdded,
             onOpenFolder: { id in
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
                     viewModel.openFolder(with: id)

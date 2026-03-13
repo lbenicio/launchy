@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 #if os(macOS)
     import AppKit
@@ -74,15 +75,39 @@ import Foundation
         }
     }
 
-    /// Shared mutable state accessed by both the `@MainActor` service and
-    /// the nonisolated C callback. Marked `nonisolated(unsafe)` / `@unchecked Sendable`
-    /// because all mutations happen on the main thread in practice — the C callback
-    /// only reads `keyCode` and `eventTap`.
-    private final class HotkeyState: @unchecked Sendable {
-        nonisolated(unsafe) var eventTap: CFMachPort?
-        nonisolated(unsafe) var runLoopSource: CFRunLoopSource?
-        nonisolated(unsafe) var keyCode: CGKeyCode = 118  // F4
-        nonisolated(unsafe) var onToggle: (() -> Void)?
+    /// Mutable values shared between the `@MainActor` service and the
+    /// nonisolated C event-tap callback, protected by `OSAllocatedUnfairLock`.
+    private struct HotkeyStateValues: @unchecked Sendable {
+        var eventTap: CFMachPort?
+        var runLoopSource: CFRunLoopSource?
+        var keyCode: CGKeyCode = 118  // F4
+        var onToggle: (() -> Void)?
+    }
+
+    /// Thread-safe container for mutable state shared between the
+    /// `@MainActor` service and the nonisolated C event-tap callback.
+    private final class HotkeyState: Sendable {
+        let lock = OSAllocatedUnfairLock(initialState: HotkeyStateValues())
+
+        var eventTap: CFMachPort? {
+            get { lock.withLockUnchecked { $0.eventTap } }
+            set { lock.withLockUnchecked { $0.eventTap = newValue } }
+        }
+
+        var runLoopSource: CFRunLoopSource? {
+            get { lock.withLockUnchecked { $0.runLoopSource } }
+            set { lock.withLockUnchecked { $0.runLoopSource = newValue } }
+        }
+
+        var keyCode: CGKeyCode {
+            get { lock.withLockUnchecked { $0.keyCode } }
+            set { lock.withLockUnchecked { $0.keyCode = newValue } }
+        }
+
+        var onToggle: (() -> Void)? {
+            get { lock.withLockUnchecked { $0.onToggle } }
+            set { lock.withLockUnchecked { $0.onToggle = newValue } }
+        }
     }
 
     /// C-function callback for the CGEvent tap.

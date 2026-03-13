@@ -18,6 +18,8 @@ struct LaunchyRootView: View {
     @State private var didActivateWindow = false
     @State private var isPresented: Bool = false
     @State private var editingBannerHeight: CGFloat = 0
+    @State private var showHeaderControls: Bool = true
+    @State private var headerControlsTimer: Timer?
     @FocusState private var isFolderNameFieldFocused: Bool
 
     private var pages: [[LaunchyItem]] {
@@ -213,7 +215,14 @@ struct LaunchyRootView: View {
                     }
 
                 SettingsView(store: settingsStore)
-                    .frame(width: 680, height: 540)
+                    .frame(
+                        maxWidth: 680,
+                        maxHeight: 540
+                    )
+                    .frame(
+                        minWidth: 480,
+                        minHeight: 400
+                    )
                     .background(.ultraThinMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
                     .shadow(color: Color.black.opacity(0.4), radius: 32, x: 0, y: 18)
@@ -230,10 +239,15 @@ struct LaunchyRootView: View {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) {
                 isPresented = true
             }
+            scheduleHeaderControlsHide()
         }
         .onChange(of: viewModel.isEditing) { _, isEditing in
-            if !isEditing {
+            if isEditing {
+                showHeaderControls = true
+                headerControlsTimer?.invalidate()
+            } else {
                 editingBannerHeight = 0
+                scheduleHeaderControlsHide()
             }
         }
     }
@@ -408,7 +422,26 @@ struct LaunchyRootView: View {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) {
                 isPresented = true
             }
+            scheduleHeaderControlsHide()
         #endif
+    }
+
+    /// Schedules the header controls (wiggle toggle and settings button)
+    /// to fade out after a period of inactivity when not in edit mode.
+    private func scheduleHeaderControlsHide() {
+        headerControlsTimer?.invalidate()
+        showHeaderControls = true
+        guard !viewModel.isEditing, !isShowingSettings else { return }
+        headerControlsTimer = Timer.scheduledTimer(
+            withTimeInterval: 3.0,
+            repeats: false
+        ) { _ in
+            Task { @MainActor in
+                withAnimation(.easeOut(duration: 0.3)) {
+                    showHeaderControls = false
+                }
+            }
+        }
     }
 
     private func buildPages(for query: String) -> [[LaunchyItem]] {
@@ -455,20 +488,40 @@ struct LaunchyRootView: View {
     #endif
 
     private var header: some View {
-        HStack(spacing: 16) {
+        ZStack {
+            // Centered search field
             searchField
-            if viewModel.isEditing {
-                selectionSummary
-            }
-            Spacer()
-            if viewModel.isEditing {
-                if !viewModel.recentlyRemovedApps.isEmpty {
-                    restoreRemovedButton
+
+            // Left-aligned editing controls, right-aligned buttons
+            HStack(spacing: 16) {
+                if viewModel.isEditing {
+                    selectionSummary
+                    if !viewModel.recentlyRemovedApps.isEmpty {
+                        restoreRemovedButton
+                    }
+                    newFolderButton
                 }
-                newFolderButton
+                Spacer()
+                wiggleToggle
+                    .opacity(
+                        showHeaderControls || viewModel.isEditing ? 1 : 0
+                    )
+                settingsButton
+                    .opacity(
+                        showHeaderControls || viewModel.isEditing ? 1 : 0
+                    )
             }
-            wiggleToggle
-            settingsButton
+            .animation(.easeInOut(duration: 0.3), value: showHeaderControls)
+        }
+        .onHover { isHovering in
+            if isHovering {
+                withAnimation(.easeIn(duration: 0.2)) {
+                    showHeaderControls = true
+                }
+                headerControlsTimer?.invalidate()
+            } else {
+                scheduleHeaderControlsHide()
+            }
         }
     }
 

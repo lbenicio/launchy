@@ -19,6 +19,7 @@ final class LaunchyViewModel: ObservableObject {
     @Published var isLaunchingApp: Bool = false
     @Published private(set) var launchingItemID: UUID? = nil
     @Published private(set) var isLayoutLoaded: Bool = false
+    @Published private(set) var recentlyAddedBundleIDs: Set<String> = []
     /// Apps removed during this session that can be restored without restarting.
     @Published private(set) var recentlyRemovedApps: [AppIcon] = []
 
@@ -109,6 +110,7 @@ final class LaunchyViewModel: ObservableObject {
                 self.ensureCurrentPageInBounds()
                 self.persistLastVisitedPageIfNeeded(self.currentPage)
                 self.isLayoutLoaded = true
+                self.updateRecentlyAdded()
                 self.setupICloudSync()
             }
         }
@@ -469,6 +471,16 @@ final class LaunchyViewModel: ObservableObject {
         }
     }
 
+    /// Sorts all top-level items alphabetically by display name.
+    /// Apps inside folders remain in their current folder order.
+    func sortAlphabetically() {
+        recordForUndo()
+        items.sort {
+            $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
+        }
+        saveNow()
+    }
+
     /// Restores a single recently removed app back to the end of the grid.
     func restoreRemovedApp(_ id: UUID) {
         guard let idx = recentlyRemovedApps.firstIndex(where: { $0.id == id }) else { return }
@@ -544,6 +556,7 @@ final class LaunchyViewModel: ObservableObject {
                     bundleIdentifier: icon.bundleIdentifier,
                     bundleURL: icon.bundleURL
                 )
+                clearRecentlyAdded(icon.bundleIdentifier)
                 NSWorkspace.shared.openApplication(
                     at: icon.bundleURL,
                     configuration: NSWorkspace.OpenConfiguration()
@@ -581,6 +594,40 @@ final class LaunchyViewModel: ObservableObject {
         launchingItemID = nil
     }
 
+    // MARK: - Recently Added Tracking
+
+    /// Marks an app as no longer "recently added" (e.g., after first launch).
+    func clearRecentlyAdded(_ bundleIdentifier: String) {
+        recentlyAddedBundleIDs.remove(bundleIdentifier)
+    }
+
+    /// Compares the current set of bundle IDs against the previously stored
+    /// set and marks any new ones as "recently added".
+    private func updateRecentlyAdded() {
+        let key = "dev.lbenicio.launchy.known-bundle-ids"
+        let storedIDs = Set(
+            UserDefaults.standard.stringArray(forKey: key) ?? []
+        )
+        let currentIDs = Set(allBundleIdentifiers())
+        let newIDs = currentIDs.subtracting(storedIDs)
+        if !storedIDs.isEmpty {
+            recentlyAddedBundleIDs = newIDs
+        }
+        UserDefaults.standard.set(Array(currentIDs), forKey: key)
+    }
+
+    /// Returns every bundle identifier present in the current layout.
+    private func allBundleIdentifiers() -> [String] {
+        items.flatMap { item -> [String] in
+            switch item {
+            case .app(let icon):
+                return [icon.bundleIdentifier]
+            case .folder(let folder):
+                return folder.apps.map(\.bundleIdentifier)
+            }
+        }
+    }
+
     // MARK: - iCloud Sync
 
     private func setupICloudSync() {
@@ -603,31 +650,12 @@ final class LaunchyViewModel: ObservableObject {
         ICloudSyncService.shared.upload(items: items)
     }
 
-    /// Hides the launcher window after a successful app launch, matching
-    /// real Launchpad's dismiss-on-launch behavior. The app stays alive
-    /// so it can be brought back via the dock icon or a global hotkey.
+    /// Dismisses the launcher after an app has been successfully launched.
+    /// Posts the `dismissLauncher` notification to use the same dismiss path
+    /// as Escape/background-tap (zoom-out animation → fade → hide).
     private func dismissAfterLaunch() {
         #if os(macOS)
-            NSApp.presentationOptions = []
-
-            if let window = NSApp.windows.first(where: {
-                $0.isVisible && $0.identifier?.rawValue == "dev.lbenicio.launchy.main"
-            }) {
-                NSAnimationContext.runAnimationGroup(
-                    { context in
-                        context.duration = 0.2
-                        window.animator().alphaValue = 0
-                    },
-                    completionHandler: {
-                        DispatchQueue.main.async {
-                            window.orderOut(nil)
-                            NSApp.hide(nil)
-                        }
-                    }
-                )
-            } else {
-                NSApp.hide(nil)
-            }
+            NotificationCenter.default.post(name: .dismissLauncher, object: nil)
         #endif
     }
 

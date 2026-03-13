@@ -9,6 +9,7 @@ struct LaunchyItemView: View {
     let canMoveLeft: Bool
     let canMoveRight: Bool
     let hasSelectedApps: Bool
+    let isRecentlyAdded: Bool
     let onOpenFolder: (UUID) -> Void
     let onDelete: (UUID) -> Void
     let onLaunch: (LaunchyItem) -> Void
@@ -24,7 +25,12 @@ struct LaunchyItemView: View {
         ZStack(alignment: .topLeading) {
             switch item {
             case .app(let icon):
-                AppIconTile(icon: icon, isEditing: isEditing, dimension: dimension)
+                AppIconTile(
+                    icon: icon,
+                    isEditing: isEditing,
+                    dimension: dimension,
+                    isRecentlyAdded: isRecentlyAdded
+                )
             case .folder(let folder):
                 FolderIconView(folder: folder, isEditing: isEditing, dimension: dimension)
             }
@@ -124,9 +130,19 @@ struct LaunchyItemView: View {
                 }
             }
         }
-        .scaleEffect(isLaunching ? 1.25 : 1.0)
+        .scaleEffect(isLaunching ? 1.5 : 1.0)
+        .offset(y: isLaunching ? -30 : 0)
         .opacity(isLaunching ? 0.0 : 1.0)
-        .animation(.easeOut(duration: 0.3), value: isLaunching)
+        .animation(
+            isLaunching
+                ? .spring(response: 0.35, dampingFraction: 0.6).delay(0.05)
+                : .easeOut(duration: 0.2),
+            value: isLaunching
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint(accessibilityHint)
+        .accessibilityAddTraits(isEditing && isSelected ? [.isSelected] : [])
     }
 
     private var deleteBadge: some View {
@@ -206,6 +222,35 @@ struct LaunchyItemView: View {
         .padding(.top, 6)
         .padding(.trailing, 6)
         .help("Split Folder")
+    }
+
+    private var accessibilityLabel: String {
+        switch item {
+        case .app(let icon):
+            return icon.name
+        case .folder(let folder):
+            return "\(folder.name) folder, \(folder.apps.count) apps"
+        }
+    }
+
+    private var accessibilityHint: String {
+        if isEditing {
+            switch item {
+            case .app:
+                return "Double tap to select"
+            case .folder:
+                return hasSelectedApps
+                    ? "Double tap to add selected apps"
+                    : "Double tap to open"
+            }
+        } else {
+            switch item {
+            case .app:
+                return "Double tap to open"
+            case .folder:
+                return "Double tap to open folder"
+            }
+        }
     }
 
     private var isApp: Bool {

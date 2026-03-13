@@ -32,25 +32,32 @@ graph LR
     B --> C[LaunchyViewModel]
     C --> D[DragCoordinator]
     C --> E[LaunchyRootView]
+    C --> L[LayoutUndoManager]
     E --> F[LaunchyPagedGridView]
     E --> G[FolderContentView]
     F --> H[LaunchyGridPageView]
     H --> I[LaunchyItemView]
     J[GridSettingsStore] --> C
     J --> E
+    K[GlobalHotkeyService] --> M[AppDelegate]
+    N[TrackpadGestureService] --> M
+    O[MenuBarService] --> M
+    P[NotificationBadgeProvider] --> I
+    Q[ApplicationIconProvider] --> I
+    R[ICloudSyncService] --> C
 ```
 
 | Layer | Responsibility |
 |-------|---------------|
 | **Models** | `AppIcon`, `LaunchyItem`, `LaunchyFolder`, `GridSettings` — pure value types (`Codable`, `Sendable`) |
-| **Services** | `InstalledApplicationsProvider` discovers apps on disk; `LaunchyDataStore` persists layout as JSON; `GridSettingsStore` persists user preferences; `GlobalHotkeyService` listens for F4 |
+| **Services** | `InstalledApplicationsProvider` discovers apps; `LaunchyDataStore` persists layout; `GridSettingsStore` persists preferences; `GlobalHotkeyService` / `TrackpadGestureService` handle activation; `MenuBarService` provides status item; `NotificationBadgeProvider` polls app badges; `ApplicationIconProvider` caches icons; `ICloudSyncService` syncs layout; `LayoutUndoManager` manages undo/redo |
 | **ViewModels** | `LaunchyViewModel` owns the item list, paging, editing, and folder logic; `DragCoordinator` encapsulates drag-and-drop state and stacking |
 | **Views** | SwiftUI views for the grid, folder overlay, settings panel, and search field |
 
 ## Requirements
 
 - macOS 14.0 or newer
-- Xcode 16 / Swift 6 toolchain (Swift 6.2 package manifest)
+- Xcode 16+ with the Swift 6.2 toolchain (required for the Swift 6.2 package manifest)
 
 ## Getting Started
 

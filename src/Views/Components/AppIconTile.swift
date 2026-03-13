@@ -8,6 +8,7 @@ struct AppIconTile: View {
     let icon: AppIcon
     let isEditing: Bool
     let dimension: CGFloat
+    var isRecentlyAdded: Bool = false
 
     #if os(macOS)
         @ObservedObject private var badgeProvider = NotificationBadgeProvider.shared
@@ -36,8 +37,16 @@ struct AppIconTile: View {
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: dimension)
                 .lineLimit(2)
+
+            if isRecentlyAdded {
+                Circle()
+                    .fill(Color.blue)
+                    .frame(width: 6, height: 6)
+            }
         }
         .wiggle(if: isEditing)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(icon.name)
     }
 
     @ViewBuilder
@@ -47,6 +56,20 @@ struct AppIconTile: View {
                 .resizable()
                 .interpolation(.high)
                 .aspectRatio(contentMode: .fit)
+                .overlay(alignment: .bottom) {
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0),
+                            Color.white.opacity(0.08),
+                        ],
+                        startPoint: .center,
+                        endPoint: .bottom
+                    )
+                    .clipShape(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    )
+                    .allowsHitTesting(false)
+                }
         #else
             Rectangle().fill(Color.gray.opacity(0.2))
         #endif

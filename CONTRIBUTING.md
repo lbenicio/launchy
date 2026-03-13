@@ -73,3 +73,69 @@ See [`TODO.md`](TODO.md) for current priorities and planned features. If you wan
 ## Code of Conduct
 
 This project follows the guidelines described in [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md). Please read it before participating.
+
+## Running Locally
+
+### Requirements
+
+- macOS 14.0 (Sonoma) or newer
+- Xcode 16+ with the Swift 6.2 toolchain
+- Swift Package Manager (included with Xcode)
+
+### Build & Run
+
+```bash
+# Clone the repository
+git clone https://github.com/lbenicio/macos-launchpad-tahoe-v1.git
+cd macos-launchpad-tahoe-v1
+
+# Build
+swift build
+
+# Run the app
+swift run Launchy
+
+# Or build a .app bundle
+make bundle
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+swift test
+
+# Or via make
+make test
+```
+
+### Formatting
+
+Code must pass `swift-format` checks before merging:
+
+```bash
+# Format all code
+make fmt
+
+# Lint without modifying
+make lint
+```
+
+### Accessibility Permissions
+
+Launchy registers a global hotkey (F4) and trackpad gesture monitor, both of which require **Accessibility** permissions:
+
+1. Open **System Settings → Privacy & Security → Accessibility**
+2. Add your terminal app (Terminal.app, iTerm2, etc.) or the built `Launchy.app` to the allowed list
+3. If running via `swift run`, add the terminal you're using
+
+Without these permissions, the global hotkey and trackpad pinch gestures won't work, but the app will still function via the Dock icon and menu bar extra.
+
+### Project Structure
+
+- `src/` — Main application source code
+- `tests/` — XCTest test suites
+- `assets/` — App icon and Info.plist template
+- `scripts/` — Build and publishing helper scripts
+
+See `CONTEXT.md` for a detailed architecture overview.

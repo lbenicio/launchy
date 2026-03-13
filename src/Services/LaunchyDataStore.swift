@@ -54,17 +54,15 @@ final class LaunchyDataStore {
         }
     }
 
+    /// Loads items asynchronously, scanning the disk for installed apps off
+    /// the main actor and then reconciling against any persisted layout.
     func loadAsync() async -> [LaunchyItem] {
-        // Copy value-type provider so the closure doesn't capture `self`.
-        // nonisolated(unsafe) silences the Sendable warning — the struct only
-        // wraps FileManager.default which is thread-safe in practice.
-        nonisolated(unsafe) let provider = self.applicationsProvider
-        let installedApps: [AppIcon] = await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                let apps = provider.fetchApplications()
-                continuation.resume(returning: apps)
-            }
-        }
+        // Construct a fresh provider inside the detached task so we never
+        // capture the main-actor-isolated `self` or its stored properties.
+        let installedApps: [AppIcon] = await Task.detached(priority: .userInitiated) {
+            let provider = InstalledApplicationsProvider(fileManager: .default)
+            return provider.fetchApplications()
+        }.value
 
         guard fileManager.fileExists(atPath: storageURL.path) else {
             return installedApps.map { LaunchyItem.app($0) }
@@ -87,13 +85,12 @@ final class LaunchyDataStore {
     /// Returns a fresh layout from currently installed applications,
     /// ignoring any previously persisted arrangement.
     func loadFresh() async -> [LaunchyItem] {
-        nonisolated(unsafe) let provider = self.applicationsProvider
-        let installedApps: [AppIcon] = await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                let apps = provider.fetchApplications()
-                continuation.resume(returning: apps)
-            }
-        }
+        // Construct a fresh provider inside the detached task to avoid
+        // capturing main-actor-isolated state across isolation boundaries.
+        let installedApps: [AppIcon] = await Task.detached(priority: .userInitiated) {
+            let provider = InstalledApplicationsProvider(fileManager: .default)
+            return provider.fetchApplications()
+        }.value
         return installedApps.map { LaunchyItem.app($0) }
     }
 

@@ -4,6 +4,8 @@ import SwiftUI
     import AppKit
 
     final class AppDelegate: NSObject, NSApplicationDelegate, @unchecked Sendable {
+        private var clickOutsideMonitor: Any?
+
         func applicationDidFinishLaunching(_ notification: Notification) {
             let hotkeyService = GlobalHotkeyService.shared
             hotkeyService.onToggle = { [weak self] in
@@ -28,9 +30,21 @@ import SwiftUI
                     self?.toggleLauncher()
                 }
             }
+
+            clickOutsideMonitor = NSEvent.addGlobalMonitorForEvents(
+                matching: [.leftMouseDown, .rightMouseDown]
+            ) { [weak self] _ in
+                Task { @MainActor in
+                    self?.handleClickOutside()
+                }
+            }
         }
 
         func applicationWillTerminate(_ notification: Notification) {
+            if let monitor = clickOutsideMonitor {
+                NSEvent.removeMonitor(monitor)
+                clickOutsideMonitor = nil
+            }
             NSApp.presentationOptions = []
             GlobalHotkeyService.shared.stop()
             TrackpadGestureService.shared.stop()
@@ -49,6 +63,18 @@ import SwiftUI
                 showLauncherWindow()
             }
             return true
+        }
+
+        /// Dismisses the launcher when a click is detected outside the app window.
+        @MainActor private func handleClickOutside() {
+            guard
+                let window = NSApp.windows.first(where: {
+                    $0.identifier?.rawValue == "dev.lbenicio.launchy.main"
+                }),
+                window.isVisible,
+                window.alphaValue > 0
+            else { return }
+            NotificationCenter.default.post(name: .dismissLauncher, object: nil)
         }
 
         @MainActor private func toggleLauncher() {
@@ -156,4 +182,5 @@ extension Notification.Name {
     static let menuBarToggleLauncher = Notification.Name("menuBarToggleLauncher")
     static let exportLayout = Notification.Name("exportLayout")
     static let importLayout = Notification.Name("importLayout")
+    static let sortAlphabetically = Notification.Name("sortAlphabetically")
 }

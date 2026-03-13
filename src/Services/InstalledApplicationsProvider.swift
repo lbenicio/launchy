@@ -4,8 +4,15 @@ struct InstalledApplicationsProvider {
     private let fileManager: FileManager
     private let resourceKeys: Set<URLResourceKey> = [.isDirectoryKey, .isPackageKey]
 
-    init(fileManager: FileManager = .default) {
+    /// Additional directories to scan for `.app` bundles (e.g. Homebrew Cask paths).
+    private let customDirectories: [String]
+
+    init(
+        fileManager: FileManager = .default,
+        customSearchDirectories: [String] = []
+    ) {
         self.fileManager = fileManager
+        self.customDirectories = customSearchDirectories
     }
 
     func fetchApplications() -> [AppIcon] {
@@ -42,12 +49,22 @@ struct InstalledApplicationsProvider {
     private var searchDirectories: [URL] {
         var directories: [URL] = []
         directories.append(URL(fileURLWithPath: "/Applications", isDirectory: true))
-        directories.append(URL(fileURLWithPath: "/System/Applications", isDirectory: true))
-        let userApplications = fileManager.homeDirectoryForCurrentUser.appendingPathComponent(
-            "Applications",
-            isDirectory: true
+        directories.append(
+            URL(fileURLWithPath: "/System/Applications", isDirectory: true)
         )
+        let userApplications = fileManager
+            .homeDirectoryForCurrentUser
+            .appendingPathComponent("Applications", isDirectory: true)
         directories.append(userApplications)
+
+        for path in customDirectories where !path.isEmpty {
+            let expanded = NSString(string: path)
+                .expandingTildeInPath
+            directories.append(
+                URL(fileURLWithPath: expanded, isDirectory: true)
+            )
+        }
+
         return directories
     }
 

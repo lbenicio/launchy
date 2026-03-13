@@ -137,7 +137,13 @@ import SwiftUI
                     || abs(window.frame.origin.x - targetFrame.origin.x) > 1
                     || abs(window.frame.origin.y - targetFrame.origin.y) > 1
                 {
-                    window.setFrame(targetFrame, display: true)
+                    NSAnimationContext.runAnimationGroup { context in
+                        context.duration = 0.35
+                        context.timingFunction = CAMediaTimingFunction(
+                            name: .easeInEaseOut
+                        )
+                        window.animator().setFrame(targetFrame, display: true)
+                    }
                 }
             }
 

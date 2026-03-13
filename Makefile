@@ -185,10 +185,21 @@ release: sign notarize staple
 # Distribution (unsigned)
 # ───────────────────────────────────────────────────────────────────
 
+# TODO: For a polished DMG, add a background image with an arrow pointing from
+# the app icon to the /Applications symlink. This requires a .tiff or .png
+# asset and an AppleScript to configure the Finder window appearance (icon
+# size, background image, icon positions). For now we create a plain DMG with
+# the Applications symlink so users can drag-to-install.
 dmg: bundle
 	@echo "Creating disk image at $(DMG_PATH)"
 	rm -f $(DMG_PATH)
-	hdiutil create -volname "$(APP_NAME)" -srcfolder "$(APP_BUNDLE)" -ov -format UDZO "$(DMG_PATH)"
+	$(eval DMG_STAGE := $(DIST_DIR)/dmg-stage)
+	rm -rf $(DMG_STAGE)
+	mkdir -p $(DMG_STAGE)
+	cp -R $(APP_BUNDLE) $(DMG_STAGE)/
+	ln -s /Applications $(DMG_STAGE)/Applications
+	hdiutil create -volname "$(APP_NAME)" -srcfolder "$(DMG_STAGE)" -ov -format UDZO "$(DMG_PATH)"
+	rm -rf $(DMG_STAGE)
 	@echo "DMG created at $(DMG_PATH)"
 
 pkg: bundle
@@ -209,7 +220,13 @@ pkg: bundle
 dmg-signed: sign notarize staple
 	@echo "Creating signed disk image at $(DMG_PATH)"
 	rm -f $(DMG_PATH)
-	hdiutil create -volname "$(APP_NAME)" -srcfolder "$(APP_BUNDLE)" -ov -format UDZO "$(DMG_PATH)"
+	$(eval DMG_STAGE := $(DIST_DIR)/dmg-stage)
+	rm -rf $(DMG_STAGE)
+	mkdir -p $(DMG_STAGE)
+	cp -R $(APP_BUNDLE) $(DMG_STAGE)/
+	ln -s /Applications $(DMG_STAGE)/Applications
+	hdiutil create -volname "$(APP_NAME)" -srcfolder "$(DMG_STAGE)" -ov -format UDZO "$(DMG_PATH)"
+	rm -rf $(DMG_STAGE)
 	@# Sign the DMG itself
 	codesign --force --sign "$(DEVELOPER_ID_APPLICATION)" --timestamp $(DMG_PATH)
 	@# Notarize and staple the DMG

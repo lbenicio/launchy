@@ -24,6 +24,7 @@ struct GridSettings: Codable, Equatable, Sendable {
     var gradientEndHex: String?
     var blurIntensity: Double
     var iCloudSyncEnabled: Bool
+    var customSearchDirectories: [String]
 
     static let defaults = GridSettings(
         columns: 7,
@@ -41,7 +42,8 @@ struct GridSettings: Codable, Equatable, Sendable {
         gradientStartHex: nil,
         gradientEndHex: nil,
         blurIntensity: 0.14,
-        iCloudSyncEnabled: false
+        iCloudSyncEnabled: false,
+        customSearchDirectories: []
     )
 
     init(
@@ -60,7 +62,8 @@ struct GridSettings: Codable, Equatable, Sendable {
         gradientStartHex: String? = nil,
         gradientEndHex: String? = nil,
         blurIntensity: Double = 0.14,
-        iCloudSyncEnabled: Bool = false
+        iCloudSyncEnabled: Bool = false,
+        customSearchDirectories: [String] = []
     ) {
         self.columns = columns
         self.rows = rows
@@ -78,6 +81,7 @@ struct GridSettings: Codable, Equatable, Sendable {
         self.gradientEndHex = gradientEndHex
         self.blurIntensity = blurIntensity
         self.iCloudSyncEnabled = iCloudSyncEnabled
+        self.customSearchDirectories = customSearchDirectories
     }
 
     init(from decoder: Decoder) throws {
@@ -115,6 +119,11 @@ struct GridSettings: Codable, Equatable, Sendable {
         iCloudSyncEnabled =
             try container.decodeIfPresent(Bool.self, forKey: .iCloudSyncEnabled)
             ?? defaults.iCloudSyncEnabled
+        customSearchDirectories =
+            try container.decodeIfPresent(
+                [String].self,
+                forKey: .customSearchDirectories
+            ) ?? defaults.customSearchDirectories
     }
 
     func encode(to encoder: Encoder) throws {
@@ -135,6 +144,10 @@ struct GridSettings: Codable, Equatable, Sendable {
         try container.encodeIfPresent(gradientEndHex, forKey: .gradientEndHex)
         try container.encode(blurIntensity, forKey: .blurIntensity)
         try container.encode(iCloudSyncEnabled, forKey: .iCloudSyncEnabled)
+        try container.encode(
+            customSearchDirectories,
+            forKey: .customSearchDirectories
+        )
     }
 
     var pageCapacity: Int {
@@ -163,5 +176,6 @@ struct GridSettings: Codable, Equatable, Sendable {
         case gradientEndHex
         case blurIntensity
         case iCloudSyncEnabled
+        case customSearchDirectories
     }
 }
