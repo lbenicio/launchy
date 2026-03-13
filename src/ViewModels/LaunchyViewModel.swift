@@ -611,7 +611,7 @@ final class LaunchyViewModel: ObservableObject {
             NSApp.presentationOptions = []
 
             if let window = NSApp.windows.first(where: {
-                $0.isVisible && $0.identifier?.rawValue != "com_apple_SwiftUI_Settings_window"
+                $0.isVisible && $0.identifier?.rawValue == "dev.lbenicio.launchy.main"
             }) {
                 NSAnimationContext.runAnimationGroup(
                     { context in

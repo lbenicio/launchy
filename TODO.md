@@ -54,10 +54,12 @@
 
 ---
 
-### 🟡 Folder overlay doesn't respond to Escape key directly
-The `FolderContentView` has no key handler. Escape is handled in `LaunchyRootView.handleEscape()` via `PageNavigationKeyHandler`, but since the folder overlay is `.zIndex(3)`, key events may not route through when a search field is focused.
+### ~~🟡 Folder overlay doesn't respond to Escape key directly~~
+~~The `FolderContentView` has no key handler. Escape is handled in `LaunchyRootView.handleEscape()` via `PageNavigationKeyHandler`, but since the folder overlay is `.zIndex(3)`, key events may not route through when a search field is focused.~~
 
-**Fix:** Verify Escape handling with the folder overlay open and a search field focused. Consider adding `.onExitCommand` or `.onKeyPress(.escape)` directly on the folder overlay.
+~~**Fix:** Verify Escape handling with the folder overlay open and a search field focused. Consider adding `.onExitCommand` or `.onKeyPress(.escape)` directly on the folder overlay.~~
+
+✅ **Done** — Added `.onExitCommand` on `FolderContentView` so pressing Escape closes the folder overlay directly.
 
 ---
 
@@ -185,10 +187,12 @@ Keep `DragCoordinator` (already extracted) as a pattern to follow.
 
 ---
 
-### 🟡 Context menu on folder tiles offers both "Remove Folder" and "Split Folder"
-"Remove Folder" calls `deleteItem` which also disbands the folder (apps go back to grid), making it identical to "Split Folder." The user sees two options that do the same thing.
+### ~~🟡 Context menu on folder tiles offers both "Remove Folder" and "Split Folder"~~
+~~"Remove Folder" calls `deleteItem` which also disbands the folder (apps go back to grid), making it identical to "Split Folder." The user sees two options that do the same thing.~~
 
-**Fix:** Make "Remove Folder" actually delete the folder *and its contents* (with confirmation), or remove the duplicate entry and only offer "Split Folder" + "Remove Folder" with a clear distinction.
+~~**Fix:** Make "Remove Folder" actually delete the folder *and its contents* (with confirmation), or remove the duplicate entry and only offer "Split Folder" + "Remove Folder" with a clear distinction.~~
+
+✅ **Done** — Removed the duplicate "Remove Folder" entry. Renamed "Split Folder" to "Ungroup N Apps" for clarity.
 
 ---
 
@@ -217,15 +221,17 @@ The loading state shows a plain `ProgressView` with text. Real Launchpad shows a
 
 ---
 
-### 🟢 Test coverage gaps
-There are 67 tests covering the view model, settings model, and settings store, but **zero tests** for:
+### 🟡 Test coverage gaps *(partially done)*
+~~There are 67 tests covering the view model, settings model, and settings store, but **zero tests** for:~~
 - `DragCoordinator` (the most complex drag logic)
 - `LaunchyDataStore.reconcile` (tested indirectly via stub, but edge cases like folder-with-one-remaining-app are untested directly)
-- `String.fuzzyMatch` (critical for search quality)
-- `LayoutUndoManager`
+- ~~`String.fuzzyMatch` (critical for search quality)~~ ✅ 13 tests added in `FuzzyMatchTests`
+- ~~`LayoutUndoManager`~~ ✅ 11 tests added in `LayoutUndoManagerTests`
 - `InstalledApplicationsProvider`
 
-**Fix:** Add dedicated test suites for each of these.
+**Fix:** Add dedicated test suites for the remaining untested areas (`DragCoordinator`, `LaunchyDataStore.reconcile`, `InstalledApplicationsProvider`).
+
+✅ **Partially done** — Added `FuzzyMatchTests` (13 tests) and `LayoutUndoManagerTests` (11 tests). Total test count increased from 67 to 91. `DragCoordinator`, `LaunchyDataStore.reconcile`, and `InstalledApplicationsProvider` still need coverage.
 
 ---
 
@@ -238,13 +244,15 @@ Real Launchpad dismisses when you click anywhere on the desktop wallpaper behind
 
 ---
 
-### 🟠 No Spotlight-like instant search result launching
-Real Launchpad lets you type and press Enter to launch the top search result immediately, without clicking.
+### ~~🟠 No Spotlight-like instant search result launching~~
+~~Real Launchpad lets you type and press Enter to launch the top search result immediately, without clicking.~~
 
-**Fix:**
-1. Track the "top result" from `pagedItems(matching:)`.
-2. Add a keyboard handler for Return/Enter that launches the top result.
-3. Optionally highlight the top result visually.
+~~**Fix:**~~
+~~1. Track the "top result" from `pagedItems(matching:)`.~~
+~~2. Add a keyboard handler for Return/Enter that launches the top result.~~
+~~3. Optionally highlight the top result visually.~~
+
+✅ **Done** — Added Return/Enter key handling in `PageNavigationKeyHandler` that launches the top fuzzy-match result while searching.
 
 ---
 
@@ -255,15 +263,19 @@ Real Launchpad opens on the display where the cursor currently is. The `screenCo
 
 ---
 
-### 🟠 No opening animation
-Real Launchpad has a characteristic zoom-in animation when appearing (icons scale up from ~70% with a spring) and a zoom-out when dismissing. Currently, the window just appears/fades.
+### ~~🟠 No opening animation~~
+~~Real Launchpad has a characteristic zoom-in animation when appearing (icons scale up from ~70% with a spring) and a zoom-out when dismissing. Currently, the window just appears/fades.~~
 
-**Fix:** Add a `.transition(.scale(scale: 0.8).combined(with: .opacity))` to the root content, triggered by a `@State var isPresented` flag with a spring animation on show/hide.
+~~**Fix:** Add a `.transition(.scale(scale: 0.8).combined(with: .opacity))` to the root content, triggered by a `@State var isPresented` flag with a spring animation on show/hide.~~
+
+✅ **Done** — Added scale (0.8→1.0) + opacity spring transition on show and reverse zoom-out on dismiss in `LaunchyRootView`.
 
 ---
 
-### 🟠 No pinch-to-zoom between Launchpad and Desktop
-Real Launchpad uses a five-finger pinch gesture to toggle. The `TrackpadGestureService` exists but isn't wired up (see Bugs section). Beyond wiring it up, the gesture should trigger the zoom animation.
+### ~~🟠 No pinch-to-zoom between Launchpad and Desktop~~
+~~Real Launchpad uses a five-finger pinch gesture to toggle. The `TrackpadGestureService` exists but isn't wired up (see Bugs section). Beyond wiring it up, the gesture should trigger the zoom animation.~~
+
+✅ **Done** — `TrackpadGestureService` wired up in `AppDelegate` (see Bugs section) and opening/closing zoom animation added to `LaunchyRootView`. Pinch-in now toggles the launcher with the scale+opacity spring transition.
 
 ---
 
@@ -378,10 +390,12 @@ Some users install apps via Homebrew (`/opt/homebrew/Caskroom`) or other package
 
 ---
 
-### 🟡 `@unchecked Sendable` on `AppDelegate`
-`AppDelegate` is marked `@unchecked Sendable` but has no thread-safety guarantees documented. All methods appear to be `@MainActor`-isolated, so the annotation is technically safe but smells.
+### ~~🟡 `@unchecked Sendable` on `AppDelegate`~~
+~~`AppDelegate` is marked `@unchecked Sendable` but has no thread-safety guarantees documented. All methods appear to be `@MainActor`-isolated, so the annotation is technically safe but smells.~~
 
-**Fix:** Make `AppDelegate` explicitly `@MainActor` isolated (it already is via `NSApplicationDelegate` inheritance) and remove `@unchecked Sendable`.
+~~**Fix:** Make `AppDelegate` explicitly `@MainActor` isolated (it already is via `NSApplicationDelegate` inheritance) and remove `@unchecked Sendable`.~~
+
+✅ **Done** — Replaced `@unchecked Sendable` with explicit `@MainActor` annotation on `AppDelegate`.
 
 ---
 
@@ -392,10 +406,12 @@ The `InstalledApplicationsProvider` is value-type but wraps `FileManager`, and t
 
 ---
 
-### 🟡 Mixed `DispatchQueue.main.async` and `Task { @MainActor }` patterns
-The codebase inconsistently uses GCD (`DispatchQueue.main.async`) in some places and structured concurrency (`Task { @MainActor }`) in others for main-thread dispatch. This is confusing and can lead to subtle ordering bugs.
+### ~~🟡 Mixed `DispatchQueue.main.async` and `Task { @MainActor }` patterns~~
+~~The codebase inconsistently uses GCD (`DispatchQueue.main.async`) in some places and structured concurrency (`Task { @MainActor }`) in others for main-thread dispatch. This is confusing and can lead to subtle ordering bugs.~~
 
-**Fix:** Standardize on structured concurrency (`Task { @MainActor in ... }`) throughout. Replace all `DispatchQueue.main.async` calls in Swift 6 code.
+~~**Fix:** Standardize on structured concurrency (`Task { @MainActor in ... }`) throughout. Replace all `DispatchQueue.main.async` calls in Swift 6 code.~~
+
+✅ **Done** — Converted `DispatchQueue.main.async` to `Task { @MainActor in }` across `LaunchyApp`, `LaunchyRootView`, `LaunchyViewModel`, and `DropDelegates`. Remaining GCD calls in `GlobalHotkeyService` (C callback), `TrackpadGestureService` (NSEvent monitor), and `LaunchyPagedGridView` (Timer callback) are intentionally kept.
 
 ---
 
@@ -413,24 +429,30 @@ The comment says "all mutations happen on the main thread in practice" but the C
 
 ---
 
-### 🟢 Duplicated folder color picker UI
-The color picker `HStack` with `ForEach(IconColor.allCases)` is copy-pasted between `FolderContentView` and `LaunchyRootView.newFolderSheet`.
+### ~~🟢 Duplicated folder color picker UI~~
+~~The color picker `HStack` with `ForEach(IconColor.allCases)` is copy-pasted between `FolderContentView` and `LaunchyRootView.newFolderSheet`.~~
 
-**Fix:** Extract a reusable `IconColorPicker` component.
+~~**Fix:** Extract a reusable `IconColorPicker` component.~~
+
+✅ **Done** — Extracted reusable `IconColorPicker` view in `src/Views/Components/IconColorPicker.swift` and replaced both inline color pickers.
 
 ---
 
-### 🟢 Window identification is fragile
-`NSApp.windows.first(where: { $0.identifier?.rawValue != "com_apple_SwiftUI_Settings_window" })` relies on SwiftUI's internal window identifier string which could change between macOS versions.
+### ~~🟢 Window identification is fragile~~
+~~`NSApp.windows.first(where: { $0.identifier?.rawValue != "com_apple_SwiftUI_Settings_window" })` relies on SwiftUI's internal window identifier string which could change between macOS versions.~~
 
-**Fix:** Set a custom `window.identifier` on the main launcher window during configuration and filter by that known identifier.
+~~**Fix:** Set a custom `window.identifier` on the main launcher window during configuration and filter by that known identifier.~~
+
+✅ **Done** — Set custom `NSUserInterfaceItemIdentifier("dev.lbenicio.launchy.main")` in `WindowConfigurator`. All window lookups now positively match by this known identifier.
 
 ---
 
 ## 📝 Documentation & Project
 
-### 🟡 CHANGELOG references [Unreleased] but has no items
-The `## [Unreleased]` section is empty. All the items in this TODO should be tracked there as they're completed.
+### ~~🟡 CHANGELOG references [Unreleased] but has no items~~
+~~The `## [Unreleased]` section is empty. All the items in this TODO should be tracked there as they're completed.~~
+
+✅ **Done** — `[Unreleased]` section now has comprehensive Fixed, Added, Changed, and Tests entries for all completed work.
 
 ---
 
@@ -465,10 +487,12 @@ Real Launchpad applies a Gaussian blur to the actual desktop wallpaper with a su
 
 ---
 
-### 🟡 Page dots don't match real Launchpad style
-Real Launchpad uses small circular dots (not capsules). The active dot is white, inactive dots are gray, and they don't change size — just opacity/color.
+### ~~🟡 Page dots don't match real Launchpad style~~
+~~Real Launchpad uses small circular dots (not capsules). The active dot is white, inactive dots are gray, and they don't change size — just opacity/color.~~
 
-**Fix:** Change the page control from capsule shapes to uniform circles with only opacity/color differentiation.
+~~**Fix:** Change the page control from capsule shapes to uniform circles with only opacity/color differentiation.~~
+
+✅ **Done** — Changed from variable-width capsules to uniform 8×8 circles with opacity-only differentiation.
 
 ---
 
@@ -486,10 +510,12 @@ Real Launchpad puts the search field at the **top center** of the screen. The cu
 
 ---
 
-### 🟡 Icon shadow is too aggressive
-The `shadow(color: .black.opacity(0.28), radius: 12, x: 0, y: 8)` on app icons is noticeably heavier than real Launchpad's subtle shadow.
+### ~~🟡 Icon shadow is too aggressive~~
+~~The `shadow(color: .black.opacity(0.28), radius: 12, x: 0, y: 8)` on app icons is noticeably heavier than real Launchpad's subtle shadow.~~
 
-**Fix:** Reduce to approximately `shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 3)`.
+~~**Fix:** Reduce to approximately `shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 3)`.~~
+
+✅ **Done** — Reduced to `shadow(opacity: 0.15, radius: 6, y: 3)`.
 
 ---
 
@@ -500,10 +526,12 @@ Real Launchpad icons have a very subtle glow/reflection on the bottom edge, givi
 
 ---
 
-### 🟢 Delete badge (× button) is oversized
-The delete badge uses `dimension * 0.28` for font size and is filled with red, making it much larger and more prominent than real Launchpad's small, subtle × badge.
+### ~~🟢 Delete badge (× button) is oversized~~
+~~The delete badge uses `dimension * 0.28` for font size and is filled with red, making it much larger and more prominent than real Launchpad's small, subtle × badge.~~
 
-**Fix:** Reduce to ~`dimension * 0.18`, use a darker translucent background, and position it tighter to the icon corner.
+~~**Fix:** Reduce to ~`dimension * 0.18`, use a darker translucent background, and position it tighter to the icon corner.~~
+
+✅ **Done** — Reduced to `dimension * 0.18`, changed background to dark translucent, tightened offset to corner.
 
 ---
 
@@ -516,10 +544,12 @@ Real Launchpad has a very minimal chrome — just the search field at the top an
 
 ## 🏗️ Build & Distribution
 
-### 🟡 Info.plist should declare accessibility usage
-The app requires Accessibility permissions for the global hotkey (`CGEvent.tapCreate`). The plist should include `NSAccessibilityUsageDescription` to explain why.
+### ~~🟡 Info.plist should declare accessibility usage~~
+~~The app requires Accessibility permissions for the global hotkey (`CGEvent.tapCreate`). The plist should include `NSAccessibilityUsageDescription` to explain why.~~
 
-**Fix:** Add `<key>NSAccessibilityUsageDescription</key><string>Launchy uses Accessibility permissions to listen for the global hotkey (F4) to show and hide the launcher.</string>` to the plist template.
+~~**Fix:** Add `NSAccessibilityUsageDescription` to `assets/plists/Info.plist`.~~
+
+✅ **Done** — Added `NSAccessibilityUsageDescription` to `assets/plists/Info.plist` explaining the need for Accessibility access for the global F4 hotkey and trackpad pinch gestures.
 
 ---
 

@@ -54,7 +54,7 @@ import SwiftUI
         @MainActor private func toggleLauncher() {
             guard
                 let window = NSApp.windows.first(where: {
-                    $0.identifier?.rawValue != "com_apple_SwiftUI_Settings_window"
+                    $0.identifier?.rawValue == "dev.lbenicio.launchy.main"
                 })
             else { return }
 
@@ -69,7 +69,7 @@ import SwiftUI
         @MainActor private func showLauncherWindow() {
             guard
                 let window = NSApp.windows.first(where: {
-                    $0.identifier?.rawValue != "com_apple_SwiftUI_Settings_window"
+                    $0.identifier?.rawValue == "dev.lbenicio.launchy.main"
                 })
             else { return }
             window.alphaValue = 1

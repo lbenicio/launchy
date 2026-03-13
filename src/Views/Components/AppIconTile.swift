@@ -18,7 +18,7 @@ struct AppIconTile: View {
             ZStack(alignment: .topTrailing) {
                 iconImage
                     .frame(width: dimension, height: dimension)
-                    .shadow(color: Color.black.opacity(0.28), radius: 12, x: 0, y: 8)
+                    .shadow(color: Color.black.opacity(0.15), radius: 6, x: 0, y: 3)
 
                 #if os(macOS)
                     if !isEditing,

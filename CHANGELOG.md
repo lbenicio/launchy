@@ -26,14 +26,28 @@ The format is based on "Keep a Changelog" and this project adheres to [Semantic 
 - **`LaunchyFolder` conforms to `Hashable`:** Added `Hashable` conformance for consistency with `AppIcon` and to enable `Set`/`Dictionary` usage.
 - **`LaunchyItem` conforms to `Hashable`:** Added `Hashable` conformance to the enum now that both associated types (`AppIcon`, `LaunchyFolder`) are `Hashable`.
 - **Search field auto-focus on appear:** `LaunchySearchField` now calls `makeFirstResponder` on the `NSSearchField` when it appears, matching real Launchpad's immediate-typing behavior.
+- **Enter-to-launch top search result:** Added Return/Enter key handling in `PageNavigationKeyHandler` that launches the top fuzzy-match result while searching, matching real Launchpad's instant-launch behavior. Works even when the search field has focus.
+- **Opening/closing zoom animation:** Added a scale (0.8→1.0) + opacity spring transition when the launcher appears and a reverse zoom-out when dismissing, matching real Launchpad's signature animation.
+- **Folder overlay Escape key:** Added `.onExitCommand` on `FolderContentView` so pressing Escape closes the folder overlay directly, even when a text field inside has focus.
 
 ### Changed
 
-- Converted remaining `DispatchQueue.main.async` calls in `LaunchyRootView` to `Task { @MainActor in }` for consistent structured concurrency.
+- Converted remaining `DispatchQueue.main.async` calls to `Task { @MainActor in }` across `LaunchyRootView`, `LaunchyViewModel`, `LaunchyApp`, and `DropDelegates` for consistent structured concurrency.
+- **Page dots match real Launchpad:** Changed from variable-width capsules to uniform 8×8 circles with opacity-only differentiation (active = 0.85, inactive = 0.4).
+- **Icon shadow reduced:** Changed from `shadow(opacity: 0.28, radius: 12, y: 8)` to `shadow(opacity: 0.15, radius: 6, y: 3)` to match real Launchpad's subtle shadow.
+- **Delete badge (× button) resized:** Reduced from `dimension * 0.28` to `dimension * 0.18`, changed background from bright red to dark translucent, and tightened offset to icon corner.
+- **Folder context menu deduplicated:** Removed the duplicate "Remove Folder" entry (which did the same thing as "Split Folder"). Renamed "Split Folder" to "Ungroup N Apps" for clarity.
+- **`@unchecked Sendable` removed from `AppDelegate`:** Replaced with explicit `@MainActor` annotation, which is correct since all methods are main-actor-isolated via `NSApplicationDelegate`.
+- **Stable window identifier:** Set a custom `NSUserInterfaceItemIdentifier("dev.lbenicio.launchy.main")` on the launcher window in `WindowConfigurator`. All window lookups now match by this known identifier instead of excluding SwiftUI's internal `com_apple_SwiftUI_Settings_window` string.
+- **Extracted `IconColorPicker` component:** Deduplicated the folder color picker UI from `FolderContentView` and `LaunchyRootView.newFolderSheet` into a reusable `IconColorPicker` view.
+- **Info.plist accessibility declaration:** Added `NSAccessibilityUsageDescription` explaining that Launchy needs Accessibility access for the global F4 hotkey and trackpad pinch gestures.
 
 ### Tests
 
 - Updated `testChunkedWithSizeZeroReturnsSelf` → `testChunkedWithSizeZeroReturnsEmpty` to match the corrected `chunked(into: 0)` behavior (returns `[]`).
+- Added `FuzzyMatchTests` (13 tests) covering no-match, exact/substring/prefix matches (Tier 1), fuzzy ordered-character matches (Tier 2), cluster tightness scoring, prefix bonus, and edge cases for `String.fuzzyMatch`.
+- Added `LayoutUndoManagerTests` (11 tests) covering initial state, snapshot recording, undo/redo, multiple undo/redo cycles, the 50-item stack size limit, and `clearAll()`.
+- Total test count increased from 67 to 91.
 
 ## [0.4.2] - 2026-03-12
 

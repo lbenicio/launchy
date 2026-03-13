@@ -72,41 +72,12 @@ struct FolderContentView: View {
                     }
 
                     if viewModel.isEditing {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(IconColor.allCases, id: \.self) { iconColor in
-                                    Button {
-                                        viewModel.updateFolderColor(folderID, to: iconColor)
-                                    } label: {
-                                        Circle()
-                                            .fill(iconColor.color)
-                                            .frame(width: 24, height: 24)
-                                            .overlay(
-                                                Circle()
-                                                    .stroke(
-                                                        Color.white,
-                                                        lineWidth: folder.color == iconColor
-                                                            ? 2.5 : 0
-                                                    )
-                                            )
-                                            .overlay(
-                                                folder.color == iconColor
-                                                    ? Image(systemName: "checkmark")
-                                                        .font(.system(size: 11, weight: .bold))
-                                                        .foregroundStyle(.white)
-                                                    : nil
-                                            )
-                                            .shadow(
-                                                color: iconColor.color.opacity(
-                                                    folder.color == iconColor ? 0.5 : 0
-                                                ),
-                                                radius: 4
-                                            )
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                        }
+                        IconColorPicker(
+                            selectedColor: Binding(
+                                get: { folder.color },
+                                set: { viewModel.updateFolderColor(folderID, to: $0) }
+                            )
+                        )
                         .transition(.opacity.combined(with: .move(edge: .top)))
                     }
 
@@ -140,6 +111,11 @@ struct FolderContentView: View {
                 .contentShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
                 .shadow(color: Color.black.opacity(0.25), radius: 25, x: 0, y: 12)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .onExitCommand {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                        viewModel.closeFolder()
+                    }
+                }
             }
         }
     }

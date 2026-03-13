@@ -33,6 +33,14 @@ import SwiftUI
 
             coordinator.attach(to: window, useFullScreenLayout: useFullScreenLayout)
 
+            // Set a stable identifier so window lookup elsewhere doesn't rely
+            // on SwiftUI's internal identifier strings which may change.
+            if window.identifier == nil
+                || window.identifier?.rawValue.hasPrefix("com_apple_") == true
+            {
+                window.identifier = NSUserInterfaceItemIdentifier("dev.lbenicio.launchy.main")
+            }
+
             // --- Chrome ---
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true

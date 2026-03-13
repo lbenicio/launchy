@@ -18,5 +18,7 @@
     <string>14.0</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
+    <key>NSAccessibilityUsageDescription</key>
+    <string>Launchy needs Accessibility access to register the global F4 hotkey and detect trackpad pinch gestures for launching the app overlay.</string>
 </dict>
 </plist>

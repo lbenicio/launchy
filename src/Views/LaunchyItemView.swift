@@ -135,12 +135,12 @@ struct LaunchyItemView: View {
         } label: {
             Image(systemName: "xmark.circle.fill")
                 .symbolRenderingMode(.palette)
-                .foregroundStyle(.white, .black.opacity(0.4))
-                .font(.system(size: dimension * 0.28, weight: .bold))
-                .background(Color.red.opacity(0.9), in: Circle())
+                .foregroundStyle(.white, .black.opacity(0.55))
+                .font(.system(size: dimension * 0.18, weight: .bold))
+                .background(Color.black.opacity(0.5), in: Circle())
         }
         .buttonStyle(.plain)
-        .offset(x: -dimension * 0.2, y: -dimension * 0.35)
+        .offset(x: -dimension * 0.12, y: -dimension * 0.12)
         .allowsHitTesting(true)
     }
 

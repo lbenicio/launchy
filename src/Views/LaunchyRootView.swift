@@ -16,6 +16,7 @@ struct LaunchyRootView: View {
     @State private var newFolderColor: IconColor = .blue
     @State private var folderCreationError: String?
     @State private var didActivateWindow = false
+    @State private var isPresented: Bool = false
     @State private var editingBannerHeight: CGFloat = 0
     @FocusState private var isFolderNameFieldFocused: Bool
 
@@ -123,6 +124,7 @@ struct LaunchyRootView: View {
                             fillsAvailableSpace: fillScreen,
                             onBackgroundTap: handleBackgroundTap,
                             onEscape: handleEscape,
+                            onReturn: handleReturn,
                             isOverlayPresented: viewModel.presentedFolderID != nil
                                 || isShowingSettings
                         )
@@ -221,8 +223,13 @@ struct LaunchyRootView: View {
                     .onTapGesture {}
             }
         }
+        .scaleEffect(isPresented ? 1.0 : 0.8)
+        .opacity(isPresented ? 1.0 : 0)
         .onAppear {
             activateWindowIfNeeded()
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) {
+                isPresented = true
+            }
         }
         .onChange(of: viewModel.isEditing) { _, isEditing in
             if !isEditing {
@@ -325,6 +332,17 @@ struct LaunchyRootView: View {
         dismissLauncher()
     }
 
+    /// Handles the Return/Enter key: launches the top search result if searching,
+    /// matching real Launchpad's instant-launch behavior.
+    private func handleReturn() {
+        let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        // Find the top search result
+        let results = viewModel.pagedItems(matching: trimmed)
+        guard let firstPage = results.first, let topResult = firstPage.first else { return }
+        viewModel.launch(topResult)
+    }
+
     /// Handles the Escape key with a layered dismiss priority:
     /// 1. Close an open folder overlay
     /// 2. Close the settings overlay
@@ -363,7 +381,7 @@ struct LaunchyRootView: View {
                 NSApp.activate()
                 if let window = NSApp.windows.first(where: {
                     $0.isVisible
-                        && $0.identifier?.rawValue != "com_apple_SwiftUI_Settings_window"
+                        && $0.identifier?.rawValue == "dev.lbenicio.launchy.main"
                 }) {
                     window.makeKeyAndOrderFront(nil)
                     window.makeFirstResponder(window.contentView)
@@ -385,7 +403,11 @@ struct LaunchyRootView: View {
             }
             viewModel.resetLaunchState()
             didActivateWindow = false
+            isPresented = false
             activateWindowIfNeeded()
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) {
+                isPresented = true
+            }
         #endif
     }
 
@@ -403,11 +425,16 @@ struct LaunchyRootView: View {
         /// matching real Launchpad behavior. The app stays alive so
         /// it can be re-shown via the dock icon, Cmd-Tab, or a global hotkey.
         private func dismissLauncher() {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                isPresented = false
+            }
             Task { @MainActor in
+                // Short delay to let the zoom-out animation begin before window fades
+                try? await Task.sleep(for: .milliseconds(120))
                 NSApp.presentationOptions = []
                 if let window = NSApp.windows.first(where: {
                     $0.isVisible
-                        && $0.identifier?.rawValue != "com_apple_SwiftUI_Settings_window"
+                        && $0.identifier?.rawValue == "dev.lbenicio.launchy.main"
                 }) {
                     NSAnimationContext.runAnimationGroup { context in
                         context.duration = 0.18
@@ -744,19 +771,18 @@ struct PageControlView: View {
     var onSelect: (Int) -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             ForEach(0..<totalPages, id: \.self) { index in
                 let isActive = index == currentPage
                 Button {
                     onSelect(index)
                 } label: {
-                    Capsule()
-                        .fill(isActive ? Color.white.opacity(0.85) : Color.white.opacity(0.3))
-                        .frame(width: isActive ? 28 : 12, height: 8)
+                    Circle()
+                        .fill(Color.white.opacity(isActive ? 0.85 : 0.4))
+                        .frame(width: 8, height: 8)
                         .animation(.easeInOut(duration: 0.2), value: currentPage)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Go to page \(index + 1)")
             }
         }
         .padding(.horizontal, 14)
