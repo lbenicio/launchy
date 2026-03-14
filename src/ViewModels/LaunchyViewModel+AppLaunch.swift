@@ -14,20 +14,17 @@ extension LaunchyViewModel {
             guard case .app(let icon) = item else { return }
             isLaunchingApp = true
             launchingItemID = icon.id
-            MenuBarService.shared.recordLaunch(
-                name: icon.name,
-                bundleIdentifier: icon.bundleIdentifier,
-                bundleURL: icon.bundleURL
-            )
             clearRecentlyAdded(icon.bundleIdentifier)
             NSWorkspace.shared.openApplication(
                 at: icon.bundleURL,
                 configuration: NSWorkspace.OpenConfiguration()
             ) { [weak self] _, error in
-                DispatchQueue.main.async {
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
                     if let error {
                         print("Launchy: Failed to launch \(icon.name): \(error.localizedDescription)")
-                        self?.isLaunchingApp = false
+                        self.isLaunchingApp = false
+                        self.launchingItemID = nil
                         let alert = NSAlert()
                         alert.messageText = "Unable to Launch \"\(icon.name)\""
                         alert.informativeText = error.localizedDescription
@@ -36,7 +33,15 @@ extension LaunchyViewModel {
                         alert.runModal()
                         return
                     }
-                    self?.dismissAfterLaunch()
+                    // Record only on success, then let the tile animation play
+                    // before dismissing (~0.25 s matches the spring animation).
+                    MenuBarService.shared.recordLaunch(
+                        name: icon.name,
+                        bundleIdentifier: icon.bundleIdentifier,
+                        bundleURL: icon.bundleURL
+                    )
+                    try? await Task.sleep(for: .milliseconds(250))
+                    self.dismissAfterLaunch()
                 }
             }
         #endif

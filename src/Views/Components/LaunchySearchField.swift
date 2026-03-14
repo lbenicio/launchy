@@ -3,6 +3,18 @@ import SwiftUI
 #if os(macOS)
     import AppKit
 
+    /// NSSearchField subclass that grabs first-responder status as soon as
+    /// the view is attached to a window — more reliable than using a `Task`
+    /// which can fire before the window is key.
+    private final class AutoFocusSearchField: NSSearchField {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let window, window.isKeyWindow {
+                window.makeFirstResponder(self)
+            }
+        }
+    }
+
     struct LaunchySearchField: NSViewRepresentable {
         @Binding var text: String
 
@@ -11,7 +23,7 @@ import SwiftUI
         }
 
         func makeNSView(context: Context) -> NSSearchField {
-            let field = NSSearchField(string: text)
+            let field = AutoFocusSearchField(string: text)
             field.placeholderString = "Search"
             field.delegate = context.coordinator
             field.sendsSearchStringImmediately = true
@@ -21,15 +33,15 @@ import SwiftUI
             field.bezelStyle = .roundedBezel
             field.translatesAutoresizingMaskIntoConstraints = false
             field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-            // Auto-focus the search field when it first appears,
-            // matching real Launchpad's immediate-typing behavior.
-            Task { @MainActor in
-                field.window?.makeFirstResponder(field)
-            }
+            field.setAccessibilityLabel("Search apps")
+            field.setAccessibilityIdentifier("LaunchySearchField")
             return field
         }
 
         func updateNSView(_ nsView: NSSearchField, context: Context) {
+            // Keep the coordinator up-to-date so its text binding writes to the
+            // current instance rather than a stale captured copy.
+            context.coordinator.parent = self
             if nsView.stringValue != text {
                 nsView.stringValue = text
             }

@@ -1,19 +1,37 @@
 import AppKit
 import Foundation
 
+// MARK: - Cache entry wrapper
+
+/// Wraps an `NSImage` together with its cache key so the `NSCacheDelegate`
+/// can remove the matching `cachedMtimes` entry when NSCache evicts it.
+private final class IconCacheEntry: NSObject {
+    let key: NSURL
+    let image: NSImage
+
+    init(key: NSURL, image: NSImage) {
+        self.key = key
+        self.image = image
+    }
+}
+
+// MARK: - Provider
+
 @MainActor
-final class ApplicationIconProvider {
+final class ApplicationIconProvider: NSObject {
     static let shared = ApplicationIconProvider()
 
-    private let cache = NSCache<NSURL, NSImage>()
+    private let cache = NSCache<NSURL, IconCacheEntry>()
     private let workspace = NSWorkspace.shared
     /// Stores the `Info.plist` modification date at the time the icon was cached,
     /// so we can detect bundle updates (e.g. in-place app upgrades).
     private var cachedMtimes: [NSURL: Date] = [:]
 
-    private init() {
+    override private init() {
+        super.init()
         cache.countLimit = 512
-        observeAppTerminations()
+        cache.delegate = self
+        observeWorkspaceNotifications()
     }
 
     /// Returns the icon for the app at the given URL, using the cache when available.
@@ -21,17 +39,17 @@ final class ApplicationIconProvider {
     /// cached, the cache entry is evicted and the icon is re-fetched from disk.
     func icon(for url: URL) -> NSImage {
         let key = url as NSURL
-        if let cached = cache.object(forKey: key) {
+        if let entry = cache.object(forKey: key) {
             if !isBundleStale(key: key, bundleURL: url) {
-                return cached
+                return entry.image
             }
-            // Bundle updated — evict stale entry
+            // Bundle updated — evict stale entry (delegate cleans up cachedMtimes)
             cache.removeObject(forKey: key)
-            cachedMtimes.removeValue(forKey: key)
         }
 
         let image = workspace.icon(forFile: url.path)
-        cache.setObject(image, forKey: key)
+        let entry = IconCacheEntry(key: key, image: image)
+        cache.setObject(entry, forKey: key)
         cachedMtimes[key] = ApplicationIconProvider.infoPlistMtime(url)
         return image
     }
@@ -41,6 +59,7 @@ final class ApplicationIconProvider {
     func invalidateIcon(for bundleURL: URL) {
         let key = bundleURL as NSURL
         cache.removeObject(forKey: key)
+        // NSCacheDelegate handles cachedMtimes cleanup; belt-and-suspenders:
         cachedMtimes.removeValue(forKey: key)
     }
 
@@ -66,7 +85,8 @@ final class ApplicationIconProvider {
             await MainActor.run {
                 for (key, image, mtime) in loaded {
                     if self.cache.object(forKey: key) == nil {
-                        self.cache.setObject(image, forKey: key)
+                        let entry = IconCacheEntry(key: key, image: image)
+                        self.cache.setObject(entry, forKey: key)
                         self.cachedMtimes[key] = mtime
                     }
                 }
@@ -89,7 +109,8 @@ final class ApplicationIconProvider {
         return try? infoPlist.resourceValues(forKeys: keys).contentModificationDate
     }
 
-    private func observeAppTerminations() {
+    private func observeWorkspaceNotifications() {
+        // Evict the icon after an app terminates in case it was updated in-place.
         workspace.notificationCenter.addObserver(
             forName: NSWorkspace.didTerminateApplicationNotification,
             object: workspace,
@@ -98,14 +119,48 @@ final class ApplicationIconProvider {
             guard
                 let app = notification.userInfo?[
                     NSWorkspace.applicationUserInfoKey
-                ] as? NSRunningApplication
-            else {
-                return
-            }
-            guard let bundleURL = app.bundleURL else { return }
+                ] as? NSRunningApplication,
+                let bundleURL = app.bundleURL
+            else { return }
             MainActor.assumeIsolated {
                 self?.invalidateIcon(for: bundleURL)
             }
+        }
+
+        // Evict the icon when an app is launched — covers cases where the app
+        // bundle was silently replaced (e.g. auto-updater) between launches.
+        workspace.notificationCenter.addObserver(
+            forName: NSWorkspace.didLaunchApplicationNotification,
+            object: workspace,
+            queue: .main
+        ) { [weak self] notification in
+            guard
+                let app = notification.userInfo?[
+                    NSWorkspace.applicationUserInfoKey
+                ] as? NSRunningApplication,
+                let bundleURL = app.bundleURL
+            else { return }
+            MainActor.assumeIsolated {
+                self?.invalidateIcon(for: bundleURL)
+            }
+        }
+    }
+}
+
+// MARK: - NSCacheDelegate
+
+extension ApplicationIconProvider: NSCacheDelegate {
+    /// Called by NSCache when it decides to evict an entry under memory pressure.
+    /// Removes the corresponding `cachedMtimes` entry so the dictionary doesn't
+    /// grow unboundedly as NSCache silently discards images.
+    nonisolated func cache(
+        _ cache: NSCache<AnyObject, AnyObject>,
+        willEvictObject object: Any
+    ) {
+        guard let entry = object as? IconCacheEntry else { return }
+        let key = entry.key
+        Task { @MainActor [weak self] in
+            self?.cachedMtimes.removeValue(forKey: key)
         }
     }
 }

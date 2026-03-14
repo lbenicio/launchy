@@ -37,6 +37,12 @@ final class LaunchyViewModel: ObservableObject {
     let saveDebouncerDelay: TimeInterval = 0.5
 
     #if os(macOS)
+        /// Coalesces rapid filesystem events so reconciliation only runs once
+        /// after a burst of installs/uninstalls settles.
+        var reconcileDebounceTask: Task<Void, Never>?
+    #endif
+
+    #if os(macOS)
         var applicationWatcher: ApplicationWatcher?
     #endif
 
