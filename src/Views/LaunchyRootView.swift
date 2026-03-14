@@ -74,25 +74,29 @@ struct LaunchyRootView: View {
         .sheet(isPresented: $isCreatingFolder) {
             newFolderSheet
         }
-        .onReceive(NotificationCenter.default.publisher(for: .toggleInAppSettings)) { _ in
-            withAnimation(.easeInOut(duration: 0.24)) {
-                isShowingSettings.toggle()
+        .onReceive(AppCoordinator.shared.events) { event in
+            switch event {
+            case .toggleSettings:
+                withAnimation(.easeInOut(duration: 0.24)) {
+                    isShowingSettings.toggle()
+                }
+            case .launcherDidReappear:
+                reappearLauncher()
+            case .dismissLauncher:
+                dismissLauncher()
+            case .exportLayout:
+                viewModel.exportLayout()
+            case .importLayout:
+                viewModel.importLayout()
+            case .resetToDefaultLayout:
+                viewModel.resetToDefaultLayout()
+            case .sortAlphabetically:
+                viewModel.sortAlphabetically()
+            case .importFromLaunchpad:
+                viewModel.importFromLaunchpad()
+            default:
+                break
             }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .launcherDidReappear)) { _ in
-            reappearLauncher()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .dismissLauncher)) { _ in
-            dismissLauncher()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .exportLayout)) { _ in
-            viewModel.exportLayout()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .importLayout)) { _ in
-            viewModel.importLayout()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .resetToDefaultLayout)) { _ in
-            viewModel.resetToDefaultLayout()
         }
     }
 
@@ -193,7 +197,7 @@ struct LaunchyRootView: View {
                     }
 
                 FolderContentView(folderID: folderID, viewModel: viewModel)
-                    .padding(.horizontal, 120)
+                    .padding(.horizontal, edgePadding)
                     .transition(
                         .asymmetric(
                             insertion: .scale(scale: 0.45).combined(with: .opacity),

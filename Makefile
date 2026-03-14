@@ -23,8 +23,10 @@ ICON_SOURCE := assets/icon/launchy.icns
 ICON_DEST := $(RESOURCES_DIR)/launchy.icns
 
 # Distribution artifact paths
-DMG_PATH := $(DIST_DIR)/$(APP_NAME)-$(VERSION).dmg
-PKG_PATH := $(DIST_DIR)/$(APP_NAME)-$(VERSION).pkg
+DMG_PATH     := $(DIST_DIR)/$(APP_NAME)-$(VERSION).dmg
+DMG_BG       := assets/dmg/background.png
+DMG_WRITABLE := $(DIST_DIR)/$(APP_NAME)-rw.dmg
+PKG_PATH     := $(DIST_DIR)/$(APP_NAME)-$(VERSION).pkg
 PKG_IDENTIFIER := dev.lbenicio.launchy.$(APP_NAME)
 
 # Code signing & notarization settings.
@@ -192,14 +194,21 @@ release: sign notarize staple
 # the Applications symlink so users can drag-to-install.
 dmg: bundle
 	@echo "Creating disk image at $(DMG_PATH)"
-	rm -f $(DMG_PATH)
-	$(eval DMG_STAGE := $(DIST_DIR)/dmg-stage)
-	rm -rf $(DMG_STAGE)
-	mkdir -p $(DMG_STAGE)
-	cp -R $(APP_BUNDLE) $(DMG_STAGE)/
-	ln -s /Applications $(DMG_STAGE)/Applications
-	hdiutil create -volname "$(APP_NAME)" -srcfolder "$(DMG_STAGE)" -ov -format UDZO "$(DMG_PATH)"
-	rm -rf $(DMG_STAGE)
+	rm -f "$(DMG_PATH)" "$(DMG_WRITABLE)"
+	rm -rf "$(DIST_DIR)/dmg-stage"
+	mkdir -p "$(DIST_DIR)/dmg-stage/.background"
+	cp -R "$(APP_BUNDLE)" "$(DIST_DIR)/dmg-stage/"
+	ln -s /Applications "$(DIST_DIR)/dmg-stage/Applications"
+	@[ -f "$(DMG_BG)" ] && cp "$(DMG_BG)" "$(DIST_DIR)/dmg-stage/.background/background.png" && echo "  → embedding DMG background" || true
+	hdiutil create -volname "$(APP_NAME)" -srcfolder "$(DIST_DIR)/dmg-stage" -ov -format UDRW "$(DMG_WRITABLE)"
+	rm -rf "$(DIST_DIR)/dmg-stage"
+	hdiutil attach -nobrowse -noverify "$(DMG_WRITABLE)" -mountpoint "/Volumes/$(APP_NAME)-setup"
+	@sleep 2
+	-osascript scripts/dmg-setup.applescript 2>/dev/null
+	sync
+	hdiutil detach "/Volumes/$(APP_NAME)-setup" || hdiutil detach "/Volumes/$(APP_NAME)-setup" -force
+	hdiutil convert "$(DMG_WRITABLE)" -format UDZO -imagekey zlib-level=9 -o "$(DMG_PATH)"
+	rm -f "$(DMG_WRITABLE)"
 	@echo "DMG created at $(DMG_PATH)"
 
 pkg: bundle
@@ -219,30 +228,37 @@ pkg: bundle
 
 dmg-signed: sign notarize staple
 	@echo "Creating signed disk image at $(DMG_PATH)"
-	rm -f $(DMG_PATH)
-	$(eval DMG_STAGE := $(DIST_DIR)/dmg-stage)
-	rm -rf $(DMG_STAGE)
-	mkdir -p $(DMG_STAGE)
-	cp -R $(APP_BUNDLE) $(DMG_STAGE)/
-	ln -s /Applications $(DMG_STAGE)/Applications
-	hdiutil create -volname "$(APP_NAME)" -srcfolder "$(DMG_STAGE)" -ov -format UDZO "$(DMG_PATH)"
-	rm -rf $(DMG_STAGE)
+	rm -f "$(DMG_PATH)" "$(DMG_WRITABLE)"
+	rm -rf "$(DIST_DIR)/dmg-stage"
+	mkdir -p "$(DIST_DIR)/dmg-stage/.background"
+	cp -R "$(APP_BUNDLE)" "$(DIST_DIR)/dmg-stage/"
+	ln -s /Applications "$(DIST_DIR)/dmg-stage/Applications"
+	@[ -f "$(DMG_BG)" ] && cp "$(DMG_BG)" "$(DIST_DIR)/dmg-stage/.background/background.png" && echo "  → embedding DMG background" || true
+	hdiutil create -volname "$(APP_NAME)" -srcfolder "$(DIST_DIR)/dmg-stage" -ov -format UDRW "$(DMG_WRITABLE)"
+	rm -rf "$(DIST_DIR)/dmg-stage"
+	hdiutil attach -nobrowse -noverify "$(DMG_WRITABLE)" -mountpoint "/Volumes/$(APP_NAME)-setup"
+	@sleep 2
+	-osascript scripts/dmg-setup.applescript 2>/dev/null
+	sync
+	hdiutil detach "/Volumes/$(APP_NAME)-setup" || hdiutil detach "/Volumes/$(APP_NAME)-setup" -force
+	hdiutil convert "$(DMG_WRITABLE)" -format UDZO -imagekey zlib-level=9 -o "$(DMG_PATH)"
+	rm -f "$(DMG_WRITABLE)"
 	@# Sign the DMG itself
-	codesign --force --sign "$(DEVELOPER_ID_APPLICATION)" --timestamp $(DMG_PATH)
+	codesign --force --sign "$(DEVELOPER_ID_APPLICATION)" --timestamp "$(DMG_PATH)"
 	@# Notarize and staple the DMG
 	@echo "Submitting DMG to Apple notary service …"
 	@if [ -n "$(KEYCHAIN_PROFILE)" ]; then \
-		xcrun notarytool submit $(DMG_PATH) \
+		xcrun notarytool submit "$(DMG_PATH)" \
 			--keychain-profile "$(KEYCHAIN_PROFILE)" \
 			--wait; \
 	else \
-		xcrun notarytool submit $(DMG_PATH) \
+		xcrun notarytool submit "$(DMG_PATH)" \
 			--apple-id "$(APPLE_ID)" \
 			--password "$(APPLE_ID_PASSWORD)" \
 			--team-id "$(APPLE_TEAM_ID)" \
 			--wait; \
 	fi
-	xcrun stapler staple $(DMG_PATH)
+	xcrun stapler staple "$(DMG_PATH)"
 	@echo "Signed DMG created at $(DMG_PATH)"
 
 pkg-signed: sign notarize staple

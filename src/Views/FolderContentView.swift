@@ -13,11 +13,12 @@ struct FolderContentView: View {
         GeometryReader { proxy in
             if let folder {
                 let settings = settingsStore.settings
-                let maxWidth = min(proxy.size.width * 0.55, 520)
+                // Tile sizing: cap the tile-content area for readability on wide windows
+                let tileAreaWidth = min(proxy.size.width - 72, 480)
                 let spacing: CGFloat = 22
                 let totalSpacing = CGFloat(max(settings.folderColumns - 1, 0)) * spacing
                 let tileWidth =
-                    (maxWidth - 56 - totalSpacing) / CGFloat(max(settings.folderColumns, 1))
+                    (tileAreaWidth - 24 - totalSpacing) / CGFloat(max(settings.folderColumns, 1))
                 let tileDimension = max(72, tileWidth)
                 let columns = Array(
                     repeating: GridItem(.fixed(tileDimension), spacing: spacing),
@@ -114,6 +115,7 @@ struct FolderContentView: View {
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 4)
+                    .animation(.spring(response: 0.28, dampingFraction: 0.68), value: currentApps.map(\.id))
                     .animation(.easeInOut(duration: 0.2), value: safePageIndex)
 
                     // MARK: Page dots
@@ -140,14 +142,27 @@ struct FolderContentView: View {
                         .padding(.vertical, 4)
                     }
                 }
-                .padding(32)
-                .background(
-                    .ultraThinMaterial,
-                    in: RoundedRectangle(cornerRadius: 36, style: .continuous)
-                )
-                .frame(maxWidth: maxWidth)
-                .contentShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
-                .shadow(color: Color.black.opacity(0.25), radius: 25, x: 0, y: 12)
+                .padding(.horizontal, 36)
+                .padding(.vertical, 28)
+                .frame(maxWidth: .infinity)
+                .background {
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                }
+                .overlay(alignment: .top) {
+                    // Decorative pointer notch pointing upward toward the folder icon
+                    Path { path in
+                        path.move(to: CGPoint(x: 11, y: 0))
+                        path.addLine(to: CGPoint(x: 22, y: 12))
+                        path.addLine(to: CGPoint(x: 0, y: 12))
+                        path.closeSubpath()
+                    }
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 22, height: 12)
+                    .offset(y: -12)
+                }
+                .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .shadow(color: Color.black.opacity(0.22), radius: 20, x: 0, y: 10)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 .gesture(
                     DragGesture(minimumDistance: 30)

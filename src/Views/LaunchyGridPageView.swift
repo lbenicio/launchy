@@ -10,10 +10,15 @@ struct LaunchyGridPageView: View {
     let items: [LaunchyItem]
     let metrics: GridLayoutMetrics
 
+    private static let rearrangeSpring = Animation.spring(response: 0.28, dampingFraction: 0.68)
+
     var body: some View {
         LazyVGrid(columns: metrics.columns, alignment: .center, spacing: metrics.verticalSpacing) {
             ForEach(items) { item in
                 launchyTile(for: item)
+                    .transition(
+                        .scale(scale: 0.78, anchor: .center).combined(with: .opacity)
+                    )
             }
 
             if viewModel.isEditing {
@@ -29,7 +34,7 @@ struct LaunchyGridPageView: View {
         .padding(.horizontal, metrics.padding)
         .padding(.vertical, metrics.padding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: items.map(\.id))
+        .animation(Self.rearrangeSpring, value: items.map(\.id))
     }
 
     @ViewBuilder
@@ -65,8 +70,8 @@ struct LaunchyGridPageView: View {
             onDelete: { viewModel.deleteItem($0) },
             onLaunch: { viewModel.launch($0) },
             onSelect: { viewModel.toggleSelection(for: $0) },
-            onMoveLeft: { viewModel.shiftItem($0, by: -1) },
-            onMoveRight: { viewModel.shiftItem($0, by: 1) },
+            onMoveLeft: { id in withAnimation(Self.rearrangeSpring) { viewModel.shiftItem(id, by: -1) } },
+            onMoveRight: { id in withAnimation(Self.rearrangeSpring) { viewModel.shiftItem(id, by: 1) } },
             onAddSelectedAppsToFolder: { viewModel.addSelectedApps(toFolder: $0) },
             onDisbandFolder: { viewModel.disbandFolder($0) },
             onToggleEditing: { viewModel.toggleEditing() },

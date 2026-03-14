@@ -121,7 +121,7 @@ import SwiftUI
         static let shared = MenuBarActionHandler()
 
         @objc func toggleLauncher() {
-            NotificationCenter.default.post(name: .menuBarToggleLauncher, object: nil)
+            AppCoordinator.shared.send(.menuBarToggleLauncher)
         }
 
         @objc func launchApp(_ sender: NSMenuItem) {

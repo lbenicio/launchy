@@ -319,10 +319,7 @@ struct SettingsView: View {
                                 }
                                 Button("Reset") {
                                     isConfirmingReset = false
-                                    NotificationCenter.default.post(
-                                        name: .resetToDefaultLayout,
-                                        object: nil
-                                    )
+                                    AppCoordinator.shared.send(.resetToDefaultLayout)
                                 }
                                 .foregroundStyle(.red)
                             }
@@ -351,7 +348,7 @@ struct SettingsView: View {
 
                         HStack(spacing: 12) {
                             Button {
-                                NotificationCenter.default.post(name: .exportLayout, object: nil)
+                                AppCoordinator.shared.send(.exportLayout)
                             } label: {
                                 Label("Export Layout", systemImage: "square.and.arrow.up")
                                     .font(.system(size: 13, weight: .semibold))
@@ -359,7 +356,7 @@ struct SettingsView: View {
                             .buttonStyle(.bordered)
 
                             Button {
-                                NotificationCenter.default.post(name: .importLayout, object: nil)
+                                AppCoordinator.shared.send(.importLayout)
                             } label: {
                                 Label("Import Layout", systemImage: "square.and.arrow.down")
                                     .font(.system(size: 13, weight: .semibold))
@@ -380,10 +377,7 @@ struct SettingsView: View {
                         }
 
                         Button {
-                            NotificationCenter.default.post(
-                                name: .sortAlphabetically,
-                                object: nil
-                            )
+                            AppCoordinator.shared.send(.sortAlphabetically)
                         } label: {
                             Label(
                                 "Sort Alphabetically",
@@ -392,6 +386,32 @@ struct SettingsView: View {
                             .font(.system(size: 13, weight: .semibold))
                         }
                         .buttonStyle(.bordered)
+
+                        #if os(macOS)
+                            Divider()
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Launchpad Import")
+                                    .font(.system(size: 15, weight: .semibold))
+                                Text(
+                                    "Replace the current layout with your macOS Launchpad arrangement."
+                                )
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                            }
+
+                            Button {
+                                AppCoordinator.shared.send(.importFromLaunchpad)
+                            } label: {
+                                Label(
+                                    "Import from Launchpad",
+                                    systemImage: "square.grid.3x3.fill"
+                                )
+                                .font(.system(size: 13, weight: .semibold))
+                            }
+                            .buttonStyle(.bordered)
+                            .help("Reads ~/Library/Application Support/Dock/*.db")
+                        #endif
                     }
                 }
             }

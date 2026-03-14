@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 
 #if os(macOS)
@@ -5,6 +6,7 @@ import SwiftUI
 
     final class AppDelegate: NSObject, NSApplicationDelegate, @unchecked Sendable {
         private var clickOutsideMonitor: Any?
+        private var cancellables: Set<AnyCancellable> = []
 
         func applicationDidFinishLaunching(_ notification: Notification) {
             let hotkeyService = GlobalHotkeyService.shared
@@ -30,15 +32,15 @@ import SwiftUI
 
             MenuBarService.shared.setup()
 
-            NotificationCenter.default.addObserver(
-                forName: .menuBarToggleLauncher,
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                MainActor.assumeIsolated {
-                    self?.toggleLauncher()
+            AppCoordinator.shared.events
+                .filter { $0 == .menuBarToggleLauncher }
+                .receive(on: RunLoop.main)
+                .sink { [weak self] _ in
+                    MainActor.assumeIsolated {
+                        self?.toggleLauncher()
+                    }
                 }
-            }
+                .store(in: &cancellables)
 
             clickOutsideMonitor = NSEvent.addGlobalMonitorForEvents(
                 matching: [.leftMouseDown, .rightMouseDown]
@@ -83,7 +85,7 @@ import SwiftUI
                 window.isVisible,
                 window.alphaValue > 0
             else { return }
-            NotificationCenter.default.post(name: .dismissLauncher, object: nil)
+            AppCoordinator.shared.send(.dismissLauncher)
         }
 
         @MainActor private func toggleLauncher() {
@@ -94,8 +96,7 @@ import SwiftUI
             else { return }
 
             if window.isVisible && window.alphaValue > 0 {
-                // Dismiss the launcher
-                NotificationCenter.default.post(name: .dismissLauncher, object: nil)
+                AppCoordinator.shared.send(.dismissLauncher)
             } else {
                 showLauncherWindow()
             }
@@ -115,7 +116,7 @@ import SwiftUI
             // The WindowConfigurator will re-apply the correct options on the next
             // view update cycle, but we set a reasonable default here so the dock
             // and menubar hide immediately.
-            NotificationCenter.default.post(name: .launcherDidReappear, object: nil)
+            AppCoordinator.shared.send(.launcherDidReappear)
         }
     }
 #endif
@@ -155,7 +156,7 @@ struct LaunchyApp: App {
             // that toggles the in-app overlay instead of opening a separate window.
             CommandGroup(replacing: .appSettings) {
                 Button("Settings…") {
-                    NotificationCenter.default.post(name: .toggleInAppSettings, object: nil)
+                    AppCoordinator.shared.send(.toggleSettings)
                 }
                 .keyboardShortcut(",", modifiers: .command)
             }
@@ -181,15 +182,4 @@ struct LaunchyApp: App {
             }
         }
     }
-}
-
-extension Notification.Name {
-    static let toggleInAppSettings = Notification.Name("toggleInAppSettings")
-    static let launcherDidReappear = Notification.Name("launcherDidReappear")
-    static let dismissLauncher = Notification.Name("dismissLauncher")
-    static let resetToDefaultLayout = Notification.Name("resetToDefaultLayout")
-    static let menuBarToggleLauncher = Notification.Name("menuBarToggleLauncher")
-    static let exportLayout = Notification.Name("exportLayout")
-    static let importLayout = Notification.Name("importLayout")
-    static let sortAlphabetically = Notification.Name("sortAlphabetically")
 }

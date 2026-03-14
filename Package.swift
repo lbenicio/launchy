@@ -18,7 +18,8 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "Launchy",
-            path: "src"
+            path: "src",
+            linkerSettings: [.linkedLibrary("sqlite3")]
         ),
         .testTarget(
             name: "LaunchyTests",
