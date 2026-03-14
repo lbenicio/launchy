@@ -9,30 +9,44 @@ struct LaunchyGridPageView: View {
     @ObservedObject var viewModel: LaunchyViewModel
     let items: [LaunchyItem]
     let metrics: GridLayoutMetrics
+    var onEmptyTap: () -> Void = {}
 
     private static let rearrangeSpring = Animation.spring(response: 0.28, dampingFraction: 0.68)
 
     var body: some View {
-        LazyVGrid(columns: metrics.columns, alignment: .center, spacing: metrics.verticalSpacing) {
-            ForEach(items) { item in
-                launchyTile(for: item)
-                    .transition(
-                        .scale(scale: 0.78, anchor: .center).combined(with: .opacity)
-                    )
-            }
+        ZStack(alignment: .top) {
+            // Full-page tap target — receives taps on empty grid areas (no icon there).
+            // LaunchyItemView tiles sit on top and intercept taps on actual icons first.
+            Color.clear
+                .contentShape(Rectangle())
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .onTapGesture { onEmptyTap() }
 
-            if viewModel.isEditing {
-                Rectangle()
-                    .fill(Color.clear)
-                    .frame(width: metrics.itemDimension, height: metrics.itemDimension)
-                    .onDrop(
-                        of: [.launchyItemIdentifier],
-                        delegate: LaunchyTrailingDropDelegate(viewModel: viewModel)
-                    )
+            LazyVGrid(
+                columns: metrics.columns, alignment: .center,
+                spacing: metrics.verticalSpacing
+            ) {
+                ForEach(items) { item in
+                    launchyTile(for: item)
+                        .transition(
+                            .scale(scale: 0.78, anchor: .center).combined(with: .opacity)
+                        )
+                }
+
+                if viewModel.isEditing {
+                    Rectangle()
+                        .fill(Color.clear)
+                        .frame(width: metrics.itemDimension, height: metrics.itemDimension)
+                        .onDrop(
+                            of: [.launchyItemIdentifier],
+                            delegate: LaunchyTrailingDropDelegate(viewModel: viewModel)
+                        )
+                }
             }
+            .padding(.horizontal, metrics.padding)
+            .padding(.vertical, metrics.padding)
+            .frame(maxWidth: .infinity, alignment: .top)
         }
-        .padding(.horizontal, metrics.padding)
-        .padding(.vertical, metrics.padding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(Self.rearrangeSpring, value: items.map(\.id))
     }

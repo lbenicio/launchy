@@ -141,8 +141,11 @@ struct LaunchyApp: App {
 
         #if os(macOS)
             Task { @MainActor in
-                NSApp.setActivationPolicy(.regular)
-                NSApp.activate()
+                // Run as an accessory (UI agent): no Dock icon, no Cmd+Tab entry —
+                // identical to real Launchpad which is invisible in the Dock while running.
+                // LSUIElement=true in the plist sets this before launch to avoid any flicker;
+                // this call just makes the intent explicit at runtime.
+                NSApp.setActivationPolicy(.accessory)
             }
         #endif
     }

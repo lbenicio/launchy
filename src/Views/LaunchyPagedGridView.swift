@@ -63,7 +63,12 @@ struct LaunchyPagedGridView: View {
             ScrollView(.horizontal) {
                 LazyHStack(spacing: 0) {
                     ForEach(enumeratedPages, id: \.offset) { index, page in
-                        LaunchyGridPageView(viewModel: viewModel, items: page, metrics: metrics)
+                        LaunchyGridPageView(
+                            viewModel: viewModel,
+                            items: page,
+                            metrics: metrics,
+                            onEmptyTap: onBackgroundTap
+                        )
                             .frame(width: width, height: height)
                             .containerRelativeFrame(.horizontal)
                             .id(index)
@@ -225,13 +230,6 @@ struct LaunchyPagedGridView: View {
             alignment: .top
         )
         .contentShape(Rectangle())
-        .background {
-            Color.clear
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    onBackgroundTap()
-                }
-        }
         .onChange(of: pages.count) { _, newCount in
             let clampedIndex = min(viewModel.currentPage, max(newCount - 1, 0))
             viewModel.selectPage(clampedIndex, totalPages: newCount)
