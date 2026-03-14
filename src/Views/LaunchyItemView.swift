@@ -142,7 +142,11 @@ struct LaunchyItemView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint(accessibilityHint)
-        .accessibilityAddTraits(isEditing && isSelected ? [.isSelected] : [])
+        .accessibilityAddTraits(
+            isEditing && isSelected
+                ? [.isButton, .isSelected]
+                : [.isButton]
+        )
     }
 
     private var deleteBadge: some View {

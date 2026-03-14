@@ -6,6 +6,7 @@ struct FolderContentView: View {
     @ObservedObject var viewModel: LaunchyViewModel
     @EnvironmentObject private var settingsStore: GridSettingsStore
     @State private var editingName: String = ""
+    @State private var folderPage: Int = 0
 
     var body: some View {
         let folder = viewModel.folder(by: folderID)
@@ -23,7 +24,14 @@ struct FolderContentView: View {
                     count: max(settings.folderColumns, 1)
                 )
 
+                let pageCapacity = max(1, settings.folderColumns * settings.folderRows)
+                let appPages = folder.apps.chunked(into: pageCapacity)
+                let totalFolderPages = max(appPages.count, 1)
+                let safePageIndex = min(folderPage, totalFolderPages - 1)
+                let currentApps = appPages.isEmpty ? [] : appPages[safePageIndex]
+
                 VStack(spacing: 20) {
+                    // MARK: Header
                     HStack {
                         if viewModel.isEditing {
                             TextField(
@@ -57,6 +65,8 @@ struct FolderContentView: View {
                             }
                             .buttonStyle(.plain)
                             .padding(.trailing, 8)
+                            .accessibilityLabel("Split folder")
+                            .accessibilityHint("Removes the folder and returns its apps to the grid")
                         }
                         Button {
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
@@ -69,6 +79,7 @@ struct FolderContentView: View {
                                 .foregroundStyle(.white, Color.black.opacity(0.35))
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Close folder")
                     }
 
                     if viewModel.isEditing {
@@ -81,12 +92,14 @@ struct FolderContentView: View {
                         .transition(.opacity.combined(with: .move(edge: .top)))
                     }
 
+                    // MARK: Grid
                     LazyVGrid(columns: columns, alignment: .center, spacing: spacing) {
-                        ForEach(folder.apps) { app in
+                        ForEach(currentApps) { app in
                             folderIconTile(app: app, folder: folder, tileDimension: tileDimension)
                         }
 
-                        if viewModel.isEditing {
+                        // Trailing drop target only on the last page
+                        if viewModel.isEditing && safePageIndex == totalFolderPages - 1 {
                             Rectangle()
                                 .fill(Color.clear)
                                 .frame(width: tileDimension, height: tileDimension)
@@ -101,6 +114,31 @@ struct FolderContentView: View {
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 4)
+                    .animation(.easeInOut(duration: 0.2), value: safePageIndex)
+
+                    // MARK: Page dots
+                    if totalFolderPages > 1 {
+                        HStack(spacing: 8) {
+                            ForEach(0..<totalFolderPages, id: \.self) { idx in
+                                let isActive = idx == safePageIndex
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        folderPage = idx
+                                    }
+                                } label: {
+                                    Circle()
+                                        .fill(Color.white.opacity(isActive ? 0.85 : 0.35))
+                                        .frame(width: 7, height: 7)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(
+                                    "Page \(idx + 1) of \(totalFolderPages)"
+                                )
+                                .accessibilityAddTraits(isActive ? [.isSelected] : [])
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
                 }
                 .padding(32)
                 .background(
@@ -111,10 +149,37 @@ struct FolderContentView: View {
                 .contentShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
                 .shadow(color: Color.black.opacity(0.25), radius: 25, x: 0, y: 12)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .gesture(
+                    DragGesture(minimumDistance: 30)
+                        .onEnded { value in
+                            let dx = value.translation.width
+                            if dx < -40 && safePageIndex < totalFolderPages - 1 {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    folderPage = safePageIndex + 1
+                                }
+                            } else if dx > 40 && safePageIndex > 0 {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    folderPage = safePageIndex - 1
+                                }
+                            }
+                        }
+                )
                 .onExitCommand {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
                         viewModel.closeFolder()
                     }
+                }
+                .onChange(of: folder.apps.count) { _, newCount in
+                    let newPageCount = max(
+                        1,
+                        (newCount + pageCapacity - 1) / max(pageCapacity, 1)
+                    )
+                    if folderPage >= newPageCount {
+                        folderPage = max(newPageCount - 1, 0)
+                    }
+                }
+                .onChange(of: folderID) { _, _ in
+                    folderPage = 0
                 }
             }
         }
@@ -147,6 +212,7 @@ struct FolderContentView: View {
                         .buttonStyle(.plain)
                         .disabled(!canMoveLeft)
                         .opacity(canMoveLeft ? 1 : 0.35)
+                        .accessibilityLabel("Move \(app.name) left")
 
                         Button {
                             viewModel.shiftAppInFolder(folderID: folder.id, appID: app.id, by: 1)
@@ -157,6 +223,7 @@ struct FolderContentView: View {
                         .buttonStyle(.plain)
                         .disabled(!canMoveRight)
                         .opacity(canMoveRight ? 1 : 0.35)
+                        .accessibilityLabel("Move \(app.name) right")
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
@@ -183,6 +250,9 @@ struct FolderContentView: View {
                 .onTapGesture {
                     viewModel.launch(.app(app))
                 }
+                .accessibilityLabel(app.name)
+                .accessibilityHint("Double tap to open")
+                .accessibilityAddTraits(.isButton)
         }
     }
 }

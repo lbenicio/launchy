@@ -544,11 +544,17 @@ struct LaunchyRootView: View {
         }
         .buttonStyle(.plain)
         .transition(.opacity.combined(with: .scale(scale: 0.9)))
+        .accessibilityLabel(
+            "Restore \(viewModel.recentlyRemovedApps.count) removed app\(viewModel.recentlyRemovedApps.count == 1 ? "" : "s")"
+        )
+        .accessibilityHint("Returns removed apps to the end of the grid")
     }
 
     private var searchField: some View {
         LaunchySearchField(text: $searchText)
             .frame(width: 240)
+            .accessibilityLabel("Search apps")
+            .accessibilityHint("Type to filter apps by name")
     }
 
     private var wiggleToggle: some View {
@@ -567,6 +573,12 @@ struct LaunchyRootView: View {
             .background(Color.white.opacity(0.12), in: Capsule())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(viewModel.isEditing ? "Done editing" : "Edit layout")
+        .accessibilityHint(
+            viewModel.isEditing
+                ? "Exits wiggle mode and saves your arrangement"
+                : "Enter wiggle mode to rearrange or delete apps"
+        )
     }
 
     private var settingsButton: some View {
@@ -582,6 +594,8 @@ struct LaunchyRootView: View {
                 .background(Color.white.opacity(0.12), in: Capsule())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Settings")
+        .accessibilityHint("Opens Launchy settings")
     }
 
     private var selectionSummary: some View {
@@ -635,6 +649,10 @@ struct LaunchyRootView: View {
                     value: proxy.size.height
                 )
             }
+        )
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(
+            "Wiggle mode active. Select apps to make folders, drag or use arrows to reorder."
         )
     }
 
@@ -836,10 +854,14 @@ struct PageControlView: View {
                         .animation(.easeInOut(duration: 0.2), value: currentPage)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Page \(index + 1) of \(totalPages)")
+                .accessibilityHint(isActive ? "Current page" : "Go to page \(index + 1)")
+                .accessibilityAddTraits(isActive ? [.isSelected] : [])
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .background(Color.black.opacity(0.28), in: Capsule())
+        .accessibilityElement(children: .contain)
     }
 }

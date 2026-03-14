@@ -291,5 +291,8 @@ private struct TrashZoneView: View {
                 of: [.launchyItemIdentifier],
                 delegate: TrashDropDelegate(viewModel: viewModel, isHovering: $isHovering)
             )
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Remove from Launchy")
+            .accessibilityHint("Drop an app here to remove it from the grid")
     }
 }
