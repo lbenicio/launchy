@@ -63,15 +63,15 @@ extension LaunchyViewModel {
     /// Compares the current set of bundle IDs against the previously stored set
     /// and marks any new ones as "recently added".
     // Internal — also called from ApplicationWatcher and ImportExport extensions.
-    func updateRecentlyAdded() {
+    func updateRecentlyAdded(defaults: UserDefaults = .standard) {
         let key = "dev.lbenicio.launchy.known-bundle-ids"
-        let storedIDs = Set(UserDefaults.standard.stringArray(forKey: key) ?? [])
+        let storedIDs = Set(defaults.stringArray(forKey: key) ?? [])
         let currentIDs = Set(allBundleIdentifiers())
         let newIDs = currentIDs.subtracting(storedIDs)
         if !storedIDs.isEmpty {
             recentlyAddedBundleIDs = newIDs
         }
-        UserDefaults.standard.set(Array(currentIDs), forKey: key)
+        defaults.set(Array(currentIDs), forKey: key)
     }
 
     private func allBundleIdentifiers() -> [String] {

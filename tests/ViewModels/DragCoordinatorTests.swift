@@ -329,6 +329,72 @@ final class DragCoordinatorTests: XCTestCase {
         )
     }
 
+    // MARK: - Springload tests
+
+    /// Requesting a springload sets `pendingSpringloadFolderID` immediately.
+    func testRequestSpringloadSetsPendingFolderID() throws {
+        let appA = makeAppIcon(name: "AppA", bundleIdentifier: "com.test.a")
+        let appB = makeAppIcon(name: "AppB", bundleIdentifier: "com.test.b")
+        let folder = LaunchyFolder(name: "F", apps: [appB])
+        let viewModel = makeViewModel(initialItems: [.app(appA), .folder(folder)])
+
+        viewModel.beginDrag(for: appA.id)
+        viewModel.dragCoordinator.requestSpringload(id: folder.id)
+
+        XCTAssertEqual(viewModel.pendingSpringloadFolderID, folder.id)
+    }
+
+    /// Cancelling the springload clears `pendingSpringloadFolderID`.
+    func testCancelSpringloadClearsPendingFolderID() throws {
+        let appA = makeAppIcon(name: "AppA", bundleIdentifier: "com.test.a")
+        let appB = makeAppIcon(name: "AppB", bundleIdentifier: "com.test.b")
+        let folder = LaunchyFolder(name: "F", apps: [appB])
+        let viewModel = makeViewModel(initialItems: [.app(appA), .folder(folder)])
+
+        viewModel.beginDrag(for: appA.id)
+        viewModel.dragCoordinator.requestSpringload(id: folder.id)
+        XCTAssertNotNil(viewModel.pendingSpringloadFolderID)
+
+        viewModel.dragCoordinator.cancelPendingSpringload()
+        XCTAssertNil(viewModel.pendingSpringloadFolderID)
+    }
+
+    /// `endDrag` must cancel any in-flight springload so no stale folder opens
+    /// after the drag session ends.
+    func testEndDragCancelsPendingSpringload() throws {
+        let appA = makeAppIcon(name: "AppA", bundleIdentifier: "com.test.a")
+        let appB = makeAppIcon(name: "AppB", bundleIdentifier: "com.test.b")
+        let folder = LaunchyFolder(name: "F", apps: [appB])
+        let viewModel = makeViewModel(initialItems: [.app(appA), .folder(folder)])
+
+        viewModel.beginDrag(for: appA.id)
+        viewModel.dragCoordinator.requestSpringload(id: folder.id)
+        XCTAssertNotNil(viewModel.pendingSpringloadFolderID)
+
+        viewModel.endDrag(commit: false)
+        XCTAssertNil(viewModel.pendingSpringloadFolderID)
+        XCTAssertNil(viewModel.dragItemID)
+    }
+
+    /// Requesting springload for a new folder replaces any previous pending springload.
+    func testRequestSpringloadReplacesExistingPending() throws {
+        let appA = makeAppIcon(name: "AppA", bundleIdentifier: "com.test.a")
+        let appB = makeAppIcon(name: "AppB", bundleIdentifier: "com.test.b")
+        let appC = makeAppIcon(name: "AppC", bundleIdentifier: "com.test.c")
+        let folder1 = LaunchyFolder(name: "F1", apps: [appB])
+        let folder2 = LaunchyFolder(name: "F2", apps: [appC])
+        let viewModel = makeViewModel(
+            initialItems: [.app(appA), .folder(folder1), .folder(folder2)]
+        )
+
+        viewModel.beginDrag(for: appA.id)
+        viewModel.dragCoordinator.requestSpringload(id: folder1.id)
+        XCTAssertEqual(viewModel.pendingSpringloadFolderID, folder1.id)
+
+        viewModel.dragCoordinator.requestSpringload(id: folder2.id)
+        XCTAssertEqual(viewModel.pendingSpringloadFolderID, folder2.id)
+    }
+
     // MARK: - Helpers
 
     /// Creates a `LaunchyViewModel` seeded with the given items, using

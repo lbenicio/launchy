@@ -90,10 +90,18 @@ import SwiftUI
                     return self.handle(event: event) ? nil : event
                 }
 
+                // Observe resign-key to remove the event monitor while hidden,
+                // and become-key to re-install it when the window is shown again.
                 NotificationCenter.default.addObserver(
                     self,
                     selector: #selector(windowDidResignKey(_:)),
                     name: NSWindow.didResignKeyNotification,
+                    object: window
+                )
+                NotificationCenter.default.addObserver(
+                    self,
+                    selector: #selector(windowDidBecomeKey(_:)),
+                    name: NSWindow.didBecomeKeyNotification,
                     object: window
                 )
             }
@@ -110,13 +118,28 @@ import SwiftUI
                         name: NSWindow.didResignKeyNotification,
                         object: window
                     )
+                    NotificationCenter.default.removeObserver(
+                        self,
+                        name: NSWindow.didBecomeKeyNotification,
+                        object: window
+                    )
                 }
 
                 observedWindow = nil
             }
 
+            /// Remove only the event monitor when the window loses focus.
+            /// Window observers are kept so `windowDidBecomeKey` can re-install.
             @objc private func windowDidResignKey(_ notification: Notification) {
-                teardown()
+                if let monitor {
+                    NSEvent.removeMonitor(monitor)
+                    self.monitor = nil
+                }
+            }
+
+            /// Re-attach the event monitor when the launcher window regains key status.
+            @objc private func windowDidBecomeKey(_ notification: Notification) {
+                installMonitorIfNeeded(for: observedWindow)
             }
 
             private func handle(event: NSEvent) -> Bool {
@@ -131,6 +154,21 @@ import SwiftUI
             }
 
             private func handleKey(_ event: NSEvent) -> Bool {
+                // Command-[ / Command-] navigate pages regardless of current responder,
+                // matching real Launchpad's keyboard shortcut behaviour.
+                if event.modifierFlags.contains(.command) {
+                    if event.keyCode == 33 {  // [
+                        guard isEnabled else { return false }
+                        onPrevious()
+                        return true
+                    }
+                    if event.keyCode == 30 {  // ]
+                        guard isEnabled else { return false }
+                        onNext()
+                        return true
+                    }
+                }
+
                 guard shouldHandleKey(event) else { return false }
 
                 switch event.keyCode {
@@ -186,6 +224,13 @@ import SwiftUI
             }
 
             private func handleScroll(_ event: NSEvent) -> Bool {
+                // Reset at the start of a new gesture so residual momentum from the
+                // previous swipe doesn't bleed into the next one.
+                if event.phase == .began {
+                    scrollAccumulator = 0
+                    return false
+                }
+
                 let horizontalMagnitude = abs(event.scrollingDeltaX)
                 let verticalMagnitude = abs(event.scrollingDeltaY)
 

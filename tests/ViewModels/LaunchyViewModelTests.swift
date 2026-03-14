@@ -1394,6 +1394,47 @@ final class LaunchyViewModelTests: XCTestCase {
         XCTAssertTrue(loaded.isEmpty)
     }
 
+    // MARK: - Recently-added tracking
+
+    /// On first launch `storedIDs` is empty, so no app should be marked recently-added —
+    /// this prevents every single app from showing a blue "new" dot the very first time
+    /// the user opens Launchy.
+    func testUpdateRecentlyAddedDoesNotMarkAppsOnFirstRun() throws {
+        let appA = makeAppIcon(name: "AppA", bundleIdentifier: "com.test.a")
+        let appB = makeAppIcon(name: "AppB", bundleIdentifier: "com.test.b")
+        let viewModel = makeViewModel(initialItems: [.app(appA), .app(appB)])
+
+        // Pass the isolated suite — no prior known IDs, simulating first launch.
+        viewModel.updateRecentlyAdded(defaults: userDefaults)
+
+        XCTAssertTrue(
+            viewModel.recentlyAddedBundleIDs.isEmpty,
+            "On first run (empty storedIDs) no apps should be flagged as recently added"
+        )
+    }
+
+    /// After the first run, apps that appear for the first time should be marked.
+    func testUpdateRecentlyAddedMarksTrulyNewApps() throws {
+        let key = "dev.lbenicio.launchy.known-bundle-ids"
+        // Seed the isolated suite as if the app was previously opened with only appA.
+        userDefaults.set(["com.test.a"], forKey: key)
+
+        let appA = makeAppIcon(name: "AppA", bundleIdentifier: "com.test.a")
+        let appB = makeAppIcon(name: "AppB", bundleIdentifier: "com.test.b")
+        let viewModel = makeViewModel(initialItems: [.app(appA), .app(appB)])
+
+        viewModel.updateRecentlyAdded(defaults: userDefaults)
+
+        XCTAssertTrue(
+            viewModel.recentlyAddedBundleIDs.contains("com.test.b"),
+            "com.test.b is new since last run and should be flagged as recently added"
+        )
+        XCTAssertFalse(
+            viewModel.recentlyAddedBundleIDs.contains("com.test.a"),
+            "com.test.a was already known and should NOT be flagged"
+        )
+    }
+
     // MARK: - Helpers
 
     private func makeViewModel(initialItems: [LaunchyItem]) -> LaunchyViewModel {
