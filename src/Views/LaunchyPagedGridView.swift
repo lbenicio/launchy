@@ -60,15 +60,6 @@ struct LaunchyPagedGridView: View {
                     }
                 }
 
-            nonisolated(unsafe) let navigateToPage: (Int) -> Void = { target in
-                edgeDragTimer?.invalidate()
-                edgeDragTimer = nil
-                isProgrammaticScroll = true
-                withAnimation(pageAnimation) {
-                    scrollPosition = target
-                }
-            }
-
             ScrollView(.horizontal) {
                 LazyHStack(spacing: 0) {
                     ForEach(enumeratedPages, id: \.offset) { index, page in
@@ -104,9 +95,14 @@ struct LaunchyPagedGridView: View {
                                             withTimeInterval: 0.4,
                                             repeats: false
                                         ) { _ in
-                                            DispatchQueue.main.async {
+                                            Task { @MainActor in
                                                 guard viewModel.dragItemID != nil else { return }
-                                                navigateToPage(targetPage)
+                                                edgeDragTimer?.invalidate()
+                                                edgeDragTimer = nil
+                                                isProgrammaticScroll = true
+                                                withAnimation(pageAnimation) {
+                                                    scrollPosition = targetPage
+                                                }
                                             }
                                         }
                                     },
@@ -135,16 +131,25 @@ struct LaunchyPagedGridView: View {
                                             withTimeInterval: 0.4,
                                             repeats: false
                                         ) { _ in
-                                            DispatchQueue.main.async {
+                                            Task { @MainActor in
                                                 guard viewModel.dragItemID != nil else { return }
                                                 if targetPage >= totalPages {
                                                     // Move dragged item to end to create a new page
                                                     viewModel.moveDraggedItemToEnd()
-                                                    DispatchQueue.main.async {
-                                                        navigateToPage(viewModel.pageCount - 1)
+                                                    let newPage = viewModel.pageCount - 1
+                                                    edgeDragTimer?.invalidate()
+                                                    edgeDragTimer = nil
+                                                    isProgrammaticScroll = true
+                                                    withAnimation(pageAnimation) {
+                                                        scrollPosition = newPage
                                                     }
                                                 } else {
-                                                    navigateToPage(targetPage)
+                                                    edgeDragTimer?.invalidate()
+                                                    edgeDragTimer = nil
+                                                    isProgrammaticScroll = true
+                                                    withAnimation(pageAnimation) {
+                                                        scrollPosition = targetPage
+                                                    }
                                                 }
                                             }
                                         }
@@ -208,6 +213,10 @@ struct LaunchyPagedGridView: View {
                 let initial = min(viewModel.currentPage, totalPages - 1)
                 scrollPosition = initial
                 lastSettledPage = initial
+            }
+            .onDisappear {
+                edgeDragTimer?.invalidate()
+                edgeDragTimer = nil
             }
         }
         .frame(

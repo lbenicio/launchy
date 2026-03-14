@@ -97,20 +97,36 @@ final class LaunchyDataStoreTests: XCTestCase {
 
     // MARK: - Folder reconcile
 
-    func testReconcileFolderWithPartialAppsRemoved() {
+    func testReconcileFolderKeepsFolderWhenMultipleAppsRemain() {
         let appA = makeApp(name: "A", bundleID: "com.test.a")
         let appB = makeApp(name: "B", bundleID: "com.test.b")
-        let folder = makeFolder(name: "MyFolder", apps: [appA, appB])
+        let appC = makeApp(name: "C", bundleID: "com.test.c")
+        let folder = makeFolder(name: "MyFolder", apps: [appA, appB, appC])
         let stored: [LaunchyItem]  = [.folder(folder)]
-        let installed: [AppIcon]   = [appA]            // B removed
+        let installed: [AppIcon]   = [appA, appB]      // C removed, 2 survive
 
         let result = dataStore.reconcile(stored: stored, installed: installed)
 
         XCTAssertEqual(result.count, 1)
         let resultFolder = result[0].asFolder
-        XCTAssertNotNil(resultFolder, "Folder should remain when at least one app survives")
-        XCTAssertEqual(resultFolder?.apps.count, 1)
-        XCTAssertEqual(resultFolder?.apps[0].bundleIdentifier, "com.test.a")
+        XCTAssertNotNil(resultFolder, "Folder should remain when 2+ apps survive")
+        XCTAssertEqual(resultFolder?.apps.count, 2)
+    }
+
+    /// A folder reduced to exactly one surviving app should be disbanded — the app
+    /// is placed at the folder's former position as a top-level item.
+    func testReconcileFolderDisbandsWhenOneAppRemains() {
+        let appA = makeApp(name: "A", bundleID: "com.test.a")
+        let appB = makeApp(name: "B", bundleID: "com.test.b")
+        let folder = makeFolder(name: "MyFolder", apps: [appA, appB])
+        let stored: [LaunchyItem]  = [.folder(folder)]
+        let installed: [AppIcon]   = [appA]            // B removed, 1 survives
+
+        let result = dataStore.reconcile(stored: stored, installed: installed)
+
+        XCTAssertEqual(result.count, 1)
+        XCTAssertNotNil(result[0].asApp, "1-app folder should be disbanded to a top-level app")
+        XCTAssertEqual(result[0].asApp?.bundleIdentifier, "com.test.a")
     }
 
     func testReconcileFolderWithAllAppsRemovedDropsFolder() {
@@ -128,16 +144,23 @@ final class LaunchyDataStoreTests: XCTestCase {
         let originalID = UUID()
         let oldURL  = URL(fileURLWithPath: "/old/FolderApp.app")
         let newURL  = URL(fileURLWithPath: "/new/FolderApp.app")
+        let appA    = makeApp(name: "AppA", bundleID: "com.test.a")
         let stored  = makeApp(name: "FolderApp", bundleID: "com.test.fa", url: oldURL, id: originalID)
-        let folder  = makeFolder(name: "Utilities", apps: [stored])
-        let installed = makeApp(name: "FolderApp", bundleID: "com.test.fa", url: newURL)
+        let folder  = makeFolder(name: "Utilities", apps: [appA, stored])
+        let installedA  = makeApp(name: "AppA", bundleID: "com.test.a")
+        let installed   = makeApp(name: "FolderApp", bundleID: "com.test.fa", url: newURL)
 
-        let result = dataStore.reconcile(stored: [.folder(folder)], installed: [installed])
+        let result = dataStore.reconcile(
+            stored: [.folder(folder)],
+            installed: [installedA, installed]
+        )
 
         XCTAssertEqual(result.count, 1)
         let resultFolder = result[0].asFolder
-        XCTAssertEqual(resultFolder?.apps.first?.bundleURL, newURL)
-        XCTAssertEqual(resultFolder?.apps.first?.id, originalID)
+        XCTAssertNotNil(resultFolder, "Folder should be kept when 2 apps survive")
+        let refreshed = resultFolder?.apps.first(where: { $0.bundleIdentifier == "com.test.fa" })
+        XCTAssertEqual(refreshed?.bundleURL, newURL, "Bundle URL should be refreshed")
+        XCTAssertEqual(refreshed?.id, originalID, "ID should be preserved")
     }
 
     // MARK: - Order preservation

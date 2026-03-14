@@ -659,6 +659,32 @@ final class LaunchyViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.recentlyRemovedApps.contains(where: { $0.id == appA.id }))
     }
 
+    /// When the second-to-last app in a folder is deleted, the folder should be disbanded
+    /// and the remaining app placed at the folder's former position — matching Launchpad behaviour.
+    func testDeleteSecondToLastAppInFolderDisbandsFolder() throws {
+        let appA = makeAppIcon(name: "AppA", bundleIdentifier: "com.test.a")
+        let appB = makeAppIcon(name: "AppB", bundleIdentifier: "com.test.b")
+        let appC = makeAppIcon(name: "AppC", bundleIdentifier: "com.test.c")
+        let folder = LaunchyFolder(name: "Duo", apps: [appA, appB])
+
+        let viewModel = makeViewModel(initialItems: [.folder(folder), .app(appC)])
+
+        viewModel.deleteItem(appA.id)
+
+        XCTAssertNil(viewModel.folder(by: folder.id), "Folder should be disbanded when only one app remains")
+        XCTAssertTrue(
+            viewModel.items.contains(where: { $0.id == appB.id && $0.asApp != nil }),
+            "Remaining app should become a top-level item"
+        )
+        XCTAssertTrue(viewModel.items.contains(where: { $0.id == appC.id }))
+        XCTAssertEqual(viewModel.items.count, 2)
+        XCTAssertTrue(
+            viewModel.recentlyRemovedApps.contains(where: { $0.id == appA.id }),
+            "Deleted app should be in recently-removed list"
+        )
+        XCTAssertNil(viewModel.presentedFolderID)
+    }
+
     func testDeleteAppInsideFolderKeepsFolderWhenOtherAppsRemain() throws {
         let appA = makeAppIcon(name: "AppA", bundleIdentifier: "com.test.a")
         let appB = makeAppIcon(name: "AppB", bundleIdentifier: "com.test.b")

@@ -154,6 +154,18 @@ final class LaunchyViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
+        // Initialise the coordinator and wire change propagation before any
+        // async work starts, so methods called from the load Task can safely
+        // access dragCoordinator without risking a nil force-unwrap.
+        dragCoordinator = DragCoordinator(viewModel: self)
+        dragCoordinator.objectWillChange
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+
+        undoManager.objectWillChange
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+
         if initialItems != nil {
             ensureCurrentPageInBounds()
             persistLastVisitedPageIfNeeded(currentPage)
@@ -181,14 +193,5 @@ final class LaunchyViewModel: ObservableObject {
                 #endif
             }
         }
-
-        dragCoordinator = DragCoordinator(viewModel: self)
-        dragCoordinator.objectWillChange
-            .sink { [weak self] _ in self?.objectWillChange.send() }
-            .store(in: &cancellables)
-
-        undoManager.objectWillChange
-            .sink { [weak self] _ in self?.objectWillChange.send() }
-            .store(in: &cancellables)
     }
 }

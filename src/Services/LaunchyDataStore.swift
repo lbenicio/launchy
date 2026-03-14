@@ -138,9 +138,12 @@ extension LaunchyDataStore {
                     updatedApps.append(refreshed)
                 }
 
-                if !updatedApps.isEmpty {
+                if updatedApps.count > 1 {
                     folder.apps = updatedApps
                     results.append(.folder(folder))
+                } else if updatedApps.count == 1 {
+                    // Disband — matches Launchpad behaviour of auto-disbanding 1-app folders
+                    results.append(.app(updatedApps[0]))
                 }
             }
         }
