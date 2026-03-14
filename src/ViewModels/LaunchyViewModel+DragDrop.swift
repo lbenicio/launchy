@@ -33,6 +33,17 @@ extension LaunchyViewModel {
         dragCoordinator.cancelPendingStacking()
     }
 
+    /// Requests the folder overlay to open after a short springload delay,
+    /// matching real Launchpad's folder-hover-to-open behaviour.
+    func requestSpringload(folderID: UUID) {
+        dragCoordinator.requestSpringload(id: folderID)
+    }
+
+    /// Cancels any pending springload timer.
+    func cancelPendingSpringload() {
+        dragCoordinator.cancelPendingSpringload()
+    }
+
     /// Commits the pending stacking if it matches the given target ID.
     /// Returns whether stacking occurred.
     @discardableResult

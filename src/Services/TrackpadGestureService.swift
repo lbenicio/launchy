@@ -16,9 +16,17 @@ import Foundation
         /// Called on the main thread when a qualifying pinch-in gesture is detected.
         var onPinchIn: (() -> Void)?
 
+        /// Called on the main thread when a qualifying pinch-out (spread) gesture is detected.
+        /// Real Launchpad opens on pinch-out; use this to show the launcher.
+        var onPinchOut: (() -> Void)?
+
         /// The magnification delta threshold that must be crossed in a single
         /// gesture to count as a "pinch in". Negative values = pinch in.
         var threshold: CGFloat = -0.4
+
+        /// The magnification delta threshold for a pinch-out (spread) gesture.
+        /// Positive values = spread/zoom out.
+        var outThreshold: CGFloat = 0.4
 
         /// Whether the service is currently listening.
         private(set) var isRunning: Bool = false
@@ -37,14 +45,14 @@ import Foundation
 
             globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .magnify) {
                 [weak self] event in
-                DispatchQueue.main.async {
+                Task { @MainActor [weak self] in
                     self?.handleMagnification(event)
                 }
             }
 
             localMonitor = NSEvent.addLocalMonitorForEvents(matching: .magnify) {
                 [weak self] event in
-                DispatchQueue.main.async {
+                Task { @MainActor [weak self] in
                     self?.handleMagnification(event)
                 }
                 return event
@@ -77,6 +85,8 @@ import Foundation
                 guard gestureActive else { return }
                 if accumulatedMagnification <= threshold {
                     onPinchIn?()
+                } else if accumulatedMagnification >= outThreshold {
+                    onPinchOut?()
                 }
                 resetState()
             default:

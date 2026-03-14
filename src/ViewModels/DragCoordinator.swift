@@ -16,11 +16,15 @@ final class DragCoordinator: ObservableObject {
     @Published private(set) var dragItemID: UUID? = nil
     @Published private(set) var dragSourceFolderID: UUID? = nil
     @Published private(set) var pendingStackTargetID: UUID? = nil
+    @Published private(set) var pendingSpringloadFolderID: UUID? = nil
 
     // MARK: - Internal state
 
     private var pendingStackTask: Task<Void, Never>?
     private let stackingDelay: TimeInterval = 0.35
+
+    private var pendingSpringloadTask: Task<Void, Never>?
+    private let springloadDelay: TimeInterval = 0.8
 
     // MARK: - Back-reference to the owning view model
 
@@ -48,6 +52,7 @@ final class DragCoordinator: ObservableObject {
         dragItemID = nil
         dragSourceFolderID = nil
         cancelPendingStacking()
+        cancelPendingSpringload()
     }
 
     // MARK: - Extraction from folder
@@ -105,6 +110,28 @@ final class DragCoordinator: ObservableObject {
         pendingStackTask?.cancel()
         pendingStackTask = nil
         pendingStackTargetID = nil
+    }
+
+    // MARK: - Springload (auto-open folder on drag hover)
+
+    /// Schedules the folder overlay to open after `springloadDelay` seconds when
+    /// a dragged item hovers over a closed folder — matching real Launchpad behaviour.
+    func requestSpringload(id: UUID) {
+        guard id != pendingSpringloadFolderID else { return }
+        cancelPendingSpringload()
+        pendingSpringloadFolderID = id
+        pendingSpringloadTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(self?.springloadDelay ?? 0.8))
+            guard !Task.isCancelled, let self, self.dragItemID != nil else { return }
+            viewModel.openFolder(with: id)
+        }
+    }
+
+    /// Cancels any pending springload timer and clears the target folder.
+    func cancelPendingSpringload() {
+        pendingSpringloadTask?.cancel()
+        pendingSpringloadTask = nil
+        pendingSpringloadFolderID = nil
     }
 
     /// Commits the pending stacking if it matches the given target ID. Returns whether stacking occurred.

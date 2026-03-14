@@ -55,9 +55,10 @@ struct LaunchyItemDropDelegate: DropDelegate {
         guard let dragID = viewModel.dragItemID, dragID != item.id else { return }
 
         if case .folder = item {
-            // For folders, always treat as "add to folder" when hovering
+            // Springload: open the folder overlay after a short hover delay,
+            // matching real Launchpad — don't add the app eagerly.
             viewModel.cancelPendingStacking()
-            viewModel.addApp(dragID, toFolder: item.id)
+            viewModel.requestSpringload(folderID: item.id)
         } else if shouldStack(using: info) {
             viewModel.requestStacking(onto: item.id)
         } else {
@@ -72,7 +73,7 @@ struct LaunchyItemDropDelegate: DropDelegate {
         }
 
         if case .folder = item {
-            // Always accept into folder
+            // Keep the springload in progress; no stacking changes needed
         } else if shouldStack(using: info) {
             viewModel.requestStacking(onto: item.id)
         } else {
@@ -83,12 +84,16 @@ struct LaunchyItemDropDelegate: DropDelegate {
 
     func dropExited(info: DropInfo) {
         viewModel.cancelPendingStacking()
+        viewModel.cancelPendingSpringload()
     }
 
     func performDrop(info: DropInfo) -> Bool {
-        // For folder targets, the item was already added in dropEntered
+        viewModel.cancelPendingSpringload()
+
+        // For folder targets, move the dragged item into the folder now
         if case .folder = item {
             viewModel.cancelPendingStacking()
+            _ = viewModel.stackDraggedItem(onto: item.id)
             viewModel.endDrag(commit: true)
             return true
         }

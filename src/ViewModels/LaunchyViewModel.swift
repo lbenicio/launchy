@@ -58,6 +58,7 @@ final class LaunchyViewModel: ObservableObject {
     var dragItemID: UUID? { dragCoordinator.dragItemID }
     var dragSourceFolderID: UUID? { dragCoordinator.dragSourceFolderID }
     var pendingStackTargetID: UUID? { dragCoordinator.pendingStackTargetID }
+    var pendingSpringloadFolderID: UUID? { dragCoordinator.pendingSpringloadFolderID }
 
     var settings: GridSettings { settingsStore.settings }
 

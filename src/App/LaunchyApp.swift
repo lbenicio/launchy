@@ -24,6 +24,11 @@ import SwiftUI
             trackpadService.onPinchIn = { [weak self] in
                 self?.toggleLauncher()
             }
+            trackpadService.onPinchOut = { [weak self] in
+                // Pinch-out (spread) always shows the launcher, never dismisses —
+                // mirrors real Launchpad where spreading fingers reveals the grid.
+                self?.showLauncherWindow()
+            }
             trackpadService.start()
 
             MenuBarService.shared.setup()
