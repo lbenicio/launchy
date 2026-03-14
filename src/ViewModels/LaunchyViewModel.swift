@@ -15,6 +15,9 @@ final class LaunchyViewModel: ObservableObject {
     @Published var isEditing: Bool = false
     @Published var currentPage: Int = 0
     @Published var presentedFolderID: UUID? = nil
+    /// Screen-coordinate X of the folder icon that was tapped to open the overlay.
+    /// Used to position the triangular notch on `FolderContentView`. Nil → centered.
+    @Published var folderOpenScreenX: CGFloat? = nil
     @Published var selectedItemIDs: Set<UUID> = []
     @Published var isLaunchingApp: Bool = false
     @Published var launchingItemID: UUID? = nil

@@ -5,6 +5,9 @@ struct FolderContentView: View {
     let folderID: UUID
     @ObservedObject var viewModel: LaunchyViewModel
     @EnvironmentObject private var settingsStore: GridSettingsStore
+    /// Normalised horizontal position (0 = left edge, 1 = right edge) of the
+    /// folder icon that triggered the overlay, used to aim the pointer notch.
+    var anchorX: CGFloat = 0.5
     @State private var editingName: String = ""
     @State private var folderPage: Int = 0
 
@@ -150,7 +153,9 @@ struct FolderContentView: View {
                         .fill(.ultraThinMaterial)
                 }
                 .overlay(alignment: .top) {
-                    // Decorative pointer notch pointing upward toward the folder icon
+                    // Pointer notch aimed at the folder icon that opened this overlay.
+                    // anchorX (0-1) shifts it horizontally from the center.
+                    let notchOffset = (anchorX - 0.5) * proxy.size.width
                     Path { path in
                         path.move(to: CGPoint(x: 11, y: 0))
                         path.addLine(to: CGPoint(x: 22, y: 12))
@@ -159,7 +164,7 @@ struct FolderContentView: View {
                     }
                     .fill(.ultraThinMaterial)
                     .frame(width: 22, height: 12)
-                    .offset(y: -12)
+                    .offset(x: notchOffset, y: -12)
                 }
                 .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                 .shadow(color: Color.black.opacity(0.22), radius: 20, x: 0, y: 10)

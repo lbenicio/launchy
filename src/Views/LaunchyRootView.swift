@@ -196,7 +196,11 @@ struct LaunchyRootView: View {
                         }
                     }
 
-                FolderContentView(folderID: folderID, viewModel: viewModel)
+                FolderContentView(
+                    folderID: folderID,
+                    viewModel: viewModel,
+                    anchorX: folderNotchAnchorX(edgePadding: edgePadding)
+                )
                     .padding(.horizontal, edgePadding)
                     .transition(
                         .asymmetric(
@@ -456,6 +460,27 @@ struct LaunchyRootView: View {
         let filtered = viewModel.pagedItems(matching: trimmed)
         return filtered.isEmpty ? [[]] : filtered
     }
+
+    #if os(macOS)
+        /// Converts `viewModel.folderOpenScreenX` (a raw screen-coordinate X) into a
+        /// normalised 0–1 anchor for `FolderContentView`'s pointer notch.
+        /// Falls back to 0.5 (centered) when the window or screen X is unavailable.
+        private func folderNotchAnchorX(edgePadding: CGFloat) -> CGFloat {
+            guard let screenX = viewModel.folderOpenScreenX,
+                let window = NSApp.windows.first(where: {
+                    $0.identifier?.rawValue == "dev.lbenicio.launchy.main"
+                })
+            else { return 0.5 }
+
+            let windowLocalX = screenX - window.frame.minX
+            let overlayContentX = windowLocalX - edgePadding
+            let overlayWidth = window.frame.width - 2 * edgePadding
+            let normalized = overlayContentX / max(overlayWidth, 1)
+            return max(0.08, min(0.92, normalized))
+        }
+    #else
+        private func folderNotchAnchorX(edgePadding _: CGFloat) -> CGFloat { 0.5 }
+    #endif
 
     #if os(macOS)
         /// Hides the launcher window and returns to the desktop,

@@ -63,9 +63,16 @@ struct LaunchyGridPageView: View {
             hasSelectedApps: viewModel.hasSelectedApps,
             isRecentlyAdded: recentlyAdded,
             onOpenFolder: { id in
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
-                    viewModel.openFolder(with: id)
-                }
+                #if os(macOS)
+                    let screenX = NSEvent.mouseLocation.x
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                        viewModel.openFolder(with: id, screenX: screenX)
+                    }
+                #else
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                        viewModel.openFolder(with: id)
+                    }
+                #endif
             },
             onDelete: { viewModel.deleteItem($0) },
             onLaunch: { viewModel.launch($0) },

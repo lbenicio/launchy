@@ -9,13 +9,17 @@ import Foundation
 extension LaunchyViewModel {
 
     /// Presents the folder overlay for the given folder ID.
-    func openFolder(with id: UUID) {
+    /// - Parameter screenX: Optional screen-coordinate X of the folder icon's
+    ///   horizontal centre, used to position the pointer notch on the overlay.
+    func openFolder(with id: UUID, screenX: CGFloat? = nil) {
         presentedFolderID = id
+        folderOpenScreenX = screenX
     }
 
     /// Dismisses the currently presented folder overlay.
     func closeFolder() {
         presentedFolderID = nil
+        folderOpenScreenX = nil
     }
 
     func showInFinder(_ item: LaunchyItem) {
