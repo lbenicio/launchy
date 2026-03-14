@@ -103,38 +103,3 @@ final class InstalledApplicationsProviderTests: XCTestCase {
         XCTAssertEqual(names, ["Alpha", "Mango", "Zephyr"])
     }
 }
-
-// MARK: - StubFileManager
-
-private final class StubFileManager: FileManager {
-    private let blockedPaths: Set<String>
-
-    override init() {
-        let homeApps = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Applications", isDirectory: true)
-        blockedPaths = Set([
-            "/Applications",
-            "/System/Applications",
-            NSString(string: homeApps.path).standardizingPath,
-        ])
-        super.init()
-    }
-
-    override func fileExists(atPath path: String) -> Bool {
-        let normalized = NSString(string: path).standardizingPath
-        if blockedPaths.contains(normalized) { return false }
-        return super.fileExists(atPath: path)
-    }
-
-    override func fileExists(
-        atPath path: String,
-        isDirectory: UnsafeMutablePointer<ObjCBool>?
-    ) -> Bool {
-        let normalized = NSString(string: path).standardizingPath
-        if blockedPaths.contains(normalized) {
-            isDirectory?.pointee = false
-            return false
-        }
-        return super.fileExists(atPath: path, isDirectory: isDirectory)
-    }
-}

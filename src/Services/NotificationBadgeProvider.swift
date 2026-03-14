@@ -44,9 +44,16 @@ final class NotificationBadgeProvider: ObservableObject {
 
         /// Fetches badge counts for all running applications using a single
         /// `lsappinfo list` invocation instead of one process per app.
+        ///
+        /// - Note: `lsappinfo` is a private Apple binary. If it stops existing in a
+        ///   future macOS release this function silently returns an empty dictionary,
+        ///   so badges simply disappear rather than crashing.
         nonisolated private static func fetchBadgeCounts() -> [String: String] {
+            let binaryPath = "/usr/bin/lsappinfo"
+            guard FileManager.default.fileExists(atPath: binaryPath) else { return [:] }
+
             let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/usr/bin/lsappinfo")
+            task.executableURL = URL(fileURLWithPath: binaryPath)
             task.arguments = ["list", "-only", "StatusLabel"]
 
             let pipe = Pipe()
@@ -59,6 +66,8 @@ final class NotificationBadgeProvider: ObservableObject {
             } catch {
                 return [:]
             }
+
+            guard task.terminationStatus == 0 else { return [:] }
 
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             guard let output = String(data: data, encoding: .utf8) else { return [:] }

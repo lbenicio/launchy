@@ -307,7 +307,7 @@ run:
 	swift run --configuration debug
 
 test:
-	swift test
+	swift test --parallel
 
 clean:
 	swift package clean

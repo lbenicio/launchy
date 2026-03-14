@@ -11,13 +11,9 @@ import SwiftUI
         func applicationDidFinishLaunching(_ notification: Notification) {
             let hotkeyService = GlobalHotkeyService.shared
 
-            // Apply persisted key code before starting
-            if let data = UserDefaults.standard.data(
-                forKey: "dev.lbenicio.launchy.grid-settings"),
-                let stored = try? JSONDecoder().decode(GridSettings.self, from: data)
-            {
-                hotkeyService.keyCode = CGKeyCode(stored.hotkeyKeyCode)
-            }
+            // Apply persisted key code before starting — delegate to
+            // GridSettingsStore so decoding and validation stay in one place.
+            hotkeyService.keyCode = CGKeyCode(GridSettingsStore().settings.hotkeyKeyCode)
 
             hotkeyService.onToggle = { [weak self] in
                 self?.toggleLauncher()
