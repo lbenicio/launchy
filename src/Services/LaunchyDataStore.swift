@@ -54,32 +54,40 @@ final class LaunchyDataStore {
         }
     }
 
-    /// Loads items asynchronously, scanning the disk for installed apps off
-    /// the main actor and then reconciling against any persisted layout.
+    /// Loads items asynchronously, running all disk I/O (app scanning + JSON reading)
+    /// off the main actor so startup never blocks the UI.
     func loadAsync() async -> [LaunchyItem] {
-        // Construct a fresh provider inside the detached task so we never
-        // capture the main-actor-isolated `self` or its stored properties.
-        let installedApps: [AppIcon] = await Task.detached(priority: .userInitiated) {
+        // Capture stable value types so the detached task doesn't reference self
+        let url = storageURL
+
+        struct RawLoad: Sendable {
+            let installedApps: [AppIcon]
+            let storedItems: [LaunchyItem]?
+        }
+
+        // Run both filesystem operations together in one detached task
+        let raw: RawLoad = await Task.detached(priority: .userInitiated) {
             let provider = InstalledApplicationsProvider(fileManager: .default)
-            return provider.fetchApplications()
+            let apps = provider.fetchApplications()
+
+            guard FileManager.default.fileExists(atPath: url.path),
+                let data = try? Data(contentsOf: url),
+                let stored = try? JSONDecoder().decode([LaunchyItem].self, from: data)
+            else {
+                return RawLoad(installedApps: apps, storedItems: nil)
+            }
+            return RawLoad(installedApps: apps, storedItems: stored)
         }.value
 
-        guard fileManager.fileExists(atPath: storageURL.path) else {
-            return installedApps.map { LaunchyItem.app($0) }
+        guard let storedItems = raw.storedItems else {
+            return raw.installedApps.map { LaunchyItem.app($0) }
         }
 
-        do {
-            let data = try Data(contentsOf: storageURL)
-            let storedItems = try decoder.decode([LaunchyItem].self, from: data)
-            let reconciled = reconcile(stored: storedItems, installed: installedApps)
-            if reconciled != storedItems {
-                save(reconciled)
-            }
-            return reconciled
-        } catch {
-            print("LaunchyDataStore: Load error => \(error)")
-            return installedApps.map { LaunchyItem.app($0) }
+        let reconciled = reconcile(stored: storedItems, installed: raw.installedApps)
+        if reconciled != storedItems {
+            save(reconciled)
         }
+        return reconciled
     }
 
     /// Returns a fresh layout from currently installed applications,

@@ -139,7 +139,7 @@ struct LaunchyApp: App {
         )
 
         #if os(macOS)
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 NSApp.setActivationPolicy(.regular)
                 NSApp.activate()
             }

@@ -29,6 +29,7 @@ extension LaunchyViewModel {
         syncService.onRemoteChange = { [weak self] remoteItems in
             guard let self, self.settingsStore.settings.iCloudSyncEnabled else { return }
             if remoteItems != self.items {
+                self.recordForUndo()
                 self.items = remoteItems
                 self.ensureCurrentPageInBounds()
             }

@@ -714,7 +714,7 @@ struct LaunchyRootView: View {
         newFolderColor = .blue
         folderCreationError = nil
         isCreatingFolder = true
-        DispatchQueue.main.async {
+        Task { @MainActor in
             isFolderNameFieldFocused = true
         }
     }

@@ -60,7 +60,13 @@ final class ICloudSyncService: ObservableObject {
         store.set(Date().timeIntervalSince1970, forKey: timestampKey)
         store.synchronize()
         lastSyncDate = Date()
-        isSyncing = false
+
+        // NSUbiquitousKeyValueStore writes are synchronous to local cache but propagate
+        // async to iCloud. Keep the flag true briefly so observers can render a spinner.
+        Task {
+            try? await Task.sleep(for: .milliseconds(800))
+            isSyncing = false
+        }
     }
 
     /// Downloads the layout from iCloud, if available.

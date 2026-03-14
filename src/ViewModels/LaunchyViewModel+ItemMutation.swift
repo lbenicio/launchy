@@ -122,8 +122,16 @@ extension LaunchyViewModel {
             {
                 let removedApp = folder.apps.remove(at: appIdx)
                 recentlyRemovedApps.append(removedApp)
-                if folder.apps.isEmpty { items.remove(at: i) }
-                else { items[i] = .folder(folder) }
+                if folder.apps.isEmpty {
+                    items.remove(at: i)
+                    if presentedFolderID == folder.id { presentedFolderID = nil }
+                } else if folder.apps.count == 1 {
+                    // Disband the folder when only one app remains — matches real Launchpad behaviour
+                    items[i] = .app(folder.apps[0])
+                    if presentedFolderID == folder.id { presentedFolderID = nil }
+                } else {
+                    items[i] = .folder(folder)
+                }
                 saveNow()
                 return
             }

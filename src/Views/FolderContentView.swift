@@ -195,6 +195,7 @@ struct FolderContentView: View {
                 }
                 .onChange(of: folderID) { _, _ in
                     folderPage = 0
+                    editingName = viewModel.folder(by: folderID)?.name ?? ""
                 }
             }
         }
