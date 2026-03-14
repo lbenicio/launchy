@@ -27,6 +27,16 @@
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(isRecording ? Color.yellow.opacity(0.6) : Color.clear, lineWidth: 1.5)
             )
+            .accessibilityLabel(
+                isRecording
+                    ? "Recording global hotkey"
+                    : "Global hotkey: \(keyDisplayName(keyCode))"
+            )
+            .accessibilityHint(
+                isRecording
+                    ? "Press any key to set it as the new hotkey, or press Escape to cancel"
+                    : "Double tap to record a new hotkey"
+            )
             .onDisappear { stopRecording() }
         }
 

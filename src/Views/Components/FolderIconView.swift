@@ -81,7 +81,16 @@ struct FolderIconView: View {
         }
         .wiggle(if: isEditing)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(folder.name) folder, \(folder.apps.count) apps")
+        .accessibilityLabel(accessibilityLabelString)
+    }
+
+    private var accessibilityLabelString: String {
+        #if os(macOS)
+            if !isEditing, aggregateBadgeCount > 0 {
+                return "\(folder.name) folder, \(folder.apps.count) apps, \(aggregateBadgeCount) notification\(aggregateBadgeCount == 1 ? "" : "s")"
+            }
+        #endif
+        return "\(folder.name) folder, \(folder.apps.count) apps"
     }
 
     private var previewGrid: some View {

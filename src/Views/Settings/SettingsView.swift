@@ -477,6 +477,7 @@ extension SettingsView {
                 Stepper("", value: binding, in: range)
                     .labelsHidden()
                     .fixedSize()
+                    .accessibilityLabel(title)
             }
         }
     }

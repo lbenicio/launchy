@@ -46,7 +46,19 @@ struct AppIconTile: View {
         }
         .wiggle(if: isEditing)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(icon.name)
+        .accessibilityLabel(accessibilityLabelString)
+    }
+
+    private var accessibilityLabelString: String {
+        #if os(macOS)
+            if !isEditing,
+                let badge = badgeProvider.badges[icon.bundleIdentifier],
+                !badge.isEmpty
+            {
+                return "\(icon.name), \(badge) notification\(badge == "1" ? "" : "s")"
+            }
+        #endif
+        return icon.name
     }
 
     @ViewBuilder

@@ -699,6 +699,7 @@ struct LaunchyRootView: View {
         .buttonStyle(.plain)
         .disabled(!canCreateFolder)
         .opacity(canCreateFolder ? 1 : 0.45)
+        .accessibilityHint("Creates a folder from the selected apps")
         .help("Select at least two apps to create a folder")
     }
 
@@ -715,6 +716,8 @@ struct LaunchyRootView: View {
         .buttonStyle(.plain)
         .disabled(!hasSelection)
         .opacity(hasSelection ? 1 : 0.4)
+        .accessibilityLabel("Clear selection")
+        .accessibilityHint("Deselects all selected apps")
     }
 
     private var hasSelection: Bool {
@@ -824,6 +827,11 @@ struct LaunchyRootView: View {
                                     )
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel(iconColor.rawValue.capitalized)
+                            .accessibilityHint(
+                                newFolderColor == iconColor ? "Selected" : "Double tap to select"
+                            )
+                            .accessibilityAddTraits(newFolderColor == iconColor ? [.isSelected] : [])
                         }
                     }
                 }

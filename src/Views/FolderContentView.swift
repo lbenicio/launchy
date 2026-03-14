@@ -47,6 +47,7 @@ struct FolderContentView: View {
                             )
                             .font(.system(size: 20, weight: .semibold))
                             .textFieldStyle(.plain)
+                            .accessibilityLabel("Folder name")
                             .onAppear { editingName = folder.name }
                             .onChange(of: folder.name) { _, newName in
                                 editingName = newName
@@ -139,6 +140,7 @@ struct FolderContentView: View {
                                 .accessibilityLabel(
                                     "Page \(idx + 1) of \(totalFolderPages)"
                                 )
+                                .accessibilityHint("Go to page \(idx + 1)")
                                 .accessibilityAddTraits(isActive ? [.isSelected] : [])
                             }
                         }
@@ -222,6 +224,7 @@ struct FolderContentView: View {
 
         if viewModel.isEditing {
             base
+                .accessibilityHint("Drag to reorder")
                 .overlay(alignment: .bottom) {
                     HStack(spacing: 12) {
                         Button {

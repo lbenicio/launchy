@@ -147,6 +147,19 @@ struct LaunchyItemView: View {
                 ? [.isButton, .isSelected]
                 : [.isButton]
         )
+        .accessibilityAction(named: "Delete") { onDelete(item.id) }
+        .accessibilityAction(named: isSelected ? "Deselect" : "Select") {
+            if case .app = item { onSelect(item.id) }
+        }
+        .accessibilityAction(named: "Move left") {
+            if canMoveLeft { onMoveLeft(item.id) }
+        }
+        .accessibilityAction(named: "Move right") {
+            if canMoveRight { onMoveRight(item.id) }
+        }
+        .accessibilityAction(named: "Split folder") {
+            if case .folder = item { onDisbandFolder(item.id) }
+        }
     }
 
     private var deleteBadge: some View {

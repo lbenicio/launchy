@@ -37,6 +37,9 @@ struct IconColorPicker: View {
                             )
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(iconColor.rawValue.capitalized)
+                    .accessibilityHint(selectedColor == iconColor ? "Selected" : "Double tap to select")
+                    .accessibilityAddTraits(selectedColor == iconColor ? [.isSelected] : [])
                 }
             }
         }
