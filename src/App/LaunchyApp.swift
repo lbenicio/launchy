@@ -63,18 +63,20 @@ import SwiftUI
             MenuBarService.shared.teardown()
         }
 
-        /// When the user clicks the dock icon while the app is already running
-        /// but the window is hidden, bring it back on screen.
+        /// When the user double-clicks the app bundle in Finder while it's already
+        /// running (and the window is hidden), bring the launcher back on screen.
         func applicationShouldHandleReopen(
             _ sender: NSApplication,
             hasVisibleWindows flag: Bool
-        )
-            -> Bool
-        {
-            if !flag {
-                showLauncherWindow()
-            }
+        ) -> Bool {
+            showLauncherWindow()
             return true
+        }
+
+        /// Called when the app is unhidden (e.g. re-opened from Finder while the
+        /// process is alive but `NSApp.hide(nil)` had been called on dismiss).
+        func applicationDidUnhide(_ notification: Notification) {
+            showLauncherWindow()
         }
 
         /// Dismisses the launcher when a click is detected outside the app window.
@@ -109,14 +111,10 @@ import SwiftUI
                     $0.identifier?.rawValue == "dev.lbenicio.launchy.main"
                 })
             else { return }
+            NSApp.unhide(nil)           // undo the app-level hide from dismissLauncher
             window.alphaValue = 1
             window.makeKeyAndOrderFront(nil)
             NSApp.activate()
-
-            // Restore presentation options for full-screen layout
-            // The WindowConfigurator will re-apply the correct options on the next
-            // view update cycle, but we set a reasonable default here so the dock
-            // and menubar hide immediately.
             AppCoordinator.shared.send(.launcherDidReappear)
         }
     }
