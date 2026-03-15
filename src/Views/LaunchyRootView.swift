@@ -98,6 +98,22 @@ struct LaunchyRootView: View {
                 break
             }
         }
+        #if os(macOS)
+            // Fallback reappear trigger: NSWindow.didBecomeKeyNotification is an AppKit-level
+            // notification fired AFTER makeKeyAndOrderFront completes and SwiftUI is rendering
+            // again.  This is more reliable than the AppCoordinator Combine path when the app
+            // was hidden (NSApp.hide) and SwiftUI hasn't processed a render pass yet.
+            .onReceive(
+                NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)
+                    .filter {
+                        ($0.object as? NSWindow)?.identifier?.rawValue
+                            == "dev.lbenicio.launchy.main"
+                    }
+            ) { _ in
+                guard !isPresented else { return }
+                reappearLauncher()
+            }
+        #endif
     }
 
     @ViewBuilder
