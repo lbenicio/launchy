@@ -519,15 +519,14 @@ struct LaunchyRootView: View {
                         window.animator().alphaValue = 0
                     } completionHandler: {
                         MainActor.assumeIsolated {
-                            // Do NOT call window.orderOut — that pauses SwiftUI's event pipeline
-                            // inside the window, breaking the launcherDidReappear → reappearLauncher
-                            // path when the app is re-opened.  NSApp.hide is enough to hide it from
-                            // the user; the window stays "in" so SwiftUI keeps its subscriptions alive.
-                            NSApp.hide(nil)
+                            // Signal AppDelegate to re-activate the previously frontmost app.
+                            // Do NOT call NSApp.hide / window.orderOut — either one suspends
+                            // SwiftUI's render loop, breaking the reappear path on next show.
+                            AppCoordinator.shared.send(.launcherDidDismiss)
                         }
                     }
                 } else {
-                    NSApp.hide(nil)
+                    AppCoordinator.shared.send(.launcherDidDismiss)
                 }
             }
         }

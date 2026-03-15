@@ -41,4 +41,6 @@ enum AppEvent: Sendable, Equatable {
     case menuBarToggleLauncher
     /// Import the Launchpad layout from the macOS Dock SQLite database.
     case importFromLaunchpad
+    /// The launcher window finished its close animation; the previous app should regain focus.
+    case launcherDidDismiss
 }

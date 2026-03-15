@@ -7,6 +7,8 @@ import SwiftUI
     final class AppDelegate: NSObject, NSApplicationDelegate, @unchecked Sendable {
         private var clickOutsideMonitor: Any?
         private var cancellables: Set<AnyCancellable> = []
+        /// The app that was frontmost before the launcher was shown; restored on dismiss.
+        private var previousApp: NSRunningApplication?
 
         func applicationDidFinishLaunching(_ notification: Notification) {
             let hotkeyService = GlobalHotkeyService.shared
@@ -39,6 +41,18 @@ import SwiftUI
                 .sink { [weak self] _ in
                     MainActor.assumeIsolated {
                         self?.toggleLauncher()
+                    }
+                }
+                .store(in: &cancellables)
+
+            // Re-activate the previous app when the launcher finishes its close animation.
+            AppCoordinator.shared.events
+                .filter { $0 == .launcherDidDismiss }
+                .receive(on: RunLoop.main)
+                .sink { [weak self] _ in
+                    MainActor.assumeIsolated {
+                        self?.previousApp?.activate()
+                        self?.previousApp = nil
                     }
                 }
                 .store(in: &cancellables)
@@ -111,7 +125,12 @@ import SwiftUI
                     $0.identifier?.rawValue == "dev.lbenicio.launchy.main"
                 })
             else { return }
-            NSApp.unhide(nil)           // undo the app-level hide from dismissLauncher
+            // Save whatever app is currently frontmost so we can restore it on dismiss.
+            if let front = NSWorkspace.shared.frontmostApplication,
+               front.bundleIdentifier != Bundle.main.bundleIdentifier
+            {
+                previousApp = front
+            }
             window.alphaValue = 1
             window.makeKeyAndOrderFront(nil)
             NSApp.activate()
