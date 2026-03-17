@@ -7,6 +7,20 @@ enum BackgroundMode: String, Codable, Sendable, CaseIterable {
     case gradient
 }
 
+enum InterfaceTheme: String, Codable, Sendable, CaseIterable {
+    case system
+    case light
+    case dark
+    
+    var displayName: String {
+        switch self {
+        case .system: return "System"
+        case .light: return "Light"
+        case .dark: return "Dark"
+        }
+    }
+}
+
 struct GridSettings: Codable, Equatable, Sendable {
     var columns: Int
     var rows: Int
@@ -27,6 +41,39 @@ struct GridSettings: Codable, Equatable, Sendable {
     var customSearchDirectories: [String]
     /// Virtual key code for the global hotkey. Default 118 = F4.
     var hotkeyKeyCode: Int
+    
+    // MARK: - New Customization Options
+    
+    /// Animation duration for page transitions
+    var pageTransitionDuration: Double
+    /// Animation duration for folder open/close
+    var folderAnimationDuration: Double
+    /// Whether to show app badges (notification counts)
+    var showAppBadges: Bool
+    /// Whether to show recently added apps with special indicator
+    var showRecentlyAddedIndicator: Bool
+    /// Whether to animate app launches
+    var animateAppLaunch: Bool
+    /// Whether to show search bar
+    var showSearchBar: Bool
+    /// Whether to enable Spotlight search integration
+    var enableSpotlightSearch: Bool
+    /// Whether to show Dashboard widgets
+    var showDashboardWidgets: Bool
+    /// Icon spacing between apps
+    var iconSpacing: Double
+    /// Font size for app names
+    var appNameFontSize: Double
+    /// Whether to show app names
+    var showAppNames: Bool
+    /// Theme for the interface
+    var theme: InterfaceTheme
+    /// Auto-hide delay for header controls in seconds
+    var headerControlsAutoHideDelay: Double
+    /// Whether to enable sound effects
+    var enableSoundEffects: Bool
+    /// Volume for sound effects (0.0 to 1.0)
+    var soundEffectsVolume: Double
 
     static let defaults = GridSettings(
         columns: 7,
@@ -46,7 +93,22 @@ struct GridSettings: Codable, Equatable, Sendable {
         blurIntensity: 0.14,
         iCloudSyncEnabled: false,
         customSearchDirectories: [],
-        hotkeyKeyCode: 118
+        hotkeyKeyCode: 118,
+        pageTransitionDuration: 0.3,
+        folderAnimationDuration: 0.25,
+        showAppBadges: true,
+        showRecentlyAddedIndicator: true,
+        animateAppLaunch: true,
+        showSearchBar: true,
+        enableSpotlightSearch: true,
+        showDashboardWidgets: false,
+        iconSpacing: 8.0,
+        appNameFontSize: 12.0,
+        showAppNames: true,
+        theme: .system,
+        headerControlsAutoHideDelay: 3.0,
+        enableSoundEffects: false,
+        soundEffectsVolume: 0.5
     )
 
     init(

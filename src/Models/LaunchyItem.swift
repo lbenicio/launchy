@@ -3,6 +3,7 @@ import Foundation
 enum LaunchyItem: Identifiable, Codable, Equatable, Hashable, Sendable {
     case app(AppIcon)
     case folder(LaunchyFolder)
+    case widget(DashboardWidget)
 
     var id: UUID {
         switch self {
@@ -10,6 +11,8 @@ enum LaunchyItem: Identifiable, Codable, Equatable, Hashable, Sendable {
             return icon.id
         case .folder(let folder):
             return folder.id
+        case .widget(let widget):
+            return widget.id
         }
     }
 
@@ -19,6 +22,8 @@ enum LaunchyItem: Identifiable, Codable, Equatable, Hashable, Sendable {
             return icon.name
         case .folder(let folder):
             return folder.name
+        case .widget(let widget):
+            return widget.name
         }
     }
 
@@ -32,11 +37,16 @@ enum LaunchyItem: Identifiable, Codable, Equatable, Hashable, Sendable {
         return nil
     }
 
+    var asWidget: DashboardWidget? {
+        if case .widget(let widget) = self { return widget }
+        return nil
+    }
+
     var isFolder: Bool {
         switch self {
         case .folder:
             return true
-        case .app:
+        case .app, .widget:
             return false
         }
     }
@@ -49,6 +59,7 @@ enum LaunchyItem: Identifiable, Codable, Equatable, Hashable, Sendable {
     private enum ItemType: String, Codable {
         case app
         case folder
+        case widget
     }
 
     init(from decoder: Decoder) throws {
@@ -61,6 +72,9 @@ enum LaunchyItem: Identifiable, Codable, Equatable, Hashable, Sendable {
         case .folder:
             let folder = try container.decode(LaunchyFolder.self, forKey: .payload)
             self = .folder(folder)
+        case .widget:
+            let widget = try container.decode(DashboardWidget.self, forKey: .payload)
+            self = .widget(widget)
         }
     }
 
@@ -73,6 +87,9 @@ enum LaunchyItem: Identifiable, Codable, Equatable, Hashable, Sendable {
         case .folder(let folder):
             try container.encode(ItemType.folder, forKey: .type)
             try container.encode(folder, forKey: .payload)
+        case .widget(let widget):
+            try container.encode(ItemType.widget, forKey: .type)
+            try container.encode(widget, forKey: .payload)
         }
     }
 }

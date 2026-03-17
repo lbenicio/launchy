@@ -28,7 +28,7 @@ import SwiftUI
 
         private func configureWindow(using hostView: NSView, coordinator: Coordinator) {
             guard let window = hostView.window,
-                let screen = Self.screenContainingCursor() ?? window.screen ?? NSScreen.main
+                let screen = Self.preferredScreen(useFullScreenLayout: useFullScreenLayout) ?? Self.screenContainingCursor() ?? window.screen ?? NSScreen.main
             else { return }
 
             coordinator.attach(to: window, useFullScreenLayout: useFullScreenLayout)
@@ -163,8 +163,69 @@ import SwiftUI
         /// matching real Launchpad's multi-display behavior.
         private static func screenContainingCursor() -> NSScreen? {
             let mouseLocation = NSEvent.mouseLocation
-            return NSScreen.screens.first { screen in
-                screen.frame.contains(mouseLocation)
+            
+            // First try to find the screen that contains the cursor
+            for screen in NSScreen.screens {
+                if screen.frame.contains(mouseLocation) {
+                    return screen
+                }
+            }
+            
+            // Fallback to main screen if cursor is outside all screens
+            return NSScreen.main
+        }
+        
+        /// Returns the screen where Launchpad should appear based on user preference or cursor location
+        private static func preferredScreen(useFullScreenLayout: Bool) -> NSScreen? {
+            if useFullScreenLayout {
+                // In fullscreen mode, always follow the cursor
+                return screenContainingCursor()
+            } else {
+                // In windowed mode, remember the last used screen or use the main screen
+                // This could be enhanced to store user preference
+                return NSScreen.main ?? screenContainingCursor()
+            }
+        }
+        
+        /// Gets the optimal frame for Launchpad on the given screen
+        private static func optimalFrame(for screen: NSScreen, useFullScreenLayout: Bool) -> NSRect {
+            if useFullScreenLayout {
+                return screen.frame
+            } else {
+                return screen.visibleFrame
+            }
+        }
+        
+        /// Handles screen configuration changes (disconnected/connected monitors)
+        private func handleScreenConfigurationChange() {
+            guard let window = NSApp.windows.first(where: {
+                $0.identifier?.rawValue == "dev.lbenicio.launchy.main"
+            }) else { return }
+            
+            // Get the current preferred screen
+            let preferredScreen = Self.preferredScreen(useFullScreenLayout: useFullScreenLayout)
+            
+            // If the current window is on a screen that no longer exists, move it
+            if let windowScreen = window.screen, !NSScreen.screens.contains(windowScreen) {
+                if let newScreen = preferredScreen {
+                    let newFrame = Self.optimalFrame(for: newScreen, useFullScreenLayout: useFullScreenLayout)
+                    
+                    if useFullScreenLayout {
+                        window.setFrame(newFrame, display: true, animate: false)
+                    } else {
+                        // Center the window on the new screen
+                        let windowSize = window.frame.size
+                        let screenCenter = NSPoint(
+                            x: newFrame.midX - windowSize.width / 2,
+                            y: newFrame.midY - windowSize.height / 2
+                        )
+                        let centeredFrame = NSRect(
+                            origin: screenCenter,
+                            size: windowSize
+                        )
+                        window.setFrame(centeredFrame, display: true, animate: true)
+                    }
+                }
             }
         }
 
