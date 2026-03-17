@@ -245,7 +245,7 @@ import SwiftUI
 
                 let multiplier = CGFloat(scrollSensitivity)
                 let baseThreshold: CGFloat = event.hasPreciseScrollingDeltas ? 40 : 4
-                let threshold = max(8, baseThreshold * multiplier)
+                let threshold = max(4, baseThreshold * multiplier)
                 scrollAccumulator += primaryDelta
 
                 if scrollAccumulator <= -threshold {

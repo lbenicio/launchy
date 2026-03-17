@@ -217,17 +217,18 @@ struct LaunchyRootView: View {
                     viewModel: viewModel,
                     anchorX: folderNotchAnchorX(edgePadding: edgePadding)
                 )
-                    .padding(.horizontal, edgePadding)
-                    .transition(
-                        .asymmetric(
-                            insertion: .scale(scale: 0.45).combined(with: .opacity),
-                            removal: .scale(scale: 0.45).combined(with: .opacity)
-                        )
+                .padding(.horizontal, edgePadding)
+                .transition(
+                    .asymmetric(
+                        insertion: .scale(scale: 0.45).combined(with: .opacity),
+                        removal: .scale(scale: 0.45).combined(with: .opacity)
                     )
-                    .zIndex(3)
+                )
+                .zIndex(3)
             }
 
             if isShowingSettings {
+                // Background overlay - closes settings when tapped
                 Color.black.opacity(0.5)
                     .ignoresSafeArea()
                     .transition(.opacity)
@@ -238,7 +239,8 @@ struct LaunchyRootView: View {
                         }
                     }
 
-                SettingsView(store: settingsStore)
+                // Settings modal - also closes on background tap within the padding area
+                SettingsView(store: settingsStore, isPresented: $isShowingSettings)
                     .frame(
                         maxWidth: 680,
                         maxHeight: 540
@@ -253,7 +255,6 @@ struct LaunchyRootView: View {
                     .padding(60)
                     .transition(.scale(scale: 0.92).combined(with: .opacity))
                     .zIndex(5)
-                    .onTapGesture {}
             }
         }
         .scaleEffect(isPresented ? 1.0 : 0.8)
@@ -535,11 +536,8 @@ struct LaunchyRootView: View {
     #endif
 
     private var header: some View {
-        ZStack {
-            // Centered search field
-            searchField
-
-            // Left-aligned editing controls, right-aligned buttons
+        HStack(spacing: 0) {
+            // Left side - editing controls
             HStack(spacing: 16) {
                 if viewModel.isEditing {
                     selectionSummary
@@ -548,7 +546,15 @@ struct LaunchyRootView: View {
                     }
                     newFolderButton
                 }
-                Spacer()
+            }
+            .frame(width: 200, alignment: .leading)
+
+            // Center - search field
+            searchField
+                .frame(maxWidth: .infinity)
+
+            // Right side - buttons
+            HStack(spacing: 16) {
                 wiggleToggle
                     .opacity(
                         showHeaderControls || viewModel.isEditing ? 1 : 0
@@ -558,6 +564,7 @@ struct LaunchyRootView: View {
                         showHeaderControls || viewModel.isEditing ? 1 : 0
                     )
             }
+            .frame(width: 200, alignment: .trailing)
             .animation(.easeInOut(duration: 0.3), value: showHeaderControls)
         }
         .onHover { isHovering in
@@ -599,7 +606,7 @@ struct LaunchyRootView: View {
 
     private var searchField: some View {
         LaunchySearchField(text: $searchText)
-            .frame(width: 240)
+            .frame(width: 320)
             .accessibilityLabel("Search apps")
             .accessibilityHint("Type to filter apps by name")
     }
@@ -849,7 +856,9 @@ struct LaunchyRootView: View {
                             .accessibilityHint(
                                 newFolderColor == iconColor ? "Selected" : "Double tap to select"
                             )
-                            .accessibilityAddTraits(newFolderColor == iconColor ? [.isSelected] : [])
+                            .accessibilityAddTraits(
+                                newFolderColor == iconColor ? [.isSelected] : []
+                            )
                         }
                     }
                 }

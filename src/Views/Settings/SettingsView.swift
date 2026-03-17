@@ -2,7 +2,13 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var store: GridSettingsStore
+    @Binding var isPresented: Bool
     @State private var isConfirmingReset: Bool = false
+
+    init(store: GridSettingsStore, isPresented: Binding<Bool>? = nil) {
+        self.store = store
+        self._isPresented = isPresented ?? .constant(true)
+    }
 
     private var columnsBinding: Binding<Int> {
         Binding(
@@ -119,12 +125,31 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Launchy Settings")
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
-                    Text("Fine-tune the grid density, folder layout, and interaction behaviour.")
+                HStack {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Launchy Settings")
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                        Text(
+                            "Fine-tune the grid density, folder layout, and interaction behaviour."
+                        )
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    // Close button
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.24)) {
+                            isPresented = false
+                        }
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 22))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .keyboardShortcut(.escape, modifiers: [])
                 }
 
                 settingsCard(title: "Launchy Grid", systemImage: "square.grid.3x3.fill") {
@@ -213,12 +238,12 @@ struct SettingsView: View {
 
                 settingsCard(title: "Interaction", systemImage: "cursorarrow.click") {
                     sliderRow(
-                        title: "Scroll Wheel Threshold",
-                        subtitle: "Higher values require more scrolling to change pages",
+                        title: "Scroll Sensitivity",
+                        subtitle: "Lower values = less scrolling needed to change pages",
                         value: store.settings.scrollSensitivity,
                         formattedValue: String(format: "%.2f×", store.settings.scrollSensitivity),
                         binding: scrollSensitivityBinding,
-                        range: 0.2...2.0,
+                        range: 0.05...1.0,
                         step: 0.05
                     )
 

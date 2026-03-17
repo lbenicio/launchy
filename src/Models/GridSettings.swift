@@ -81,7 +81,7 @@ struct GridSettings: Codable, Equatable, Sendable {
         folderColumns: 4,
         folderRows: 3,
         iconScale: 1.0,
-        scrollSensitivity: 1.0,
+        scrollSensitivity: 0.15,
         useFullScreenLayout: true,
         lastWindowedWidth: nil,
         lastWindowedHeight: nil,
@@ -226,6 +226,7 @@ struct GridSettings: Codable, Equatable, Sendable {
         hotkeyKeyCode =
             try container.decodeIfPresent(Int.self, forKey: .hotkeyKeyCode)
             ?? defaults.hotkeyKeyCode
+        scrollSensitivity = max(0.05, min(scrollSensitivity, 1.0))
 
         // New customization options
         pageTransitionDuration =
