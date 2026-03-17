@@ -145,6 +145,10 @@ extension LaunchyDataStore {
                     // Disband — matches Launchpad behaviour of auto-disbanding 1-app folders
                     results.append(.app(updatedApps[0]))
                 }
+
+            case .widget(let widget):
+                // Widgets don't need reconciliation as they're not actual apps
+                results.append(.widget(widget))
             }
         }
 

@@ -33,6 +33,8 @@ struct LaunchyItemView: View {
                 )
             case .folder(let folder):
                 FolderIconView(folder: folder, isEditing: isEditing, dimension: dimension)
+            case .widget(let widget):
+                WidgetIconView(widget: widget, isEditing: isEditing, dimension: dimension)
             }
 
             if isEditing {
@@ -51,6 +53,8 @@ struct LaunchyItemView: View {
                     } else {
                         onOpenFolder(item.id)
                     }
+                case .widget:
+                    onSelect(item.id)  // Widgets can be selected in edit mode
                 }
             } else {
                 switch item {
@@ -58,6 +62,8 @@ struct LaunchyItemView: View {
                     onOpenFolder(item.id)
                 case .app:
                     onLaunch(item)
+                case .widget:
+                    onLaunch(item)  // Launch the widget
                 }
             }
         }
@@ -68,6 +74,8 @@ struct LaunchyItemView: View {
                     onToggleEditing()
                 case .folder:
                     onOpenFolder(item.id)
+                case .widget:
+                    onToggleEditing()  // Allow editing widgets
                 }
             }
         }
@@ -78,6 +86,8 @@ struct LaunchyItemView: View {
                     selectionBadge
                 case .folder:
                     disbandFolderBadge
+                case .widget:
+                    selectionBadge  // Widgets can be selected
                 }
             }
         }
@@ -247,6 +257,8 @@ struct LaunchyItemView: View {
             return icon.name
         case .folder(let folder):
             return "\(folder.name) folder, \(folder.apps.count) apps"
+        case .widget(let widget):
+            return widget.name
         }
     }
 
@@ -259,6 +271,8 @@ struct LaunchyItemView: View {
                 return hasSelectedApps
                     ? "Double tap to add selected apps"
                     : "Double tap to open"
+            case .widget:
+                return "Double tap to select"
             }
         } else {
             switch item {
@@ -266,6 +280,8 @@ struct LaunchyItemView: View {
                 return "Double tap to open"
             case .folder:
                 return "Double tap to open folder"
+            case .widget:
+                return "Double tap to launch widget"
             }
         }
     }

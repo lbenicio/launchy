@@ -51,12 +51,15 @@ extension LaunchyViewModel {
             guard reconciled != items else { return }
 
             // Pre-warm icon cache for any new app bundle URLs before they render.
-            let oldURLs = Set(items.flatMap { item -> [URL] in
-                switch item {
-                case .app(let icon): return [icon.bundleURL]
-                case .folder(let folder): return folder.apps.map(\.bundleURL)
+            let oldURLs = Set(
+                items.flatMap { item -> [URL] in
+                    switch item {
+                    case .app(let icon): return [icon.bundleURL]
+                    case .folder(let folder): return folder.apps.map(\.bundleURL)
+                    case .widget(_): return []  // Widgets don't have bundle URLs
+                    }
                 }
-            })
+            )
             let newURLs = reconciled.compactMap { item -> URL? in
                 guard case .app(let icon) = item, !oldURLs.contains(icon.bundleURL) else {
                     return nil

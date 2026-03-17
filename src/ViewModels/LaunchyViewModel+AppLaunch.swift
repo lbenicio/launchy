@@ -22,7 +22,9 @@ extension LaunchyViewModel {
                 Task { @MainActor [weak self] in
                     guard let self else { return }
                     if let error {
-                        print("Launchy: Failed to launch \(icon.name): \(error.localizedDescription)")
+                        print(
+                            "Launchy: Failed to launch \(icon.name): \(error.localizedDescription)"
+                        )
                         self.isLaunchingApp = false
                         self.launchingItemID = nil
                         let alert = NSAlert()
@@ -79,6 +81,7 @@ extension LaunchyViewModel {
             switch item {
             case .app(let icon): return [icon.bundleIdentifier]
             case .folder(let folder): return folder.apps.map(\.bundleIdentifier)
+            case .widget(let widget): return [widget.bundleIdentifier]
             }
         }
     }

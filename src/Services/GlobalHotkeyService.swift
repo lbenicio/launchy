@@ -138,7 +138,7 @@ import os
 
         if pressedKey == state.keyCode {
             // Swallow the event and fire the toggle on the main thread
-            state.lock.withLockUnchecked {
+            state.lock.withLockUnchecked { _ in
                 let callback = state.onToggle
                 DispatchQueue.main.async {
                     callback?()

@@ -21,6 +21,7 @@ extension LaunchyViewModel {
                 switch item {
                 case .app(let icon): return [icon.bundleIdentifier]
                 case .folder(let folder): return folder.apps.map(\.bundleIdentifier)
+                case .widget(let widget): return [widget.bundleIdentifier]
                 }
             }
             guard !allBundleIDs.contains(bundleID) else { return false }

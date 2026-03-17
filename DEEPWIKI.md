@@ -93,6 +93,7 @@ Launchy is a **macOS Launchpad clone** that replicates and enhances the original
 ## 🧩 Core Components
 
 ### LaunchyApp.swift
+
 **Application entry point and lifecycle management**
 
 ```swift
@@ -112,6 +113,7 @@ struct LaunchyApp: App {
 ```
 
 **Key Responsibilities:**
+
 - Application lifecycle management
 - Global hotkey registration
 - Trackpad gesture handling
@@ -119,6 +121,7 @@ struct LaunchyApp: App {
 - Window configuration
 
 ### AppCoordinator.swift
+
 **Central event bus for app-wide communication**
 
 ```swift
@@ -136,6 +139,7 @@ class AppCoordinator: ObservableObject {
 ```
 
 **Key Features:**
+
 - Decoupled component communication
 - Type-safe event system
 - Reactive programming with Combine
@@ -145,6 +149,7 @@ class AppCoordinator: ObservableObject {
 ## 🔧 Services
 
 ### DataStore Service
+
 **Persistence and data management**
 
 ```swift
@@ -156,12 +161,14 @@ class LaunchyDataStore {
 ```
 
 **Features:**
+
 - JSON-based persistence
 - Async data loading
 - Automatic app reconciliation
 - iCloud sync support
 
 ### IconProvider Service
+
 **Application icon caching and management**
 
 ```swift
@@ -172,12 +179,14 @@ class ApplicationIconProvider {
 ```
 
 **Features:**
+
 - NSCache-based icon storage
 - Bundle change detection
 - Memory leak prevention
 - Automatic cache invalidation
 
 ### SpotlightSearchService
+
 **System-wide search integration**
 
 ```swift
@@ -188,12 +197,14 @@ class SpotlightSearchService {
 ```
 
 **Capabilities:**
+
 - NSMetadataQuery integration
 - File, document, and content search
 - Relevance scoring
 - Launch and reveal operations
 
 ### SearchIndex Service
+
 **Optimized search performance**
 
 ```swift
@@ -204,12 +215,14 @@ class SearchIndex {
 ```
 
 **Performance:**
+
 - O(1) lookup time
 - Token-based indexing
 - Bundle identifier matching
 - Fuzzy matching fallback
 
 ### AppExclusionService
+
 **App visibility management**
 
 ```swift
@@ -221,6 +234,7 @@ class AppExclusionService {
 ```
 
 **Features:**
+
 - Persistent exclusion lists
 - Default system app exclusions
 - Folder-aware filtering
@@ -231,6 +245,7 @@ class AppExclusionService {
 ## 📊 Models
 
 ### LaunchyItem
+
 **Core data model for grid items**
 
 ```swift
@@ -242,12 +257,14 @@ enum LaunchyItem: Identifiable, Codable {
 ```
 
 **Properties:**
+
 - Type-safe enum with associated values
 - Custom Codable implementation
 - Computed properties for convenience
 - Hashable and Equatable conformance
 
 ### AppIcon
+
 **Application representation**
 
 ```swift
@@ -260,6 +277,7 @@ struct AppIcon: Identifiable, Codable {
 ```
 
 ### LaunchyFolder
+
 **Folder container for apps**
 
 ```swift
@@ -272,6 +290,7 @@ struct LaunchyFolder: Identifiable, Codable {
 ```
 
 ### GridSettings
+
 **User preferences and configuration**
 
 ```swift
@@ -285,6 +304,7 @@ struct GridSettings: Codable {
 ```
 
 ### DashboardWidget
+
 **Dashboard widget support**
 
 ```swift
@@ -301,6 +321,7 @@ struct DashboardWidget: Identifiable, Codable {
 ## 🎨 Views
 
 ### LaunchyRootView
+
 **Main application view**
 
 ```swift
@@ -315,12 +336,14 @@ struct LaunchyRootView: View {
 ```
 
 **Features:**
+
 - Main grid rendering
 - Search bar integration
 - Settings overlay
 - Event handling
 
 ### LaunchyItemView
+
 **Individual item display**
 
 ```swift
@@ -335,12 +358,14 @@ struct LaunchyItemView: View {
 ```
 
 **Capabilities:**
+
 - Icon and name display
 - Editing mode controls
 - Drag and drop support
 - Context menus
 
 ### WindowConfigurator
+
 **Window management**
 
 ```swift
@@ -354,6 +379,7 @@ struct WindowConfigurator: NSViewRepresentable {
 ```
 
 **Features:**
+
 - Full-screen vs windowed mode
 - Multi-monitor handling
 - Window style configuration
@@ -364,6 +390,7 @@ struct WindowConfigurator: NSViewRepresentable {
 ## 🧠 ViewModels
 
 ### LaunchyViewModel
+
 **Main application state management**
 
 ```swift
@@ -384,12 +411,14 @@ class LaunchyViewModel: ObservableObject {
 ```
 
 **Responsibilities:**
+
 - State management
 - Search functionality
 - Pagination logic
 - Persistence coordination
 
 ### DragCoordinator
+
 **Drag and drop logic**
 
 ```swift
@@ -403,6 +432,7 @@ class DragCoordinator: ObservableObject {
 ```
 
 **Features:**
+
 - Drag state management
 - Item stacking logic
 - Folder springloading
@@ -413,6 +443,7 @@ class DragCoordinator: ObservableObject {
 ## ✨ Features
 
 ### Search System
+
 **Unified search across multiple sources**
 
 1. **App Search**: Fast indexed search of installed applications
@@ -427,6 +458,7 @@ let results = viewModel.getCombinedSearchResults(for "safari")
 ```
 
 ### Multi-Monitor Support
+
 **Perfect display handling**
 
 - **Cursor Following**: Launchpad appears on screen with cursor
@@ -435,6 +467,7 @@ let results = viewModel.getCombinedSearchResults(for "safari")
 - **Full-Screen Mode**: Covers entire display properly
 
 ### Dashboard Widgets
+
 **Classic widget functionality**
 
 ```swift
@@ -451,6 +484,7 @@ enum WidgetType: String, CaseIterable {
 - **Custom Icons**: SF Symbols for modern look
 
 ### App Exclusion
+
 **Hide unwanted applications**
 
 ```swift
@@ -465,12 +499,14 @@ let filtered = AppExclusionService.shared.filterExcludedItems(items)
 ```
 
 **Features:**
+
 - **Default Exclusions**: Common system apps pre-excluded
 - **Custom Exclusions**: User-defined app hiding
 - **Folder Awareness**: Automatically filters apps in folders
 - **Persistent Settings**: Exclusions remembered across sessions
 
 ### Customization Options
+
 **20+ user preferences**
 
 ```swift
@@ -509,6 +545,7 @@ struct GridSettings {
    - Swift 6.2 toolchain
 
 2. **Setup**
+
    ```bash
    git clone <repository>
    cd launchy
@@ -517,6 +554,7 @@ struct GridSettings {
    ```
 
 3. **Development**
+
    ```bash
    # Watch for changes
    swift run --watch
@@ -586,6 +624,7 @@ class LaunchyViewModelTests: XCTestCase {
 ### Core Services
 
 #### LaunchyViewModel
+
 ```swift
 // Initialization
 init(dataStore: LaunchyDataStore, settingsStore: GridSettingsStore)
@@ -604,6 +643,7 @@ func loadItems() async
 ```
 
 #### SpotlightSearchService
+
 ```swift
 // Search
 func search(_ query: String) async -> [SpotlightResult]
@@ -614,6 +654,7 @@ func revealInFinder(_ result: SpotlightResult)
 ```
 
 #### AppExclusionService
+
 ```swift
 // Exclusion Management
 func excludeApp(_ app: AppIcon)
@@ -628,6 +669,7 @@ func filterExcludedItems(_ items: [LaunchyItem]) -> [LaunchyItem]
 ### Data Models
 
 #### LaunchyItem
+
 ```swift
 enum LaunchyItem {
     case app(AppIcon)
@@ -643,6 +685,7 @@ enum LaunchyItem {
 ```
 
 #### GridSettings
+
 ```swift
 struct GridSettings: Codable {
     // Layout
@@ -670,29 +713,37 @@ struct GridSettings: Codable {
 ### Common Issues
 
 #### 1. Search Not Working
+
 **Problem**: Search returns no results
-**Solution**: 
+**Solution**:
+
 - Check search index is built: `viewModel.searchIndex.rebuild(from: items)`
 - Verify Spotlight permissions in System Preferences
 - Clear caches: `viewModel.invalidateCaches()`
 
 #### 2. Memory Leaks
+
 **Problem**: High memory usage over time
 **Solution**:
+
 - Check for retain cycles in closures
 - Ensure `@MainActor` isolation is correct
 - Use `weak self` in async operations
 
 #### 3. Multi-Monitor Issues
+
 **Problem**: Launchpad appears on wrong screen
 **Solution**:
+
 - Check `screenContainingCursor()` implementation
 - Verify screen configuration change handling
 - Reset window position in settings
 
 #### 4. Hotkey Not Working
+
 **Problem**: Global hotkey doesn't trigger
 **Solution**:
+
 - Check Accessibility permissions
 - Verify key code mapping
 - Restart GlobalHotkeyService
@@ -751,6 +802,7 @@ func printMemoryUsage() {
 ## 📝 Changelog
 
 ### Version 0.4.2 (Current)
+
 - ✅ Fixed memory leaks in ApplicationIconProvider
 - ✅ Added Spotlight search integration
 - ✅ Implemented Dashboard widget support
@@ -761,11 +813,13 @@ func printMemoryUsage() {
 - ✅ Implemented Launchpad preferences integration
 
 ### Version 0.4.1
+
 - 🐛 Fixed force unwrap crashes
 - 🔧 Improved error handling
 - 📱 Enhanced UI responsiveness
 
 ### Version 0.4.0
+
 - 🚀 Initial public release
 - 📱 Basic Launchpad functionality
 - 🎨 SwiftUI interface

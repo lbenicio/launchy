@@ -21,13 +21,19 @@ extension LaunchyViewModel {
             switch item {
             case .app(let app) where ids.contains(app.id):
                 moved.append(app)
+                items.remove(at: index)
                 if firstSelectedIndex == nil { firstSelectedIndex = index }
-            case .app:
+                break
+            case .folder(let folder) where ids.contains(folder.id):
+                moved.append(contentsOf: folder.apps)
+                items.remove(at: index)
+                break
+            case .widget(let widget) where ids.contains(widget.id):
+                // Widgets can be moved but don't have apps to extract
+                items.remove(at: index)
+                break
+            default:
                 remaining.append(item)
-            case .folder(let folder):
-                if !ids.contains(folder.id) {
-                    remaining.append(item)
-                }
             }
         }
 

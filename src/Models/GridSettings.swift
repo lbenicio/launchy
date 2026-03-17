@@ -11,7 +11,7 @@ enum InterfaceTheme: String, Codable, Sendable, CaseIterable {
     case system
     case light
     case dark
-    
+
     var displayName: String {
         switch self {
         case .system: return "System"
@@ -41,9 +41,9 @@ struct GridSettings: Codable, Equatable, Sendable {
     var customSearchDirectories: [String]
     /// Virtual key code for the global hotkey. Default 118 = F4.
     var hotkeyKeyCode: Int
-    
+
     // MARK: - New Customization Options
-    
+
     /// Animation duration for page transitions
     var pageTransitionDuration: Double
     /// Animation duration for folder open/close
@@ -105,7 +105,7 @@ struct GridSettings: Codable, Equatable, Sendable {
         iconSpacing: 8.0,
         appNameFontSize: 12.0,
         showAppNames: true,
-        theme: .system,
+        theme: InterfaceTheme.system,
         headerControlsAutoHideDelay: 3.0,
         enableSoundEffects: false,
         soundEffectsVolume: 0.5
@@ -129,7 +129,22 @@ struct GridSettings: Codable, Equatable, Sendable {
         blurIntensity: Double = 0.14,
         iCloudSyncEnabled: Bool = false,
         customSearchDirectories: [String] = [],
-        hotkeyKeyCode: Int = 118
+        hotkeyKeyCode: Int = 118,
+        pageTransitionDuration: Double = 0.3,
+        folderAnimationDuration: Double = 0.25,
+        showAppBadges: Bool = true,
+        showRecentlyAddedIndicator: Bool = true,
+        animateAppLaunch: Bool = true,
+        showSearchBar: Bool = true,
+        enableSpotlightSearch: Bool = true,
+        showDashboardWidgets: Bool = false,
+        iconSpacing: Double = 8.0,
+        appNameFontSize: Double = 12.0,
+        showAppNames: Bool = true,
+        theme: InterfaceTheme = .system,
+        headerControlsAutoHideDelay: Double = 3.0,
+        enableSoundEffects: Bool = false,
+        soundEffectsVolume: Double = 0.5
     ) {
         self.columns = columns
         self.rows = rows
@@ -149,6 +164,23 @@ struct GridSettings: Codable, Equatable, Sendable {
         self.iCloudSyncEnabled = iCloudSyncEnabled
         self.customSearchDirectories = customSearchDirectories
         self.hotkeyKeyCode = hotkeyKeyCode
+
+        // New customization options
+        self.pageTransitionDuration = pageTransitionDuration
+        self.folderAnimationDuration = folderAnimationDuration
+        self.showAppBadges = showAppBadges
+        self.showRecentlyAddedIndicator = showRecentlyAddedIndicator
+        self.animateAppLaunch = animateAppLaunch
+        self.showSearchBar = showSearchBar
+        self.enableSpotlightSearch = enableSpotlightSearch
+        self.showDashboardWidgets = showDashboardWidgets
+        self.iconSpacing = iconSpacing
+        self.appNameFontSize = appNameFontSize
+        self.showAppNames = showAppNames
+        self.theme = theme
+        self.headerControlsAutoHideDelay = headerControlsAutoHideDelay
+        self.enableSoundEffects = enableSoundEffects
+        self.soundEffectsVolume = soundEffectsVolume
     }
 
     init(from decoder: Decoder) throws {
@@ -194,6 +226,49 @@ struct GridSettings: Codable, Equatable, Sendable {
         hotkeyKeyCode =
             try container.decodeIfPresent(Int.self, forKey: .hotkeyKeyCode)
             ?? defaults.hotkeyKeyCode
+
+        // New customization options
+        pageTransitionDuration =
+            try container.decodeIfPresent(Double.self, forKey: .pageTransitionDuration)
+            ?? defaults.pageTransitionDuration
+        folderAnimationDuration =
+            try container.decodeIfPresent(Double.self, forKey: .folderAnimationDuration)
+            ?? defaults.folderAnimationDuration
+        showAppBadges =
+            try container.decodeIfPresent(Bool.self, forKey: .showAppBadges)
+            ?? defaults.showAppBadges
+        showRecentlyAddedIndicator =
+            try container.decodeIfPresent(Bool.self, forKey: .showRecentlyAddedIndicator)
+            ?? defaults.showRecentlyAddedIndicator
+        animateAppLaunch =
+            try container.decodeIfPresent(Bool.self, forKey: .animateAppLaunch)
+            ?? defaults.animateAppLaunch
+        showSearchBar =
+            try container.decodeIfPresent(Bool.self, forKey: .showSearchBar)
+            ?? defaults.showSearchBar
+        enableSpotlightSearch =
+            try container.decodeIfPresent(Bool.self, forKey: .enableSpotlightSearch)
+            ?? defaults.enableSpotlightSearch
+        showDashboardWidgets =
+            try container.decodeIfPresent(Bool.self, forKey: .showDashboardWidgets)
+            ?? defaults.showDashboardWidgets
+        iconSpacing =
+            try container.decodeIfPresent(Double.self, forKey: .iconSpacing) ?? defaults.iconSpacing
+        appNameFontSize =
+            try container.decodeIfPresent(Double.self, forKey: .appNameFontSize)
+            ?? defaults.appNameFontSize
+        showAppNames =
+            try container.decodeIfPresent(Bool.self, forKey: .showAppNames) ?? defaults.showAppNames
+        theme = try container.decodeIfPresent(InterfaceTheme.self, forKey: .theme) ?? defaults.theme
+        headerControlsAutoHideDelay =
+            try container.decodeIfPresent(Double.self, forKey: .headerControlsAutoHideDelay)
+            ?? defaults.headerControlsAutoHideDelay
+        enableSoundEffects =
+            try container.decodeIfPresent(Bool.self, forKey: .enableSoundEffects)
+            ?? defaults.enableSoundEffects
+        soundEffectsVolume =
+            try container.decodeIfPresent(Double.self, forKey: .soundEffectsVolume)
+            ?? defaults.soundEffectsVolume
     }
 
     func encode(to encoder: Encoder) throws {
@@ -219,6 +294,23 @@ struct GridSettings: Codable, Equatable, Sendable {
             forKey: .customSearchDirectories
         )
         try container.encode(hotkeyKeyCode, forKey: .hotkeyKeyCode)
+
+        // New customization options
+        try container.encode(pageTransitionDuration, forKey: .pageTransitionDuration)
+        try container.encode(folderAnimationDuration, forKey: .folderAnimationDuration)
+        try container.encode(showAppBadges, forKey: .showAppBadges)
+        try container.encode(showRecentlyAddedIndicator, forKey: .showRecentlyAddedIndicator)
+        try container.encode(animateAppLaunch, forKey: .animateAppLaunch)
+        try container.encode(showSearchBar, forKey: .showSearchBar)
+        try container.encode(enableSpotlightSearch, forKey: .enableSpotlightSearch)
+        try container.encode(showDashboardWidgets, forKey: .showDashboardWidgets)
+        try container.encode(iconSpacing, forKey: .iconSpacing)
+        try container.encode(appNameFontSize, forKey: .appNameFontSize)
+        try container.encode(showAppNames, forKey: .showAppNames)
+        try container.encode(theme, forKey: .theme)
+        try container.encode(headerControlsAutoHideDelay, forKey: .headerControlsAutoHideDelay)
+        try container.encode(enableSoundEffects, forKey: .enableSoundEffects)
+        try container.encode(soundEffectsVolume, forKey: .soundEffectsVolume)
     }
 
     var pageCapacity: Int {
@@ -249,5 +341,22 @@ struct GridSettings: Codable, Equatable, Sendable {
         case iCloudSyncEnabled
         case customSearchDirectories
         case hotkeyKeyCode
+
+        // New customization options
+        case pageTransitionDuration
+        case folderAnimationDuration
+        case showAppBadges
+        case showRecentlyAddedIndicator
+        case animateAppLaunch
+        case showSearchBar
+        case enableSpotlightSearch
+        case showDashboardWidgets
+        case iconSpacing
+        case appNameFontSize
+        case showAppNames
+        case theme
+        case headerControlsAutoHideDelay
+        case enableSoundEffects
+        case soundEffectsVolume
     }
 }

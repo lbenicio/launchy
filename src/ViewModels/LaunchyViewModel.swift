@@ -10,7 +10,7 @@ import UniformTypeIdentifiers
 @MainActor
 final class LaunchyViewModel: ObservableObject {
     @Published var items: [LaunchyItem] {
-        didSet { 
+        didSet {
             invalidateCaches()
             searchIndex.rebuild(from: items)
         }
@@ -34,7 +34,7 @@ final class LaunchyViewModel: ObservableObject {
 
     let dataStore: LaunchyDataStore
     let settingsStore: GridSettingsStore
-    private let spotlightService = SpotlightSearchService.shared
+    let spotlightService = SpotlightSearchService.shared
     private let searchIndex = SearchIndex()
 
     private(set) var dragCoordinator: DragCoordinator!
@@ -104,7 +104,7 @@ final class LaunchyViewModel: ObservableObject {
 
         // Use the optimized search index for fast results
         let searchResults = searchIndex.search(query: normalized)
-        
+
         // Add fuzzy matching as fallback for better user experience
         var fuzzyResults: [LaunchyItem] = []
         for item in items {
@@ -117,13 +117,17 @@ final class LaunchyViewModel: ObservableObject {
                 if let folderScore = folder.name.fuzzyMatch(normalized), folderScore > 0.3 {
                     fuzzyResults.append(item)
                 }
+            case .widget(let widget):
+                if let widgetScore = widget.name.fuzzyMatch(normalized), widgetScore > 0.3 {
+                    fuzzyResults.append(item)
+                }
             }
         }
-        
+
         // Combine and deduplicate results, preferring indexed results
         var combinedResults: [LaunchyItem] = []
         var seenIDs: Set<UUID> = []
-        
+
         // Add indexed results first
         for result in searchResults {
             if !seenIDs.contains(result.id) {
@@ -131,7 +135,7 @@ final class LaunchyViewModel: ObservableObject {
                 seenIDs.insert(result.id)
             }
         }
-        
+
         // Add fuzzy results that weren't already included
         for result in fuzzyResults {
             if !seenIDs.contains(result.id) {
@@ -205,6 +209,7 @@ final class LaunchyViewModel: ObservableObject {
                     switch item {
                     case .app(let icon): return [icon.bundleURL]
                     case .folder(let folder): return folder.apps.map(\.bundleURL)
+                    case .widget(_): return []  // Widgets don't have bundle URLs
                     }
                 }
                 ApplicationIconProvider.shared.preWarmCache(for: appURLs)
