@@ -51,8 +51,12 @@ import SwiftUI
                 .receive(on: RunLoop.main)
                 .sink { [weak self] _ in
                     MainActor.assumeIsolated {
+                        // Re-activate the previous app when the launcher finishes its close animation.
                         self?.previousApp?.activate()
                         self?.previousApp = nil
+
+                        // Show the app in Dock again when launcher is dismissed (like real Launchpad)
+                        NSApp.unhide(nil)
                     }
                 }
                 .store(in: &cancellables)
@@ -77,14 +81,27 @@ import SwiftUI
             MenuBarService.shared.teardown()
         }
 
-        /// When the user double-clicks the app bundle in Finder while it's already
         /// running (and the window is hidden), bring the launcher back on screen.
         func applicationShouldHandleReopen(
             _ sender: NSApplication,
             hasVisibleWindows flag: Bool
         ) -> Bool {
-            showLauncherWindow()
+            NSApp.activate(ignoringOtherApps: true)
+            AppCoordinator.shared.send(.launcherDidReappear)
             return true
+        }
+
+        /// Alternative method for accessory apps - called when app is reopened
+        func applicationOpenUntitledFile(_ sender: NSApplication) -> Bool {
+            NSApp.activate(ignoringOtherApps: true)
+            AppCoordinator.shared.send(.launcherDidReappear)
+            return true
+        }
+
+        /// Handle open URLs - this can be triggered when re-opening the app
+        func application(_ application: NSApplication, open urls: [URL]) {
+            NSApp.activate(ignoringOtherApps: true)
+            AppCoordinator.shared.send(.launcherDidReappear)
         }
 
         /// Called when the app is unhidden (e.g. re-opened from Finder while the
@@ -125,15 +142,45 @@ import SwiftUI
                     $0.identifier?.rawValue == "dev.lbenicio.launchy.main"
                 })
             else { return }
+
             // Save whatever app is currently frontmost so we can restore it on dismiss.
             if let front = NSWorkspace.shared.frontmostApplication,
-               front.bundleIdentifier != Bundle.main.bundleIdentifier
+                front.bundleIdentifier != Bundle.main.bundleIdentifier
             {
                 previousApp = front
             }
+
+            // Ensure app is hidden from Dock when launcher is shown (like real Launchpad)
+            NSApp.hide(nil)
+
             window.alphaValue = 1
             window.makeKeyAndOrderFront(nil)
-            NSApp.activate()
+            NSApp.activate(ignoringOtherApps: true)
+
+            AppCoordinator.shared.send(.launcherDidReappear)
+        }
+
+        /// Shows the launcher window without hiding the app - used for re-open scenarios
+        @MainActor private func showLauncherWindowForReopen() {
+            guard
+                let window = NSApp.windows.first(where: {
+                    $0.identifier?.rawValue == "dev.lbenicio.launchy.main"
+                })
+            else { return }
+
+            // Save whatever app is currently frontmost so we can restore it on dismiss.
+            if let front = NSWorkspace.shared.frontmostApplication,
+                front.bundleIdentifier != Bundle.main.bundleIdentifier
+            {
+                previousApp = front
+            }
+
+            // For re-open: don't hide the app, just show the window
+            // The app will be restored to .accessory later
+            window.alphaValue = 1
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+
             AppCoordinator.shared.send(.launcherDidReappear)
         }
     }
@@ -160,8 +207,6 @@ struct LaunchyApp: App {
             Task { @MainActor in
                 // Run as an accessory (UI agent): no Dock icon, no Cmd+Tab entry —
                 // identical to real Launchpad which is invisible in the Dock while running.
-                // LSUIElement=true in the plist sets this before launch to avoid any flicker;
-                // this call just makes the intent explicit at runtime.
                 NSApp.setActivationPolicy(.accessory)
             }
         #endif
