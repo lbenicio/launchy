@@ -159,7 +159,7 @@ extension ApplicationIconProvider: NSCacheDelegate {
     ) {
         guard let entry = object as? IconCacheEntry else { return }
         let key = entry.key
-        MainActor.assumeIsolated { [weak self] in
+        _ = MainActor.assumeIsolated { [weak self] in
             self?.cachedMtimes.removeValue(forKey: key)
         }
     }

@@ -145,8 +145,9 @@ final class LaunchpadPreferencesService: ObservableObject {
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
-                // Handle system preference changes
-                self?.handleSystemPreferenceChange()
+                Task { @MainActor [weak self] in
+                    self?.handleSystemPreferenceChange()
+                }
             }
         #endif
     }

@@ -1,6 +1,7 @@
 import CoreServices
 import CoreSpotlight
 import Foundation
+import UniformTypeIdentifiers
 
 #if os(macOS)
     import AppKit
@@ -35,8 +36,10 @@ final class SpotlightSearchService: ObservableObject {
 
         let results = await withCheckedContinuation { continuation in
             searchQueue.async {
-                let results = self.performSpotlightSearch(query: query)
-                continuation.resume(returning: results)
+                let searchResults = MainActor.assumeIsolated { [weak self] in
+                    self?.performSpotlightSearch(query: query) ?? []
+                }
+                continuation.resume(returning: searchResults)
             }
         }
 
@@ -68,7 +71,7 @@ final class SpotlightSearchService: ObservableObject {
         // Determine the type of result
         var resultType: SpotlightResult.SpotlightResultType = .file
 
-        if contentType == kUTTypeFolder as String {
+        if contentType == UTType.folder.identifier {
             resultType = .folder
         } else if contentType.contains("application") {
             resultType = .application
