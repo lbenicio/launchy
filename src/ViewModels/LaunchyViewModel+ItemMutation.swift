@@ -17,24 +17,29 @@ extension LaunchyViewModel {
         var remaining: [LaunchyItem] = []
         var firstSelectedIndex: Int? = nil
 
+        // Collect indices to remove first to avoid index shifting issues
+        var indicesToRemove: [Int] = []
+
         for (index, item) in items.enumerated() {
             switch item {
             case .app(let app) where ids.contains(app.id):
                 moved.append(app)
-                items.remove(at: index)
+                indicesToRemove.append(index)
                 if firstSelectedIndex == nil { firstSelectedIndex = index }
-                break
             case .folder(let folder) where ids.contains(folder.id):
                 moved.append(contentsOf: folder.apps)
-                items.remove(at: index)
-                break
+                indicesToRemove.append(index)
             case .widget(let widget) where ids.contains(widget.id):
                 // Widgets can be moved but don't have apps to extract
-                items.remove(at: index)
-                break
+                indicesToRemove.append(index)
             default:
                 remaining.append(item)
             }
+        }
+
+        // Remove items in reverse order to maintain correct indices
+        for index in indicesToRemove.sorted(by: >) {
+            items.remove(at: index)
         }
 
         guard moved.count >= 2 else { return nil }

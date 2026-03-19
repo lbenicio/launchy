@@ -4,9 +4,11 @@ All notable changes to this repository will be documented in this file.
 
 The format is based on "Keep a Changelog" and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.5.0] - 2026-03-19
 
 ### Fixed
+
+- **Folder creation crash:** Fixed array index out-of-bounds error in `createFolder` method by collecting indices to remove first, then removing them in reverse order to prevent index shifting issues during folder creation from selected apps.
 
 - **`resetToDefaultLayout` notification not subscribed to:** Added `.onReceive` handler in `LaunchyRootView` for `Notification.Name.resetToDefaultLayout`, so the Settings → Reset Layout button now correctly calls `viewModel.resetToDefaultLayout()`.
 - **`TrackpadGestureService` not wired up:** Started `TrackpadGestureService.shared` in `AppDelegate.applicationDidFinishLaunching` with `onPinchIn` calling `toggleLauncher()`, and added `.stop()` in `applicationWillTerminate`. Four-finger pinch-in gestures now toggle the launcher as expected.
