@@ -11,7 +11,7 @@ Welcome to Launchy! We appreciate your interest in contributing to this macOS La
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/launchy.git
+git clone https://github.com/lbenicio/launchy.git
 cd launchy
 
 # Build the project
@@ -90,7 +90,7 @@ This project follows the guidelines described in [`CODE_OF_CONDUCT.md`](CODE_OF_
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/launchy.git
+git clone https://github.com/lbenicio/launchy.git
 cd launchy
 
 # Build

@@ -1,6 +1,13 @@
 # Launchy
 
+![GitHub License](https://img.shields.io/github/license/lbenicio/launchy)
+![GitHub Release](https://img.shields.io/github/v/release/lbenicio/launchy)
+[![Release](https://github.com/lbenicio/launchy/actions/workflows/release.yml/badge.svg)](https://github.com/lbenicio/launchy/actions/workflows/release.yml)
+
+
 Launchy is a macOS SwiftUI application that recreates the familiar Launchpad experience with enhanced customization. It lets you browse, search, and organize installed apps into pages and folders with smooth paging, wiggle mode editing, and persistent layout storage.
+
+![Launchy main screen](docs/images/main-screen.png)
 
 ## Features
 
@@ -64,7 +71,7 @@ graph LR
 Clone the repository and build:
 
 ```bash
-git clone https://github.com/your-username/launchy.git
+git clone https://github.com/lbenicio/launchy.git
 cd launchy
 
 # Build and run in debug mode
