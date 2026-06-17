@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>CFBundleInfoDictionaryVersion</key>
+        <string>6.0</string>
+        <key>CFBundleName</key>
+        <string>{{APP_NAME}}</string>
+        <key>CFBundleExecutable</key>
+        <string>{{APP_NAME}}</string>
+        <key>CFBundleIdentifier</key>
+        <string>com.launchy.app</string>
+        <key>CFBundleIconFile</key>
+        <string>launchy</string>
+        <key>CFBundlePackageType</key>
+        <string>APPL</string>
+        <key>CFBundleSignature</key>
+        <string>????</string>
+        <key>CFBundleVersion</key>
+        <string>{{VERSION}}</string>
+        <key>CFBundleShortVersionString</key>
+        <string>{{VERSION}}</string>
+        <key>LSMinimumSystemVersion</key>
+        <string>14.0</string>
+        <key>NSPrincipalClass</key>
+        <string>NSApplication</string>
+        <key>NSHighResolutionCapable</key>
+        <true />
+        <key>LSApplicationCategoryType</key>
+        <string>public.app-category.utilities</string>
+        <key>ITSAppUsesNonExemptEncryption</key>
+        <false />
+        <key>NSAccessibilityUsageDescription</key>
+        <string>Launchy needs Accessibility access to register the global F4 hotkey and detect trackpad pinch gestures for launching the app overlay.</string>
+        <key>LSUIElement</key>
+        <true />
+    </dict>
+</plist>
