@@ -1,5 +1,7 @@
 # Launchy
 
+<img src="docs/images/app-icon.png" width="32" height="32" />
+
 ![GitHub License](https://img.shields.io/github/license/lbenicio/launchy)
 ![GitHub Release](https://img.shields.io/github/v/release/lbenicio/launchy)
 [![Release](https://github.com/lbenicio/launchy/actions/workflows/release.yml/badge.svg)](https://github.com/lbenicio/launchy/actions/workflows/release.yml)
