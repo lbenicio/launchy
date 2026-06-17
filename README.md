@@ -1,6 +1,6 @@
 # Launchy
 
-<img src="docs/images/app-icon.png" width="32" height="32" />
+<img src="docs/images/app-icon.png" width="64" height="64" />
 
 ![GitHub License](https://img.shields.io/github/license/lbenicio/launchy)
 ![GitHub Release](https://img.shields.io/github/v/release/lbenicio/launchy)
