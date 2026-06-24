@@ -12,7 +12,7 @@ jobs:
         name: Build, bundle, and release
         steps:
             - name: Checkout code
-              uses: actions/checkout@v6
+              uses: actions/checkout@v7
 
             - name: Install Swift 6.2 toolchain
               shell: bash
